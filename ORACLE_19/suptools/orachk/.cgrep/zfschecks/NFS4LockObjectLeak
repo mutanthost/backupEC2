@@ -1,0 +1,58 @@
+printf("==========START_OF_REPORT_chkNFS4LockObjectLeak.aksh==========\n");
+//
+//
+// Check if NFSv4 Lock Object leaks, i.e. if it goes over the threshold(500000) 
+//
+
+// ----------------------------------------------------------------------------
+// VARS
+
+	var founderrors = false; // Track error findings
+	var auditcheck = 0;
+	var report = 1;
+        var runonetime = 1;
+
+// ----------------------------------------------------------------------------
+// MAIN STARTS HERE	
+if(runonetime==1)
+{
+getHostname();
+
+var threshold=500000;
+var report_output = "# echo ::rfs4_db | mdb -k |grep Lock\n";
+// Grep the lock
+try { 
+	lock_info=run('confirm shell echo ::rfs4_db | mdb -k |grep Lock').split('\n');
+    for (var i = 0; i < lock_info.length-1 ; i++){
+		report_output=report_output + lock_info[i] + "\n";
+		if ( lock_info[i].split(/[ ]+/)[3] > threshold ){
+			founderrors = true;
+        }
+	}
+} catch(err) { 
+	// do nothing
+}
+runonetime=0;
+}
+// Report Command
+
+if ( report == 1 ) {
+    if ( founderrors == false ) {
+        printf("OK: %s NFSv4 Lock Object Leak Check Completed: NVSv4 Lock Object is not leaking.\n",host_name);
+    }
+    else {
+	    printf("WARNING: %s NFSv4 Lock Object Leak Check Completed: NVSv4 Lock Object is leaking.\n",host_name);
+    }
+    printf("%s",report_output);
+}
+
+//END
+printf("==========END_OF_REPORT_chkNFS4LockObjectLeak.aksh==========\n");
+printf("==========START_OF_AUDIT_CHECK_chkNFS4LockObjectLeak.aksh==========\n");
+if ( founderrors == false ) {
+        printf("nfsv4_lock_object_leak_check_status = 0\n");
+}
+else {
+        printf("nfsv4_lock_object_leak_check_status = 1\n");
+}
+printf("==========END_OF_AUDIT_CHECK_chkNFS4LockObjectLeak.aksh==========\n");

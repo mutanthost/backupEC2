@@ -1,0 +1,30 @@
+<?xml version="1.0"?>
+
+<!--  $Header: tfa/src/v2/tfa_home/resources/tfactldbutlresources.xml /main/4 2018/08/20 12:45:48 manuegar Exp $ -->
+
+<!-- 
+ Copyright (c) 2018, Oracle and/or its affiliates. All rights reserved.
+
+   NAME
+     tfactldbutlresources.xml - TFA DDU resources catalog.
+
+   DESCRIPTION
+     TFA DDU resources catalog.
+
+   NOTES
+     <other useful comments, qualifications, etc.>
+
+   MODIFIED   (MM/DD/YY)
+   manuegar    08/05/18 - XbranchMerge manuegar_dbutils16 from main
+   manuegar    07/20/18 - manuegar_dbutils16.
+   recornej    03/16/18 - Include keyname.
+   recornej    03/14/18 - Creation
+
+-->
+<resources>
+  <resource categoryid="availability" commandid="server_disk"     keyname="filesystem"/>
+  <resource categoryid="availability" commandid="server_network"  keyname="interface"/>
+  <resource categoryid="availability" commandid="db_instance"     keyname="db_unique_name"/>
+  <resource categoryid="availability" commandid="mgmtdb_instance" keyname="db_unique_name"/>
+  <resource categoryid="availability" commandid="asm_instance"    keyname="oracle_sid"/>
+</resources>

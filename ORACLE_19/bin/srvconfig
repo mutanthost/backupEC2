@@ -1,0 +1,146 @@
+#!/bin/sh
+#
+# $Header: opsm/utl/srvconfig.sbs /unix/13 2010/06/09 10:06:19 yizhang Exp $
+#
+# srvconfig
+#
+# Copyright (c) 2000, 2010, Oracle and/or its affiliates. All rights reserved. 
+#
+#    NAME 
+#      srvconfig - Server Configuration Management Tool
+#      
+#    DESCRIPTION
+#      srvconfig - Used to initialize Server Configuration Storage
+#                  and also provides export/import/convert functionality.
+#
+#
+#    MODIFIED   (MM/DD/YY)
+#    yizhang    03/08/10 - fix bug 9438733
+#    ccharits   05/08/09 - Fixed bug 8267195
+#    rxkumar    06/16/08 - fix bug7172261
+#    nvira      02/27/07 - review comments
+#    nvira      02/26/07 - fix bug 5551473
+#    rxkumar    05/08/06 - fix bug5211942 
+#    rxkumar    02/25/05 - add srvconfig.tracefile property 
+#    khsingh    10/07/04 - remove srvm.policy (3937527)
+#    khsingh    09/27/04 - fix for PLE (3914991) 
+#    jcreight   10/27/03 - Fix double equals 
+#    bhamadan   09/18/03 - replacing s_jre131Location with s_jreLocation 
+#    jtellez    06/10/03 - add srvm_trace
+#    rdasari    06/02/03 - set LD_LIBRARY_PATH appropriately for 32 and 64 bit solaris platforms
+#    jtellez    11/20/02 - remove debug
+#    jtellez    11/15/02 - fix jreclasses
+#    jtellez    11/13/02 - fix classpath
+#    jtellez    10/04/02 - make policy ==
+#    rdasari    09/13/02 - remove NETCFGJAR from classpath
+#    surchatt   09/06/02 - putting policy file location
+#    rdasari    09/12/02 - include SRVMHASJAR in CLASSPATH
+#    rdasari    08/07/02 - use java instead of jre
+#    rdasari    08/01/02 - use jdk131
+#    jtellez    07/26/02 - add srvmhas.jar to classpath
+#    rdasari    05/09/01 - changing the header information
+#    rdasari    03/22/01 - changing opsm to srvm.
+#    dliu       02/26/01 - fix bug #1656127: SHLIB_PATH change.
+#    jcreight   11/08/00 - Add rt.jar
+#    rdasari    10/27/00 - Making corrections
+#    rxkumar    08/25/00 - Configuration management script
+#    rxkumar    08/25/00 - Creation
+#
+
+#!/bin/sh
+case $ORACLE_HOME in
+    "") echo "****ORACLE_HOME environment variable is not set."
+        echo "    ORACLE_HOME should be set to the main"
+        echo "    directory that contains installed Oracle products."
+        echo "    Please set and export ORACLE_HOME before"
+        echo "    running this script."
+        exit 1;;
+esac
+
+# Properties to pass directly to java
+if [ "X$SRVM_PROPERTY_DEFS" = "X" ]
+then 
+  SRVM_PROPERTY_DEFS=""
+fi
+
+# Check for tracing
+if [ "X$SRVM_TRACE" != "X" ]
+then
+    SRVM_PROPERTY_DEFS="$SRVM_PROPERTY_DEFS -DTRACING.ENABLED=true -DTRACING.LEVEL=2"
+fi
+
+if [ "X$SRVM_SRVCONFIG_TRACEFILE" != "X" ]
+then
+    SRVM_PROPERTY_DEFS="$SRVM_PROPERTY_DEFS -Dsrvm.srvconfig.tracefile=$SRVM_SRVCONFIG_TRACEFILE"
+fi
+
+# JRE executable and classpath variables
+JREDIR=$ORACLE_HOME/jdk
+JLIBDIR=$ORACLE_HOME/jlib
+JRE=$JREDIR/bin/java
+
+# SRVM-HAS jar file
+SRVMHASJAR=$JLIBDIR/srvmhas.jar
+
+# SRVM jar file
+SRVMJAR=$JLIBDIR/srvm.jar
+
+# SRVM-OCR jar file
+OCRJ=$ORACLE_HOME/srvm/jlib/ocrj.jar
+
+# Set classpath 
+CLASSPATH=$SRVMJAR:$SRVMHASJAR:$OCRJ
+
+#Used for specifying platform specific Java options
+JRE_OPTIONS=""
+
+# Set the shared library path for JNI shared libraries
+# HP-UX & HI-UX platforms use SHLIB_PATH instead of LD_LIBRARY_PATH
+PLATFORM=`uname`
+case $PLATFORM in 
+HP-UX) SHLIB_PATH=$ORACLE_HOME/lib:$ORACLE_HOME/srvm/lib:$SHLIB_PATH
+       export SHLIB_PATH
+       LD_LIBRARY_PATH=$ORACLE_HOME/lib:ORACLE_HOME/srvm/lib:$LD_LIBRARY_PATH
+       export LD_LIBRARY_PATH
+       JRE_OPTIONS="-d64"
+       ;;
+AIX) LIBPATH=$ORACLE_HOME/lib:$ORACLE_HOME/srvm/lib:$LIBPATH
+     export LIBPATH
+     JRE_OPTIONS="-d64"
+     ;;
+Linux) HARDWARE=`/bin/uname -i`
+       case $HARDWARE in
+       x86_64)
+         LD_LIBRARY_PATH=$ORACLE_HOME/lib:$ORACLE_HOME/srvm/lib:$LD_LIBRARY_PATH
+       ;;
+       *)
+         LD_LIBRARY_PATH=$ORACLE_HOME/lib:$ORACLE_HOME/srvm/lib:$LD_LIBRARY_PATH
+       ;;
+       esac
+	   export LD_LIBRARY_PATH
+       ;;
+SunOS)
+     LD_LIBRARY_PATH_64=$ORACLE_HOME/lib:$ORACLE_HOME/srvm/lib:$LD_LIBRARY_PATH_64
+     export LD_LIBRARY_PATH_64
+     LD_LIBRARY_PATH=$ORACLE_HOME/lib:$ORACLE_HOME/srvm/lib:$LD_LIBRARY_PATH
+     export LD_LIBRARY_PATH
+     JRE_OPTIONS="-d64"
+     ;;
+OSF1) LD_LIBRARY_PATH=$ORACLE_HOME/lib:$ORACLE_HOME/srvm/lib:$LD_LIBRARY_PATH
+      export LD_LIBRARY_PATH
+      ;;
+*)    if [ -d $ORACLE_HOME/lib32 ];
+      then
+        LD_LIBRARY_PATH=$ORACLE_HOME/lib32:$ORACLE_HOME/srvm/lib32:$LD_LIBRARY_PATH
+      else
+        LD_LIBRARY_PATH=$ORACLE_HOME/lib:$ORACLE_HOME/srvm/lib:$LD_LIBRARY_PATH
+      fi
+      export LD_LIBRARY_PATH
+      ;;
+esac
+
+# Run the srvconfig
+$JRE $JRE_OPTIONS $SRVM_PROPERTY_DEFS -DORACLE_HOME=$ORACLE_HOME -classpath $CLASSPATH oracle.ops.mgmt.rawdevice.RawDeviceUtil $*
+exit $status
+
+

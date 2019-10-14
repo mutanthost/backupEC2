@@ -1,0 +1,35 @@
+18D08B709F864D87E0530E98EB0AED4E|Database roles with the DBA role
+191B8D573748B2EFE0530C98EB0AB1CD|Database users with the DBA role
+1A4DA91DAF2C0D10E0530B98EB0ADA1A|Use of Virtual Private Database
+1A4DAC4D881CC05EE0530B98EB0A378E|Users with default passwords
+1A4DB105AC7712BDE0530E98EB0AB6F6|Use of Transparent Data Encryption
+1A4DE1D383B1445AE0530C98EB0A0998|Users with EXECUTE privileges on sensitive packages
+1D3864357F302549E0530B98EB0A08E6|Validate root password on Database server
+1D3B8EE402174B40E0530E98EB0A581C|Validate database user sys password
+1D3C27C04B8F6A2DE0530B98EB0AC904|Validate RDBMS software owner password on Database server
+1D3CB7F086616456E0530B98EB0A1445|Validate Grid Infrastructure owner password on Database server
+1D47EC02B6F14C68E0530E98EB0AE909|Validate celladmin password on Storage Serve
+1D4909A83B5EE77AE0530C98EB0A3446|cbc_validate_celladmin_password
+1D49EE001E5083F8E0530B98EB0AE1E1|Validate root password on Storage Serve
+1D4A9D23EC30C303E0530C98EB0A2EA0|cbc_validate_password
+1E14D7CE99C29FD7E0530B98EB0A6D4F|Validate ilom-admin password on all InfiniBand switches 
+1E15B0DD0F3AA6BFE0530B98EB0AB6C8|Validate nm2user password on all InfiniBand switches 
+1E15EC36A1166DC7E0530D98EB0A62F2|Validate root  password on all InfiniBand switches 
+1E168438439DAB15E0530D98EB0A7A97|Validate ilom-operator password on all InfiniBand switches 
+1E178E28D68EEE09E0530C98EB0A335F|Validate dbmmonitor password on Database server
+1E18C2890BF83FB3E0530B98EB0A3431|security_profile_ed_version
+1E18C2CBAA346D4BE0530B98EB0ACDD2|Validate dbmadmin password on Database server
+1E18CE6B578E26A3E0530D98EB0AF5B1|Exadata version on database server for security profile
+1E2192EE69DAD501E0530B98EB0A99CC|cbc_validate_ilomadmin_password
+1E2192EE69DBD501E0530B98EB0A99CC|Validate root password on Database Serve ILOM
+1E2500128EA5AC16E0530A98EB0AE603|validate_ilom_root_password
+1E26A706582BF5D2E0530B98EB0AA9A4|validate_ilomadmin_password
+1E2729024420D921E0530E98EB0AA4C3|Validate ilom-admin password on Database Serve ILOM
+1E284FC55CABAAEEE0530A98EB0A6896|cbc_validate_ilom_root_password
+1E2A8CA96AF6C8CAE0530B98EB0A3FE2|Validate  root password on Storage Serve ILOM
+1E2AA797C3175ED0E0530D98EB0A0E7C|Validate ilom-admin password on Storage Serve ILOM
+1E2E239999799C48E0530E98EB0AFE60|Is there separate user for RDBMS and GRID_HOME?
+21B2BB62CFDF8676E0530C98EB0A9037|Validate cellmonitor password on Storage Serve
+21B57D4065DDEA3DE0530D98EB0A8205|cbc_validate_cellmonitor_password
+39128FBB540C098AE0530D98EB0AFB1A|Validate Oracle database security configuration
+9AD8AF3966FB3027E040E50A1EC0308F|infiniband_switches

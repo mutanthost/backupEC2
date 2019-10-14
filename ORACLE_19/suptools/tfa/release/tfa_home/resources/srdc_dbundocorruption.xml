@@ -1,0 +1,95 @@
+<?xml version="1.0"?>
+
+<!--  $Header: tfa/src/v2/tfa_home/resources/srdc_dbundocorruption.xml /main/1 2018/05/28 15:06:26 bburton Exp $ -->
+
+<!-- 
+ Copyright (c) 2018, Oracle and/or its affiliates. All rights reserved.
+
+   NAME
+     srdc_dbundocorruption.xml - <one-line expansion of the name>
+
+   DESCRIPTION
+     SRDC - Required Diagnostic Data Collection for UNDO Corruption
+
+   MODIFIED   (MM/DD/YY)
+   xiaodowu    04/18/18 - Replace tmp directory with CWD
+   xiaodowu    03/28/18 - SRDC - Required Diagnostic Data Collection for UNDO
+                          Corruption (Doc ID 1671490.1)
+   xiaodowu    03/28/18 - Creation
+
+-->
+<collections>
+<collection id="dbundocorruption">
+    <description>SRDC - Required Diagnostic Data Collection for UNDO Corruption.</description>
+    <srdc_docs>Doc ID 1671490.1:SRDC - Required Diagnostic Data Collection for UNDO Corruption.</srdc_docs>
+    <alias>dbundocorruption</alias>
+    <onevents>
+        <event>
+            <infile>
+                <name_patterns>
+                    <pattern>alert_.*\.log</pattern>
+                </name_patterns>
+            </infile>
+        </event>
+    </onevents>
+    <user_inputs>
+        <user_input cmdline="" default="" showprompt="1" setenv="REPLACE" validate="" prompt="Enter the Database Name">USERINPUT-DATABASE_NAME</user_input>
+        <user_input cmdline="" default="" showprompt="1" setenv="REPLACE" validate="" prompt="Enter the Corrupted UNDO Tablespace Name">USERINPUT-UNDOTBS_NAME</user_input>
+        <user_input cmdline="" default="" showprompt="1" setenv="REPLACE" validate="" prompt="Enter the Suspected Corrupted UNDO Segment Name (case sensitive)">USERINPUT-SEG_NAME</user_input>
+	<user_input cmdline="" default="" showprompt="0" setenv="REPLACE" validate="" prompt="">USERINPUT-TFA_HOME</user_input>
+    </user_inputs>    
+    <duration>12h</duration>
+    <clusterwide>no</clusterwide>
+    <filter_files>
+        <types>
+        </types>
+        <filter_file_patterns>
+            <filter_file_pattern>alert_.*\.log</filter_file_pattern>
+            <filter_file_pattern>trc</filter_file_pattern>
+            <filter_file_pattern>log</filter_file_pattern>
+            <filter_file_pattern>archive\/osw</filter_file_pattern>
+            <filter_file_pattern>ExaWatcher\/archive</filter_file_pattern>
+        </filter_file_patterns>
+        <filter_file_exclude_patterns>
+            <filter_file_exclude_pattern>cdmp_.*_bucket\.tr[cm]</filter_file_exclude_pattern>
+        </filter_file_exclude_patterns>
+    </filter_files>
+    <components>
+        <component>OS</component>
+        <component>CRS</component>
+        <component>DATABASE</component>
+        <component>NOCHMOS</component>
+    </components>
+    <commands>
+       <script type="TFACTL" name="rdahcve1210" timeout="120" validfor="" platform="" version="12.1,12.2, 18.1">
+           tfactl run darda run rda_HCVE_12_1_0 menu menus/oracle_database.xml
+       </script>
+       <script type="TFACTL" name="rdahcve1120" timeout="120" validfor="" platform="" version="11.2">
+           tfactl run darda run rda_HCVE_11_2 menu menus/oracle_database.xml
+       </script>
+       <script type="TFACTL" name="rdahcve1110" timeout="120" validfor="" platform="" version="11.1">
+           tfactl run darda run rda_HCVE_11_1 menu menus/oracle_database.xml
+       </script>
+       <script type="SQLSCRIPT" name="srdc_get_dead_txn.sql" timeout="300" validfor="" platform="" version=""></script>
+       <script type="SQLSCRIPT" name="srdc_get_corrupted_segment.sql" timeout="300" validfor="" platform="" version=""></script>
+       <script type="OS" name="srdc_modify_rcv" timeout="120" validfor="" platform="allux" version="">
+         TBS_NAME=`echo %UNDOTBS_NAME% |tr a-z A-Z`
+         /bin/sed "s/UNDOTBS_NAME/$TBS_NAME/" %TFA_HOME%/resources/sql/srdc_rman_validate_undo.rcv.template >%CWD%/srdc_rman_validate_undo.tmp.rcv
+       </script>
+       <script type="OS" name="srdc_rman_validate_undo" timeout="120" validfor="" platform="allux" version="">
+         $ORACLE_HOME/bin/rman target / cmdfile=%CWD%/srdc_rman_validate_undo.tmp.rcv
+     </script>
+     <script type="DB" name="srdc_dump_segment_header.sql" timeout="120" validfor="" platform="" version="">
+  <![CDATA[
+	set echo on;
+	alter session set tracefile_identifier='UNDOHEADER';
+	ALTER SYSTEM DUMP UNDO HEADER "%SEG_NAME%";
+	oradebug setmypid
+	oradebug tracefile_name
+  ]]>
+       	</script>
+    </commands>
+    <runtime_flags>
+    </runtime_flags>
+</collection>
+</collections>

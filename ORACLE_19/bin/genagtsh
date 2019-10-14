@@ -1,0 +1,199 @@
+#!/bin/sh
+#
+# $Header: buildtools/scripts/genagtsh.sh /linuxamd64/24 2017/09/13 10:16:33 jboyce Exp $
+#
+# genagtsh.sh
+#
+# Copyright (c) 1997, 2017, Oracle and/or its affiliates. All rights reserved.
+#
+#    NAME
+#      genagtsh.sh - Generate an agent shared library
+#
+#    DESCRIPTION
+#
+#  Invocation:
+#
+#	genagtsh.sh  lib_name agent_version hs_driver
+#
+#	lib_name:	Filename of library to generate;
+#			typically, $(LIBAGTSH) as used in the
+#			RDBMS Makefile.  E.g., "libagtsh.so"
+#
+#	lib_version:	Version of the shared library
+#
+#			On UNIX ".agent_version" is appended to
+#			the shared-library filename.  E.g., "1.0"
+#
+#
+#    NOTES
+#	This is a remote descendent of the script used to generate
+#	the client shared library, libclntsh.so.
+#
+#    MODIFIED   (MM/DD/YY)
+#    bhshanmu    05/04/17 - bhshanmu_bug-26003322_linux
+#    andmerca    08/30/16 - Remove duplicated symbols from gateways libraries
+#    vlakkund    05/14/13 - Bug 16604236 : use ipgo only during
+#                           profile_on=collect phase
+#    ekarichk    01/20/12 - bug/13517928: use ld for relnking
+#    richen      09/12/11 - Bug 12658656: remove redundant static libs
+#    nmuthukr    08/04/10 - x86-x64 unification
+#    mlfallon    04/17/09 - Generate shared library using PIC versions of Intel
+#                           runtimes
+#    mlfallon    01/12/09 - Adding -m32 to link line
+#    jboyce      02/13/07 - 10->11
+#    mlfallon    02/20/07 - adding libipgo.a
+#    pravelin    09/23/05 - Maintenance: Update link string 
+#    jboyce      12/14/04 - add soft link in customer env.
+#    jboyce      10/11/04 - remove cp -p
+#    pravelin    06/15/04 - Include /bin in PATH override 
+#    slahoran    11/10/03 - bug 3202744
+#    vgoel       09/27/02 - Merges for the BUILDTOOLS_MAIN_SOLARIS_020912 label
+#    rlal        02/13/01 - Merging 9i changes to 8i.
+#    mkrohan     05/26/00 - Branched as an OSD
+#    pravelin    02/01/00 - Use platform-specific library if available
+#    mluong      08/23/99 - write to a uniq temp file
+#    inetwork    11/26/98 - Adding additional Network libraries
+#    mluong      08/28/98 -
+#    mluong      08/27/98 - change -lextp8 to -lpls8
+#    mluong      06/22/98 -
+#    mluong      06/09/98 -
+#    mluong      06/05/98 - agent to agent8
+#    mluong      06/04/98 - change core and nlsrtl name
+#    mluong      06/02/98 - CDM 2 - plsql
+#    mluong      05/29/98 - CDM 2 - network
+#    pravelin    03/17/98 - Eliminate directory path from ld -h operand
+#    pravelin    02/05/98 - If in ADE replace .so symlink with actual file
+#    pravelin    02/05/98 - Fix typo causing ADE build problems
+#    jdoskow     01/28/98 -
+#    pravelin    10/30/97 - Script to build an agent shared library
+#    pravelin    10/30/97 - Creation
+#
+
+
+#  Set shell variables from script parameters
+
+LIB_NAME=$1                 # Library name
+LIB_VER=$2                  # Library version number
+CUSMK=$ORACLE_HOME/rdbms/lib/env_rdbms.mk
+RDBMS_VER=`grep '^LIBMAJORVSN *=' $CUSMK | cut -f2 -d=`
+LIB=lib
+
+# Initialize arch specific variables, default for x86.
+case `uname -m` in  
+"x86_64")          
+  LD_MACH_OPT=-m64
+  LIB_RUNTIME_XTRA="-lsvml"
+  if [ "$PROFILE_ON" = "collect" ]
+  then
+    INTEL_IPGO="-lipgo"
+  else
+    INTEL_IPGO=""
+  fi
+  LIB_INTEL_LIBS="-lirc ${INTEL_IPGO}"
+  ;;
+*)
+  LD_MACH_OPT=-m32
+  if [ "$PROFILE_ON" = "collect" ]
+  then
+    INTEL_IPGO="-lipgo_pic"
+  else
+    INTEL_IPGO=""
+  fi
+  LIB_INTEL_LIBS="-lirc_pic ${INTEL_IPGO}"
+  ;;
+esac
+
+
+
+
+#  Related variables
+
+AGENT_LIB=${LIB_NAME}.${LIB_VER}		# actual library file name
+AGENT_LIBNAME=`/bin/basename ${LIB_NAME}`            # base lib name without version
+AGENT_SYMS="${ORACLE_HOME}/rdbms/admin/agtept.lst" # list of symbols to force
+
+
+
+#  Function to list symbols required in shared library
+
+listf_agent() {
+	entryList=${AGENT_SYMS}
+	/bin/grep -v '#' $entryList | /bin/grep rdbms | awk '{print $3}'
+}
+
+
+# Function used to convert lists of symbols to proper format for linker
+
+fmt_syms() { awk '/[ \t]*#/	{next}\
+				{printf " -u %s", $1}' ; }
+
+
+
+#  Explicit path to ensure that we're using the correct commands
+#
+#  --   Note to buildtools folks, 6/15/2004  --
+#  --   I trust there's a good reason someplace in the RDBMS build
+#  --   to override $PATH, but this is risky. It may also assure
+#  --   that builds use an incorrect executable instead of a correct one.
+#  --   That does in fact appears to  happen on Solaris, using
+#  --   the wrong linker to generate libagtsh.so.
+
+PATH=/bin:/usr/bin: export PATH
+
+
+
+if [ "$SRCHOME" != "" ]; then
+	LIB_DIR=${SRCHOME}/rdbms/${LIB}		# lib. destination directory
+else
+	LIB_DIR=${ORACLE_HOME}/${LIB}		# lib. destination directory
+fi
+
+# Create lists of symbols to pass to ld
+
+SYMS_AGENT="`listf_agent | fmt_syms`"
+TEMP_FILE=/tmp/agent_syms.$$
+echo $SYMS_AGENT > $TEMP_FILE
+
+AGENT_LIBFILE=`/bin/basename ${AGENT_LIB}`	# lib filename without path
+AGENT_LIBPATH=${LIB_DIR}/${AGENT_LIBFILE}       # lib path for ADE link
+
+/bin/rm -f ${AGENT_LIBPATH}
+
+#
+# Define macro covers for the libraries
+LAGENT=-lagent$RDBMS_VER
+LNETWORK=-lnro$RDBMS_VER
+LPLS=-lpls$RDBMS_VER
+
+LCLNTSH=-lclntsh
+
+# Linker command and options
+
+if [ -z ${LDOBJSZ} ]
+then
+  LDOBJSZ=${LD_MACH_OPT}
+fi
+
+LDCOM="${ORACLE_HOME}/bin/orald"
+test -x "${LDCOM}" || LDCOM=gcc
+
+LD="${LDCOM} -shared -L${ORACLE_HOME}/${LIB} -L${ORACLE_HOME}/${LIB}/stubs" # shared library link command
+LD_OPT="-Wl,-h${AGENT_LIBNAME} ${LDOBJSZ}"		# name inserted into library
+LD_OUT="-o ${AGENT_LIBPATH}"			# output specification
+
+# Create library
+
+${LD} ${LD_OPT} ${LD_OUT} ${SYMS_AGENT} ${AGENT_OSD_LIB} ${LCLNTSH} ${LAGENT} ${LPLS} \
+${LNETWORK} -L${ORACLE_HOME}/lib ${LIB_INTEL_LIBS} ${LIB_RUNTIME_XTRA} -ldl 
+
+/bin/rm -f $TEMP_FILE
+
+# Create unversioned link to library in non-development environment only
+if [ -z "${SRCHOME}" ]
+then
+    cd ${LIB_DIR}
+    /bin/rm -f ${AGENT_LIBNAME}
+    /bin/ln -s ${AGENT_LIBNAME}.${LIB_VER} ${AGENT_LIBNAME} 
+fi
+
+exit 0

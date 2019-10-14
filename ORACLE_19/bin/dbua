@@ -1,0 +1,296 @@
+#!/bin/sh
+#
+# $Header: assistants/bin/dbua.sh.pp /main/93 2018/05/17 12:34:31 obriseno Exp $
+#
+# dbma.sh
+#
+# Copyright (c) 2001, 2018, Oracle and/or its affiliates. All rights reserved.
+#
+#    NAME
+#      dbma.sh - <one-line expansion of the name>
+#
+#    DESCRIPTION
+#      <short description of component this file declares/defines>
+#
+#    NOTES
+#      <other useful comments, qualifications, etc.>
+#
+#    MODIFIED   (MM/DD/YY)
+#       obriseno 05/15/18 - use LIBMAJORVSN in place of DB_VERSION_FIRST_DIGIT
+#	jaikrish 12/27/15 - Fixing 22461488 , jvm parsing logic
+#       rmallego 11/16/15 - removing old startup class
+#       mqureshi 08/17/15 - Add preupgrade.jar to classpath
+#       mqureshi 07/27/15 - Remove the -mx option and let Java default it
+#       psainza  02/12/15 - Fix to support custom JRE parameters such as the
+#                           ones for disabling the validation on DBUA
+#       mqureshi 01/29/15 - dbua rollout on linux
+#       mqureshi 12/23/14 - DBUA_LEGACY
+#    obriseno    11/21/14 - add support for custom jre
+#    jaikrish	 10/20/2014 - adding asstcommonext.jar
+#    mqureshi    09/24/14 - New flow changes
+#    mqureshi    07/11/14 - XbranchMerge mqureshi_bug-19176203 from
+#                           st_assistants_12.1
+#    snimmaku    07/10/14 - Increasing max heap size and max perm size jre
+#                           option
+#    jagchaud    09/16/13 - Fix for bug#7328063
+#    mstalin     07/23/11 - Remove Dbcontrol
+#    mstalin     07/15/11 - Change ojdbc5 to ojdbc6
+#    rajprasa    09/24/09 - bug 8929658
+#    svsathe     06/15/09 - use dot notation for source
+#    svsathe     05/31/09 - use platform common
+#    svsathe     10/19/08 - fix 7416293
+#    rajprasa    09/26/08 - added a root user check
+#    svsathe     09/08/08 - new color scheme
+#    spanchum    03/03/08 - fix 6862064
+#    svsathe     12/19/07 - solaris changes
+#    svsathe     09/03/07 - fix lrg 3131862
+#    svsathe     08/06/07 - XbranchMerge svsathe_lrg-3062653 from
+#                           st_assistants_11.1
+#    svsathe     08/06/07 - add sun4v changes
+#    spanchum    07/02/07 - stpl changes for bug#6161673 and #6160798
+#    svsathe     06/22/07 - ice browser/asian locale
+#    svsathe     04/23/07 - fix 5980212
+#    spanchum    04/08/07 - 
+#    svsathe     04/08/07 - fix 5977776
+#    rpattabh    03/16/07 - bug 4395270: fix interrupt handling
+#    sxzhu       11/13/06 - Add jdbc path
+#    rpattabh    06/07/06 - add obfuscated passwords 
+#    rpattabh    06/07/06 - add obfuscated passwords 
+#    rpattabh    11/03/06 - XbranchMerge rpattabh_bug-4861051_part2 from
+#                           st_assistants_10.1nt
+#    svsathe     09/29/06 - shorten classpath
+#    svsathe     08/29/06 - add help jar
+#    spanchum    07/30/06 - 
+#    svsathe     03/29/06 - ple merge 
+#    npamnani    09/13/05 - check silent flag in a loop
+#    xuliu       05/12/05 - -Xms128m 4329070 
+#    spanchum    05/03/05 - set umask
+#    xuliu       02/02/05 - fix 3985030: LD_LIBRARY_PATH for Linux 
+#    spanchum    12/28/04 - remove visi 
+#    spanchum    11/18/04 - 
+#    spanchum    09/10/04 - 
+#    stakeda     08/10/04 - add more orai18n 
+#    spanchum    05/18/04 - 
+#    spanchum    11/21/03 - 
+#    spanchum    11/12/03 - dbca.sh 
+#    npamnani    10/13/03 - add em-config related jar files 
+#    spanchum    06/24/03 - 
+#    npamnani    04/17/03 - add silent support
+#    npamnani    04/01/03 - add ldap
+#    khsingh     01/14/03 - change SRVMHAS location
+#    spanchum    12/13/02 - 
+#    khkrishn    11/06/02 - 
+#    khkrishn    11/05/02 - bug2657125:Do not set LD_LIBRARY_PATH on AIX
+#    npamnani    10/23/02 - add 1.3.1. java flag
+#    npamnani    10/09/02 - run with java instead jre
+#    dkapoor     12/21/01 - remove debug
+#    rxkumar     11/30/01 - change name to SRVM
+#    spanchum    11/21/01 - fix DISPLAY 1803450
+#    dkapoor     11/13/01 - add debug always
+#    dkapoor     11/06/01 - pass $*
+#    npamnani    10/17/01 - fix for xml classpath
+#    dkapoor     10/16/01 - use variable
+#    spanchum    10/08/01 - update 9.2 variables
+#    npamnani    09/07/01 - Creation
+#
+
+#######################################################################
+# Variables set by Oracle Universal Installer for dependent components.
+#######################################################################
+
+# Define ORACLE_HOME -> OH
+OH=/u01/app/oracle/product/19.0.0/dbhome_1
+PLATFORM=Linux
+
+ORACLE_HOME=$OH 
+export ORACLE_HOME;
+
+#Version specific JAR files
+EWT_FILE=ewt3.jar
+JEWT_FILE=jewt4.jar
+EWT_COMP_FILE=ewtcompat-3_3_15.jar
+SHARE_FILE=share.jar
+HELP_FILE=help4.jar
+SWING_FILE=swingall-1_1_1.jar
+ICE_BROWSER_FILE=oracle_ice.jar
+GDK_FILE1=orai18n.jar
+GDK_FILE2=orai18n-mapping.jar
+GDK_FILE3=orai18n-utility.jar
+GDK_FILE4=orai18n-collation.jar
+NETCFG_FILE=netcfg.jar
+PKI_FILE=oraclepki.jar
+SRVM_FILE=srvm.jar
+SRVMHAS_FILE=srvmhas.jar
+SRVMASM_FILE=srvmasm.jar
+LDAP_FILE=ldapjclnt19.jar
+GNS_FILE=gns.jar
+
+DBMA_FILE=dbma.jar
+NETCA_FILE=netca.jar
+XMLPARSER_FILE=xmlparserv2.jar
+JDBC_FILE=ojdbc6.jar
+SRVM_JLIB_DIR=/u01/app/oracle/product/19.0.0/dbhome_1/jlib
+INSTALLER_FILE=OraInstaller.jar
+OJMISC_FILE=ojmisc.jar
+CVU_JAR=cvu.jar
+ASSISTANTS_COMMON_FILE=assistantsCommon.jar
+RCONFIG_COMMON_FILE=rconfig.jar
+PREREQ_JAR_FILE=OraPrereq.jar
+PREREQ_CHECKS_JAR_FILE=OraPrereqChecks.jar
+DVCA_JAR=dvca.jar
+PRE_UPGRADE_FILE=preupgrade.jar
+
+# Directory Variables
+JRE_DIR=/u01/app/oracle/product/19.0.0/dbhome_1/jdk/jre
+JLIB_DIR=$OH/jlib
+ASSISTANTS_JLIB_DIR=$OH/assistants/jlib
+INSTALLER_JLIB_DIR=/u01/app/oracle/product/19.0.0/dbhome_1/oui/jlib
+DBMA_JLIB_DIR=$OH/assistants/dbua/jlib
+NETCA_JLIB_DIR=$OH/assistants/netca/jlib
+DBMA_HELP_DIR=$OH/assistants/dbua/doc
+
+
+#CLASSPATH
+EWT_CLASSPATH=$JLIB_DIR/$EWT_FILE:$JLIB_DIR/$EWT_COMP_FILE
+XMLPARSER_CLASSPATH=/u01/app/oracle/product/19.0.0/dbhome_1/lib/$XMLPARSER_FILE
+JDBC_CLASSPATH=$OH/jdbc/lib/$JDBC_FILE
+NETCFG_CLASSPATH=$JLIB_DIR/$LDAP_FILE:$JLIB_DIR/$NETCFG_FILE:$JLIB_DIR/$PKI_FILE:$JLIB_DIR/$OJMISC_FILE
+SHARE_CLASSPATH=$JLIB_DIR/$SHARE_FILE
+ASSISTANTS_COMMON_CLASSPATH=$ASSISTANTS_JLIB_DIR/$ASSISTANTS_COMMON_FILE:$ASSISTANTS_JLIB_DIR/$RCONFIG_COMMON_FILE
+HELP_CLASSPATH=$JLIB_DIR/$HELP_FILE:$INSTALLER_JLIB_DIR/$JEWT_FILE
+ICE_BROWSER_CLASSPATH=$JLIB_DIR/$ICE_BROWSER_FILE
+SWING_CLASSPATH=$JLIB_DIR/$SWING_FILE
+GDK_CLASSPATH=$JLIB_DIR/$GDK_FILE1
+
+DBUA_CLASSPATH=$DBMA_JLIB_DIR/dbua.jar:$ASSISTANTS_JLIB_DIR/asstcommonext.jar
+DBMA_CLASSPATH=$DBMA_JLIB_DIR/$DBMA_FILE
+NETCA_CLASSPATH=$NETCA_JLIB_DIR/$NETCA_FILE
+SRVM_CLASSPATH=$SRVM_JLIB_DIR/$SRVM_FILE:$SRVM_JLIB_DIR/$SRVMHAS_FILE:$SRVM_JLIB_DIR/$SRVMASM_FILE
+HELPJAR_CLASSPATH=$DBMA_HELP_DIR/dbmahelp.jar:$DBMA_HELP_DIR/dbmahelp_es.jar:$DBMA_HELP_DIR/dbmahelp_de.jar:$DBMA_HELP_DIR/dbmahelp_fr.jar:$DBMA_HELP_DIR/dbmahelp_it.jar:$DBMA_HELP_DIR/dbmahelp_ja.jar:$DBMA_HELP_DIR/dbmahelp_ko.jar:$DBMA_HELP_DIR/dbmahelp_pt_BR.jar:$DBMA_HELP_DIR/dbmahelp_zh_CN.jar:$DBMA_HELP_DIR/dbmahelp_zh_TW.jar
+INSTALLER_CLASSPATH=$INSTALLER_JLIB_DIR/$INSTALLER_FILE:$INSTALLER_JLIB_DIR/$PREREQ_JAR_FILE:$OH/inventory/prereqs/oui/$PREREQ_CHECKS_JAR_FILE:$INSTALLER_JLIB_DIR/$PREREQ_CHECKS_JAR_FILE:$JLIB_DIR/$CVU_JAR:$OH/install/jlib/installcommons_1.0.0b.jar:$OH/install/jlib/instcommon.jar
+DVCA_CLASSPATH=$OH/dv/jlib/$DVCA_JAR
+GNS_CLASSPATH=$JLIB_DIR/$GNS_FILE
+PRE_UPGRADE_CLASSPATH=$OH/rdbms/admin/$PRE_UPGRADE_FILE
+
+# Basic error checking
+# Check for silent or help
+SILENT="false"
+for i in $*
+do
+   if [ $i = "-silent"  ] || [ $i = "-help"  ] || [ $i = "-h"  ]; then
+      SILENT="true"
+      break
+   fi
+done
+
+# Check for DISPLAY
+if [ $SILENT = "false"  ]; then
+   case $DISPLAY in
+      "")
+      echo "DISPLAY not set."
+      echo "Set DISPLAY environment variable, then re-run."
+      exit;
+   esac
+fi    
+
+# make sure others can not read/write any files created
+umask 27
+
+# The environment variable $JAVA_HOME cannot be set during the installation
+unset JAVA_HOME
+
+# The environment variable $TWO_TASK cannot be set during the installation
+unset TWO_TASK
+
+#call platform_common script
+. $ORACLE_HOME/bin/platform_common
+
+# Check if user is non-root
+if [ "$RUID" = "0" ]; then
+        echo "DBUA cannot be run as root."
+        exit 1;
+fi
+
+#dbua specific settings for 9.2 upgrade
+if [ "`uname -s`" = "SunOS" -o $PLATFORM = Solaris ]; then
+  MACH_HARDWARE=`/bin/uname -m`
+  case $MACH_HARDWARE in
+  i86pc)
+    LD_LIBRARY_PATH=/opt/ORCLcluster/lib:$LD_LIBRARY_PATH
+    export LD_LIBRARY_PATH
+    ;;
+  *)
+    
+    LD_LIBRARY_PATH_64=/opt/ORCLcluster/lib:$LD_LIBRARY_PATH_64
+    export LD_LIBRARY_PATH_64
+    ;;
+  esac
+fi
+
+if [ "`uname -s`" = "Linux" -o $PLATFORM = Linux -o $PLATFORM = Linux_IA64 ]; then
+    LD_LIBRARY_PATH=/etc/ORCLcluster/oracm/lib:$LD_LIBRARY_PATH
+    export LD_LIBRARY_PATH
+fi  
+
+JVM_OPTIONS=""
+ARGUMENTS=""
+
+for j in $*
+do
+   index=`expr match "$j" "-J-"`
+   if [ $index = 3 ]; then
+      j=`echo $j | sed 's/-J//'`
+      JVM_OPTIONS="${JVM_OPTIONS} $j"
+   else
+      ARGUMENTS="${ARGUMENTS} $j"
+   fi
+done
+
+
+
+JRE_OPTIONS="${JRE_OPTIONS}  -Dsun.java2d.font.DisableAlgorithmicStyles=true -DSET_LAF=$SET_LAF -Dice.pilots.html4.ignoreNonGenericFonts=true"
+
+
+CLASSPATH=$DBUA_CLASSPATH:$DBMA_CLASSPATH:$EWT_CLASSPATH:$SWING_CLASSPATH:$SHARE_CLASSPATH:$GDK_CLASSPATH:$ASSISTANTS_COMMON_CLASSPATH:$NETCA_CLASSPATH:$HELP_CLASSPATH:$ICE_BROWSER_CLASSPATH:$NETCFG_CLASSPATH:$XMLPARSER_CLASSPATH:$JDBC_CLASSPATH:$SRVM_CLASSPATH:$INSTALLER_CLASSPATH:$DVCA_CLASSPATH:$GNS_CLASSPATH:$PRE_UPGRADE_CLASSPATH
+MAIN_CLASS=oracle.assistants.dbua.driver.StartDBUA
+
+# Check for custom JRE
+USE_CUSTOM_JRE="false"
+
+for k in $*
+do
+   if [ $USE_CUSTOM_JRE = "true" ]; then
+      JRE_DIR=$k
+      USE_CUSTOM_JRE="false"
+   elif [ $k = "-jreLoc" ]; then
+      USE_CUSTOM_JRE="true"
+   fi
+done
+
+###################################Remote debugging############################
+#To enable Remote debugging
+# setenv DEBUG_ASSISTANTS true
+# setenv DEBUG_PORT <desired port>
+
+DEFAULT_DEBUG_PORT=8000
+
+if [ "$DEBUG_ASSISTANTS" = "true" ]; then
+        if [ "$DEBUG_PORT" = "" ]; then
+                #If port not specified then assign default port
+                DEBUG_PORT=$DEFAULT_DEBUG_PORT
+        fi
+        if [ "$DEBUG_HOST" = "" ]; then
+            ADDRESS="$DEBUG_PORT,server=y"
+        else
+            ADDRESS="$DEBUG_HOST:$DEBUG_PORT,suspend=n"
+        fi
+        DEBUG_STRING="-agentlib:jdwp=transport=dt_socket,address=$ADDRESS"
+        echo "Remote Debugging is enabled at $ADDRESS"
+else
+        DEBUG_STRING=""
+fi
+###############################################################################
+
+
+#run dbua
+exec $JRE_DIR/bin/java $JRE_OPTIONS $DEBUG_STRING $JVM_OPTIONS -classpath  $CLASSPATH $MAIN_CLASS $ARGUMENTS

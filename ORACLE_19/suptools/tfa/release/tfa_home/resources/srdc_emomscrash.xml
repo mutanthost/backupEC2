@@ -1,0 +1,170 @@
+<?xml version="1.0"?>
+
+<!--  $Header: tfa/src/v2/tfa_home/resources/srdc_emomscrash.xml /main/1 2018/08/15 16:55:53 bburton Exp $ -->
+
+<!-- 
+ Copyright (c) 2018, Oracle and/or its affiliates. All rights reserved.
+
+   NAME
+     srdc_emomscrash.xml 
+
+   DESCRIPTION
+     SRDC - Collect Diagnostic Data for all Enterprise Manager OMS Crash / Restart Performance Issues.
+
+   NOTES
+     None
+
+   MODIFIED   (MM/DD/YY)
+   xiaodowu    07/05/18 - Implement Doc ID 2376841.1: SRDC - Collect Diagnostic
+                          Data for all Enterprise Manager OMS Crash / Restart
+                          Performance Issues.
+   xiaodowu    07/05/18 - Creation
+
+-->
+<collections>
+	<collection id="emomscrash">
+		<description>SRDC - Collect Diagnostic Data for all Enterprise Manager OMS Crash / Restart Performance Issues.</description>
+		<srdc_docs>Doc ID 2376841.1: SRDC - Collect Diagnostic Data for all Enterprise Manager OMS Crash / Restart Performance Issues.</srdc_docs>
+		<user_inputs>
+			<user_input cmdline="" default="" showprompt="1" setenv="NO" validate="" prompt="'Before continuing, ensure that emdebugon has already run.  Reproduce the issue then continue with this emomscrash srdc.  Once complete, run emdebugoff.  Do you want to continue? [Y|y|N|n] [Y]:?">USERINPUT-EMDEBUGON_RAN</user_input>
+			<user_input cmdline="" default="" showprompt="1" setenv="NO" validate="" prompt="Enter the Repository Database Name">USERINPUT-DATABASE_NAME</user_input>
+			<user_input cmdline="" default="" showprompt="1" setenv="NO" validate="" prompt="Is the EM Repository Database running locally?">USERINPUT-REPODB_LOCAL</user_input> 
+			<user_input cmdline="" required="OPT" showprompt="1" setenv="NO" validate="" prompt="Enter the EM Repository Database Name. You can get the repository connect details from EM using the following navigation: Setup -&gt; Manage Cloud Control -&gt; Health Overview -&gt; Repository Details.">USERINPUT-REPOSITORY_DBNAME</user_input>
+			<user_input cmdline="" required="OPT" showprompt="1" setenv="REPLACE" validate="" prompt="Enter the repvfy path for the EM Repository DB">USERINPUT-REPOSITORY_REPVFY</user_input>
+			<user_input cmdline="" default="" showprompt="1" setenv="REPLACE" validate="" prompt="Enter the ORACLE_HOME for the EM Repository DB">USERINPUT-REPOSITORY_OHOME</user_input>
+			<user_input cmdline="" required="OPT" showprompt="1" setenv="REPLACE" validate="" prompt="Enter the TNS Alias pointing to the the EM Repository DB. Needed to run the repvfy tool.">USERINPUT-REPOSITORY_TNS</user_input>
+			<user_input cmdline="" default="" showprompt="1" setenv="REPLACE" validate="" prompt="Enter the sysman credential for Repository DB">USERINPUT-SYSMAN_PWD</user_input>
+			<user_input cmdline="" default="" showprompt="1" setenv="NO" validate="" prompt="Do you have an AWR license? &#40;Refer to Doc 1490798.1 for more information &#41;">USERINPUT-LICENSE</user_input>
+			<user_input cmdline="" default="" showprompt="1" setenv="NO" validate="" prompt="Enter crash issue start time">USERINPUT-EVENT_START_TIME</user_input>
+			<user_input cmdline="" default="" showprompt="1" setenv="NO" validate="" prompt="Enter crash issue stop time">USERINPUT-EVENT_END_TIME</user_input>
+			<user_input cmdline="" default="" showprompt="1" setenv="NO" validate="" prompt="For comparison, it is useful to gather data from another period with similar load where problems are not seen. Typically this is likely to be the same time period on a previous day. To compare to the same time period on a previous day enter the number of days ago you wish to use.">USERINPUT-PERFORM_OK</user_input>
+			<user_input cmdline="" default="" showprompt="1" setenv="NO" validate="" prompt="Enter start time for the good window">USERINPUT-EVENT_BASELINE_START_TIME</user_input>
+			<user_input cmdline="" default="" showprompt="1" setenv="NO" validate="" prompt="Enter stop time for the good window">USERINPUT-EVENT_BASELINE_END_TIME</user_input>
+		</user_inputs>
+		<onevents>
+			<event>
+			</event>
+		</onevents>
+		<duration>12h</duration>
+		<awrduration>1h</awrduration>
+		<clusterwide>yes</clusterwide>
+		<filter_files>
+			<types>
+			</types>
+			<filter_file_patterns>
+				<filter_file_pattern>alert_.*\.log</filter_file_pattern>
+				<filter_file_pattern>trc</filter_file_pattern>
+				<filter_file_pattern>log</filter_file_pattern>
+				<filter_file_pattern>archive\/osw</filter_file_pattern>
+				<filter_file_pattern>ExaWatcher\/archive</filter_file_pattern>
+			</filter_file_patterns>
+		</filter_files>
+		<components>
+			<component>OS</component>
+			<component>CRS</component>
+			<component>DATABASE</component>
+			<component>NOCHMOS</component>
+		</components>
+		<commands>
+			<script type="OS" name="os_OMS_server_env" timeout="500" validfor="OMS" platform="allux" version="">
+            export ORACLE_HOME=%EMOMSOHOME%
+            export PATH=$ORACLE_HOME/bin:$PATH
+	    ulimit -a > `/bin/hostname -s`_ulimit_`date +"%Y%m%d_%H%M%S"`.txt
+	    /bin/mount > `/bin/hostname -s`_mount_`date +"%Y%m%d_%H%M%S"`.txt
+	    /bin/cat /proc/meminfo > `/bin/hostname -s`_meminfo_`date +"%Y%m%d_%H%M%S"`.txt
+			</script>
+			<script type="OS" name="os_DumpOMS" timeout="500" validfor="OMS" platform="allux" version="">
+            export ORACLE_HOME=%EMOMSOHOME%
+            export PATH=$ORACLE_HOME/bin:$PATH
+            emctl dump oms	
+	    export omsdumpfile=`ls -alt /tmp | /bin/grep -i oms_dump | /usr/bin/head -1 | /bin/awk '{print $NF}'`
+            /bin/mv /tmp/$omsdumpfile .
+			</script>
+			<script type="OS" name="os_DumpOMSWin2" timeout="500" validfor="OMS" platform="MSWin32" version="">
+            set ORACLE_HOME=%EMOMSOHOME%
+            set PATH=%ORACLE_HOME%\bin;%PATH%
+            emctl dump oms	
+			</script>
+			<script type="OS" name="os_OMSproperties" timeout="500" validfor="OMS" platform="allux" version="">
+            export ORACLE_HOME=%EMOMSOHOME%
+            export PATH=$ORACLE_HOME/bin:$PATH
+            emctl list properties -sysman_pwd %SYSMAN_PWD% 
+	    /bin/mv `hostname -s`_os_OMSproperties.out `hostname -s`_os_OMSproperties_`date +"%Y%m%d_%H%M%S"`.txt
+			</script>
+			<script type="OS" name="os_unsetDebugLogOMSWin3" timeout="500" validfor="OMS" platform="MSWin32" version="">
+            @echo off
+            copy *os_unsetDebugLogOMSWin2.out em.txt
+            for /f "tokens=*" %%f in ('"type em.txt|findstr Management_Service"') do (
+               set var=%%f
+            )
+            :again
+            for /f "tokens=1* delims= " %%a in ("%var%") do (
+                 set val=%%a
+                 set var=%%b
+            )
+            if x%val:emoms=%==x%val% goto again
+            set omslogfile=%val%
+            set omslogdir=%omslogfile:emoms.trc=%
+            del em.txt
+            copy %omslogdir%\emoms.trc .
+            copy %omslogdir%\emoms.log .
+            copy %omslogdir%\emctl.log .
+            copy %omslogdir%\emoms_pbs.log .
+            copy %$omslogdir%\emoms_pbs.trc .
+			</script>
+			<script type="EMSQL" name="oms_target_count" timeout="300" validfor="REPOSITORYDB" platform="" version="">
+		conn sysman/%SYSMAN_PWD%;
+                set mark html on
+		set pagesize 200 verify off term off entmap off echo off
+                spool OMS_target_count.html
+		select count(*) total_target_count from mgmt_targets;
+		select target_type, count(*) from mgmt_targets group by target_type order by 2 desc;
+                spool off;
+                set mark html off;
+                exit;
+			</script>
+			<script type="OS" name="os_repvfy" timeout="500" validfor="REPVFY" platform="allux" version="">
+            export ORACLE_HOME=%REPOSITORY_OHOME%
+            export PATH=$ORACLE_HOME/bin:$PATH
+	    %REPOSITORY_REPVFY%/repvfy verify -level 9 -detail -pwd %SYSMAN_PWD%
+            export repvfylogfile=`ls -alt %REPOSITORY_REPVFY%/../log | /bin/grep -i log | /usr/bin/head -1 | /bin/awk '{print $NF}'`
+            /bin/cp -p %REPOSITORY_REPVFY%/../log/$repvfylogfile REPVFY_verify_$repvfylogfile
+
+	    for dump_name in system performance space advisors loader_health job_health
+	    do
+	    	%REPOSITORY_REPVFY%/repvfy dump $dump_name -pwd %SYSMAN_PWD%
+            	export repvfydumpfile=`ls -alt %REPOSITORY_REPVFY%/../log | /bin/grep -i $dump_name | /usr/bin/head -1 | /bin/awk '{print $NF}'`
+            	/bin/cp -p %REPOSITORY_REPVFY%/../log/$repvfydumpfile REPVFY_dump_$repvfydumpfile
+	    done
+
+		/bin/zip repvfy_outputfiles.zip REPVFY_*.log 
+		/bin/rm -rf REPVFY_*.log
+			</script>
+			<script type="OS" name="os_repvfyWin" timeout="500" validfor="REPVFY" platform="MSWin32" version="">
+            set ORACLE_HOME=%REPOSITORY_OHOME%
+            set PATH=%ORACLE_HOME%\bin;%PATH%
+            %REPOSITORY_REPVFY%\repvfy -tns %REPOSITORY_TNS% dump target -name %EMTARGETDBNAME% -pwd %SYSMAN_PWD%
+            :: set repvfylogfile=`ls -alt %REPOSITORY_REPVFY%/../log | /bin/grep -i log | /usr/bin/head -1 | /bin/cut -d " " -f 10`
+            copy %REPOSITORY_REPVFY%\..\log\%repvfylogfile% .
+			</script>
+			<script type="EMSQL" name="sql_params" timeout="300" validfor="REPOSITORYDB" platform="" version="">
+		conn sysman/%SYSMAN_PWD%;
+                set mark html on
+                spool repository_database_parameters.html
+                show parameter name
+		show parameter sga
+		show parameter pga
+                spool off;
+                set mark html off;
+                exit;
+			</script>
+			<script type="TFADBPERF" name="awr_reports" timeout="120" validfor="" platform="" version=""></script>
+			<script type="OS" name="os_zip_envInfo" timeout="500" validfor="OMS" platform="allux" version="">
+		/bin/zip envInfo.zip `/bin/hostname -s`_ulimit_*.txt `/bin/hostname -s`_mount_*.txt `/bin/hostname -s`_meminfo_*.txt `hostname -s`_os_OMSproperties_*.txt OMS_target_count.html
+		/bin/rm -rf `/bin/hostname -s`_ulimit_*.txt `/bin/hostname -s`_mount_*.txt `/bin/hostname -s`_meminfo_*.txt `hostname -s`_os_OMSproperties_*.txt OMS_target_count.html	
+			</script>
+		</commands>
+		<runtime_flags>
+		</runtime_flags>
+	</collection>
+</collections>

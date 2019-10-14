@@ -1,0 +1,55 @@
+<?xml version="1.0"?>
+
+<!--  $Header: tfa/src/v2/ext/dbglevel/profiles/crsd_bin_failure.xml /main/2 2015/12/09 01:45:19 bibsahoo Exp $ -->
+
+<!-- 
+ Copyright (c) 2015, Oracle and/or its affiliates. All rights reserved.
+
+   NAME
+     crsd_bin_failure.xml - <one-line expansion of the name>
+
+   DESCRIPTION
+     <short description of component this file declares/defines>
+
+   NOTES
+     <other useful comments, qualifications, etc.>
+
+   MODIFIED   (MM/DD/YY)
+   bibsahoo    12/02/15 - FIX BUG 22301591 - TIMEOUTS MISSING FROM DBGLEVEL
+                          PROFILES
+   bibsahoo    09/22/15 - Creation
+
+-->
+<profile name="crsd_bin_failure" description="For debugging crsd.bin failures if directed by Oracle Support." type="default" timeout="5m">
+<change>
+<command>crsctl</command>
+<command_location>GI_HOME</command_location>
+<command_type>log</command_type>
+<daemon>crs</daemon>
+<module>AGFW</module>
+<set>5</set>
+<unset>0</unset>
+</change>
+<change>
+<command>crsctl</command>
+<command_location>GI_HOME</command_location>
+<command_type>log</command_type>
+<daemon>crs</daemon>
+<module>CRSPE</module>
+<set>5</set>
+<unset>0</unset>
+</change>
+<change>
+<command>crsctl</command>
+<command_location>GI_HOME</command_location>
+<command_type>log</command_type>
+<daemon>crs</daemon>
+<module>UiServer</module>
+<set>5</set>
+<unset>0</unset>
+</change>
+</profile>
+
+
+
+

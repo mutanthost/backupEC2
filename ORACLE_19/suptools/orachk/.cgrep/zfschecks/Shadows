@@ -1,0 +1,25 @@
+printf("==========START_OF_REPORT_chkShadows.aksh==========\n");
+
+var founderrorsShadows = false;
+var report = 1;
+
+// ----------------------------------------------------------------------------
+// MAIN STARTS HERE	
+getHostname();
+
+if(!isExalogicNode()) {
+    printreport("OK: " + host_name + " Shadows Check Completed: Passive Header\n");
+}
+else {
+	var projects, p, shares, s;
+    checkShadows();
+    if ( founderrorsShadows == false ) {
+        printf("OK: %s Shadow Check Completed: No Errors Found\n",host_name);
+    }
+}     
+printf("==========END_OF_REPORT_chkShadows.aksh==========\n");
+
+printf("==========START_OF_AUDIT_CHECK_chkShadows.aksh==========\n");
+printf("shadow_check_status = %d\n", founderrorsShadows);
+printf("==========END_OF_AUDIT_CHECK_chkShadows.aksh==========\n");
+

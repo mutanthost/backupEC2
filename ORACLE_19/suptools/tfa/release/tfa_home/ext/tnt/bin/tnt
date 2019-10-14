@@ -1,0 +1,1113 @@
+#
+# $Header: tfa/src/tnt/bin/tnt /main/6 2018/01/22 03:49:31 bibsahoo Exp $
+# $Revision: /main/6 $
+# $Author: bibsahoo $
+# $Date: 2018/01/22 03:49:31 $
+#
+# For script description, refer to perldoc comments at end of file.
+#
+# This script is driven by the tnt configuration file, this file is named tnt.prop
+# 
+# The rules to find the tnt.prop configuration file are as follows:
+#
+# 1 - $TNT_HOME/conf/tnt.prop (common location is /home/oracle/tnt/conf/tnt.prop)
+# 2 - $HOME/tnt/conf/tnt.prop (common location is /home/oracle/tnt/conf/tnt.prop)
+# 3 - $TNT_HOME/tnt.prop      (common location is /home/oracle/tnt/tnt.prop)
+# 4 - $HOME/tnt.prop          (common location is /home/oracle/tnt.prop)
+# 5 - /home/oracle/tnt/conf/tnt.prop
+#
+# Then it checks the component and or number of minutes passed on command line
+# and runs the toaster log search / analysis using the tnt.jar (or configured equivalent).
+
+    use strict 'vars';      # forces variables to be declared, highly recommended
+    use Getopt::Std;        # Provids parsing of arguments using hyphen prefixes
+
+# Declare the variables
+    
+    my($banner) = 'tnt ($Revision: 1.26 $), use: <tnt -h> to see help or refer to online help, link shown below';
+
+    my(%option);             # The options passed on command line, this is a hash
+    my(%config);             # Configuration file options, this is a hash
+    my($exitstatus);         # The exit status of the toaster command line
+    my($cfgfilename);        # Full filename of the configuration file used
+    my($verbose) = 0;        # Are we running in verbose mode?
+    my($extended) = 0;       # Are we using the extended output option?
+    my($type);               # Message type to be analyzed, set with -t
+    my($component);          # The component we are analyzing
+    my($compArrLength);
+    my($componentOption);    # The option for the component, only applies if RMI component
+    my($minutes);            # The number of minutes we are analyzing
+    my($rawminutes);         # Holding variable to calculate minutes
+    my($grep);               # Are we in grep mode?
+    my($rmi);                # Are we in rmi mode?
+    my($filter);             # is a filter defined for grep mode
+    my($osw);                # Are we in oswatcher mode?
+    my($check);              # Are we in checker mode?
+    my($hasCheckComp);
+    my($hasEmResult);
+    my($hasEmMessage);
+    my($hasRmiComp);
+    my($hasOswComp);
+    my($hasOswslabinfoComp);
+    my($checkerFilename);
+    my($digesterFilename);
+    my($fwkPropsFilename);
+    my($appContextFilename);
+    my($proc_id);
+    my($proc_list);
+    my($tnt_rmi_url);
+    my($rmi_service_log);    # from tnt.rmi.rmiservice.log.filename
+    my($rmi_java_log);       # from java.util.logging.FileHandler.pattern
+    my($extra);              # value specified for -x option
+    my($writeto);            # value specified for -w option
+    my($username);           # value specified for -u option
+    my($extraoption);        # value passed to toaster command line for extra
+    my($usernameoption);     # value passed to toaster command line for username
+    my($date);               # value specified for -d option
+    my($from_date);               # value specified for -d option
+    my($to_date);               # value specified for -d option
+    my($timeoption);         # command line options for the required time, either -a for minutes ago or -f (date) -t (date) if -d used
+    my($extrahelp);
+    my(@components);
+    my(@descriptions);
+    my(@pieces);
+    my($piecesize);
+
+    my($componentArgument);  # Command line argument (if any) for component to analyze
+    my($minutesArgument);    # Command line argument (if any) for minutes to analyze
+    my($componentDesc);      # Description (if available) of component
+    my($argument);           # Working variable
+    my($line);               # Working variable
+    my($found);              # Working variable
+    my($count);              # Working variable
+
+# Init script and load configuration
+
+    print "$banner\n";
+    initializeScript();
+    loadConfigDefaults();    # Load configuration default values
+    loadConfigFiles();       # Load configuration details from tnt.prop
+    printConfigDetails();
+
+# Check command line argument(s)
+
+    # This program accepts up to two arguments, a numeric argument
+    # that represents the number of minutes to run for and a
+    # non-numeric that represents the component.  If no component
+    # specified, will use default if one configured, otherwise
+    # will abort if no component.
+
+    # Load the default / configured values
+    $component          = $config{'TNT.SCRIPT.DEFAULT.COMPONENT'};
+    $minutes            = $config{'TNT.SCRIPT.DEFAULT.MINUTES'};
+    $extrahelp          = $config{'TNT.SCRIPT.EXTRA.HELP'};
+    $checkerFilename    = $config{'CHECKER.FILENAME'};
+    $digesterFilename   = $config{'CHECKER.DIGESTER.FILENAME'}; 
+    $fwkPropsFilename   = $config{'CHECKER.FRAMEWORK.PROPERTIES.FILENAME'}; 
+    $appContextFilename = $config{'CHECKER.APPLICATION.CONTEXT.FILENAME'};
+    $proc_list          = $config{'TNT.SCRIPT.RMI.PROCESS.LIST'};
+    $tnt_rmi_url        = $config{'TNT.RMI.RMISERVICE.URL'};
+    $rmi_service_log    = $config{'TNT.RMI.RMISERVICE.LOG.FILENAME'};
+    $rmi_java_log       = $config{'JAVA.UTIL.LOGGING.FILEHANDLER.PATTERN'};
+
+    # Work out if they have passed a different value on the command line
+    #
+    # What we do is loop around the arguments, the first non-numeric is assumed to be the component
+    # and the first numeric is assumed to be the minutes.  If neither exist, the defaults are already
+    # loaded and will be used.
+    
+    foreach $argument (@ARGV)
+    {
+        if ((! defined $minutesArgument) && ($argument =~ /(^\d+$|^\d+[mhd]{1}$)/i))
+        {
+            $minutesArgument = $argument;
+        } else
+        {
+            if (! defined $componentArgument)
+            {
+                $componentArgument = $argument;
+            } else
+            {
+                if (! defined $componentOption)
+                {
+                    $componentOption = $argument;
+                }
+            }
+        }
+    }
+
+    if (defined $minutesArgument)
+    {
+        $minutes = $minutesArgument;
+    }
+
+    if (defined $componentArgument)
+    {
+        $component = $componentArgument;
+    }
+
+    $component = lc($component);
+
+    # Work out if the component selected is a valid component
+    @components = split(/,/,$config{'TNT.SCRIPT.COMPONENT.LIST'});
+    @descriptions = split(/,/,$config{'TNT.SCRIPT.COMPONENT.DESCRIPTION'});
+
+    # Add the rmi osw check and oswslabinfo components so they don't have to be configured
+
+    $compArrLength = @components;
+    $hasCheckComp = 0;
+    $hasRmiComp = 0;
+    $hasOswComp = 0;
+    $hasOswslabinfoComp = 0;
+
+    foreach $argument (@components)
+    {
+        $argument = lc($argument);
+        if ($argument eq 'rmi') 
+        {
+            $hasRmiComp = 1; 
+        }
+        if ($argument eq 'check')
+        {
+           $hasCheckComp = 1;
+        }
+        if ($argument eq 'osw')
+        {
+            $hasOswComp = 1;
+        }
+        if ($argument eq 'oswslabinfo') 
+        {
+            $hasOswslabinfoComp = 1;
+        }
+    }
+
+    if (!$hasRmiComp)
+    {
+        push(@components, 'rmi');
+    }
+
+    if (!$hasOswComp)
+    {
+        push(@components, 'osw');
+    }
+
+    if (!$hasCheckComp)
+    {
+        push(@components, 'check');
+    }
+
+    if (!$hasOswslabinfoComp)
+    {
+        push(@components, 'oswslabinfo');
+    }
+
+    $count = 0;
+    $found = 0;
+
+    foreach $argument (@components)
+    {
+        $argument = lc($argument);
+        if ($component eq $argument)
+        {
+            $componentDesc = $descriptions[$count];
+            $found = 1;
+            last;
+        }
+        $count++;
+    }
+
+    if (! $found)
+    {
+        print STDOUT "INFO: $extrahelp\n";
+        die "ERROR! Component $component is not valid, must be one of following: @components.";
+    }
+
+    if ($component =~ /osw/)
+    {
+        $osw = 1;
+    }
+
+    if ($component =~ /check/)
+    {
+        $check = 1;
+    }
+
+    if ($component =~ /rmi/)
+    {
+       $rmi = 1;
+    }
+
+# if the minutes argument includes qualifier for minutes, hours or days, derive the value
+
+    $minutes = lc($minutes);     # lowercase it to make the check easier
+
+    if ($minutes =~ /m$/)
+    {
+        chop $minutes;           # just remove the last character
+        
+    } elsif ($minutes =~ /h$/)
+    {
+        chop $minutes;               # remove the last character
+        $minutes = $minutes * 60;    # multiply by minutes in an hour
+        
+    } elsif ($minutes =~ /d$/)
+    {
+        chop $minutes;               # remove the last character
+        $minutes = $minutes * 1440;  # multiply by minutes in a day
+    }
+
+# Run the jolly report
+
+    if (defined $componentDesc)
+    {
+        $argument = "$component ($componentDesc)";
+    } else
+    {
+        $argument = $component;
+    }
+
+    if ((defined $extrahelp) && (!$rmi))
+    {
+        print STDOUT "INFO: $extrahelp\n";
+    }
+
+    if ((defined $tnt_rmi_url) && ($rmi))
+    {
+        print STDOUT "INFO: $tnt_rmi_url\n";
+    }
+
+    if ((!$rmi) && (!$osw))
+    {
+        if ($from_date && to_date) {
+            print STDOUT "INFO: analyzing $argument logs...  Please wait...\n";
+        } else {
+            print STDOUT "INFO: analyzing $argument logs for the last $minutes minutes...  Please wait...\n";            
+        }
+    }
+
+    # here is the money shot!!!
+    my($java)     = $config{'TNT.SCRIPT.JAVA.EXECUTABLE'};
+    my($jar)      = $config{'TNT.SCRIPT.CLASSPATH'};
+    my($opt)      = $config{'STATIC.TOASTER.OPTIONS'};
+    my($checkopt) = $config{'STATIC.CHECKER.OPTIONS'};
+    my($key)      = uc("TNT.SCRIPT.$component.OPTIONS");
+    my($compopt)  = $config{$key};
+    if ($verbose)
+    {
+        print STDOUT "VERBOSE: Component options: $compopt\n";
+    }
+
+    # if the user specified -e on command line, add it to the static options
+    # but only if it isn't already in the static or component options
+    if ($extended)
+    {
+        if ( (!($opt =~ /-e/i))
+        &&   (!($compopt =~ /-e/i)) )
+        {
+            $opt = $opt . ' -e'
+        }
+
+        if (!($checkopt =~ /-e/i))
+        {
+            $checkopt = $checkopt . ' -e'
+        }
+        
+        if ($verbose)
+        {
+            print STDOUT "VERBOSE: setting extended option on\n";
+            print STDOUT "VERBOSE: STATIC.TOASTER.OPTIONS=$opt\n";
+            print STDOUT "VERBOSE: STATIC.CHECKER.OPTIONS=$checkopt\n";
+        }
+    }
+
+    # if the user specified a message type on the command line, add it to the static options
+    # but if -y XXX or -y XXX is defined in either the static or component options that must
+    # be removed / replaced with the new value
+    if (defined $type)
+    {
+        if ( (!($opt =~ /-y/i))
+        &&   (!($compopt =~ /-y/i)) )
+        {
+            $compopt = $compopt . " -y $type"
+        } else
+        {
+            # Here is the tricky bit, replacing existing value, what we do is always put it in front
+            # of the options because the toaster application will only pay attention to the first
+            # value passed in and ignore any subsequent ones
+            if ($opt =~ /-y/i)
+            {
+                $opt = "-y $type " . $opt
+            }
+
+            if ($compopt =~ /-y/i)
+            {
+                $compopt = "-y $type " . $compopt
+            }
+        }
+    }
+
+    if ( ( (defined $grep) || (defined $username) )
+    &&   (!defined $osw) )
+    {
+        $opt = $opt . " -p \"$grep\" -o oracle.rat.tfa.tnt.processors.PatternMatchingMessageProcessor -m -1 ";
+        if (defined $filter)
+        {
+            $opt = $opt . " -z \"$filter\" ";
+        }
+    }
+
+    if (defined $osw)
+    {
+        $opt = $opt . " -p \"$grep\" -o oracle.rat.tfa.tnt.processors.OSWatcherProcessor ";
+    }
+
+    if (defined $date)
+    {
+        $timeoption = "-f $date -t $date";
+    } elsif ( $from_date )
+    {
+        $timeoption = "-f $from_date -t $to_date";
+    } else
+    {
+        $timeoption = "-a $minutes";
+    }
+
+    if (defined $extra)
+    {
+        $extraoption = "-x $extra";
+    } else
+    {
+        $extraoption = "";
+    }
+
+    if (defined $username)
+    {
+        $usernameoption = "-u $username";
+    } else
+    {
+        $usernameoption = "";
+    }
+
+    if (defined $writeto)
+    {
+        $extraoption = $extraoption . " -w $writeto";
+    }
+
+    my($cmd);
+
+    if (defined $check)
+    {
+        $cmd = "$java -cp $jar checker $checkopt -c $checkerFilename -d $digesterFilename -f $fwkPropsFilename -a $appContextFilename";
+    } else
+    {
+        if (! defined $rmi)
+        {
+            $cmd = "$java -cp $jar oracle.rat.tfa.toaster $opt $compopt -c $cfgfilename -g $component $timeoption $extraoption $usernameoption";
+        }
+    }
+
+    if (defined $rmi)
+    {
+        my(@hostpieces);
+        my($hostname) = `hostname -f`;
+        chomp($hostname);
+        @hostpieces = split(/\./, $hostname);
+
+        if ($hostpieces[0] ne '')
+        {
+            $hostname = $hostpieces[0];
+        }
+
+        if (! defined ($componentOption))
+        {
+                die "No RMI option specified.  You must specify either check, start, stop, restart or udm after the rmi option";
+
+        } else
+        {
+            if ($componentOption eq 'check')
+            {
+                processCheck();
+
+            } elsif ($componentOption eq 'start')
+            {
+                $proc_id = getRMIProcessID();
+                if ($proc_id)
+                {
+                    print "tnt RMI service is already running, process id: $proc_id\n";
+                    processCheck();
+                } else
+                {
+                    print "STARTING tnt rmi service on $hostname\n";
+                    $cmd = "$java -cp $jar -Djava.util.logging.config.file=$cfgfilename -Djava.rmi.server.hostname=$hostname -Drefer=$tnt_rmi_url legacy.RMIService $cfgfilename >> $rmi_service_log 2>&1 &";
+                }
+
+            } elsif ($componentOption eq 'stop')
+            {
+                $proc_id = getRMIProcessID();
+                if ($proc_id)
+                {
+                    $cmd = "kill -9 $proc_id";
+                    print "STOPPING tnt rmi service on $hostname, process id: $proc_id\n";
+
+                } else
+                {
+                    print "No process for tnt RMI Service found, nothing to stop\n";
+                }
+
+            } elsif ($componentOption eq 'restart')
+            {
+                $proc_id = getRMIProcessID();
+                if ($proc_id)
+                {
+                    $cmd = "kill -9 $proc_id";
+                    print "STOPPING tnt rmi service on $hostname, process id: $proc_id\n";
+                    $exitstatus = system($cmd);
+                    die "ERROR! Unable to stop service, exit status was $?." unless $exitstatus == 0; 
+                } 
+                    
+                print "STARTING tnt rmi service on $hostname\n";
+                $cmd = "$java -cp $jar -Djava.util.logging.config.file=$cfgfilename -Djava.rmi.server.hostname=$hostname -Drefer=$tnt_rmi_url legacy.RMIService $cfgfilename >> $rmi_service_log 2>&1 &";
+
+            } elsif ($componentOption eq 'udm')
+            {
+                my($command) = "$java -cp $jar legacy.DistributedRMIHeartBeat $cfgfilename";
+                if ($verbose)
+                {
+                    print STDOUT "Distributed heartbeat command\n$command\n";
+                }
+                my($exitstatus);
+                my(@output) = `$command`;
+                $exitstatus = $?;
+
+                $hasEmResult = 0;
+                $hasEmMessage = 0;
+                foreach $line (@output)
+                {
+                    chomp($line);
+                    print STDOUT "$line\n";
+                    if ($line =~ /^em_result=/)
+                    {
+                        $hasEmResult = 1;
+                    }
+                    if ($line =~ /^em_message=/)
+                    {
+                        $hasEmMessage = 1;
+                    }
+                }
+                if ($exitstatus != 0)
+                {
+                   if (!$hasEmResult)
+                   {
+                       print STDOUT "em_result=$exitstatus\n";
+                   } 
+                   if (!$hasEmMessage)
+                   { 
+                       print STDOUT "em_message=Unable to successfully check distributed tnt rmi services using udm, command exit status: $exitstatus\n";
+                   }
+                   print STDOUT "Command: $command\n";
+                } 
+  
+            } else 
+            {
+                die "Unknown RMI option: $componentOption.  You must specify either check, start, stop, restart or udm after the rmi option";
+            }
+        }
+    } else
+    {
+        $cmd = "$java -cp $jar oracle.rat.tfa.toaster $opt $compopt -c $cfgfilename -g $component $timeoption $extraoption $usernameoption";
+    }
+
+    if ($verbose)
+    {
+        print STDOUT "VERBOSE: Command line...\n";
+        print STDOUT "VERBOSE: $cmd\n";
+    }
+
+    if ($cmd)
+    {
+        $exitstatus = system($cmd);
+        die "ERROR! Command: $cmd failed with non-zero exit status of $?.  Try running command manually to see more detail." unless $exitstatus == 0;
+
+        if (defined $rmi)
+        {
+            if (($componentOption eq 'start')
+            ||  ($componentOption eq 'restart'))
+            {
+                sleep(2);
+                if (processCheck("could not be started"))
+                {
+                    print "Check rmi service log file $rmi_service_log\n";
+                }
+            }
+        }
+    }
+
+# Subroutines defined below
+
+    sub processCheck
+    {
+        my($messageSuffix) = shift;
+        my($failure) = "false";
+        if (length($messageSuffix) == 0)
+        {
+            $messageSuffix = ' is not running';
+        }
+        my($hostname) = `hostname`;
+        chomp($hostname);
+
+        print STDOUT "\n";
+
+        if (defined $rmi_service_log)
+        {
+            print STDOUT "tnt rmi service log: $rmi_service_log\n";
+        }
+
+        if (defined $rmi_java_log)
+        {
+            print STDOUT "tnt rmi  java   log: $rmi_java_log\n";
+        }
+
+        print STDOUT "\nChecking tnt rmi service on $hostname\n";
+        print STDOUT "Process check ...  ";
+        $proc_id = getRMIProcessID();
+        if ($proc_id)
+        {
+            print STDOUT " OK, process id: $proc_id\n";
+            my($command) = "$java -cp $jar legacy.RMIHeartBeat $cfgfilename";
+            if ($verbose)
+            {
+                print STDOUT "heartbeat command\n$command\n";
+            }
+            my(@output) = `$command`;
+            my($outputLength);
+            $outputLength = @output;
+            if ($outputLength != 7)
+            {
+                 print "FAIL! Expected output lines from legacy.RMIHeartBeat is 7, actual number is $outputLength\n";
+                 $failure = "true";
+
+            } else
+            {
+                chomp $output[0];
+                if ($output[0] =~ /Starting legacy.RMIHeartBeat.../)
+                {
+                    if ($output[1] =~ /Success: true/)
+                    {
+                        if ($output[2] =~ /stdout:/)
+                        {
+                            if ($output[3] =~ /command: hostname/)
+                            {
+                                if ($output[4] =~ /^$/)
+                                {
+                                    if ($output[5] =~ /^$hostname/)
+                                    {
+                                        if ($output[6] =~ /^$/)
+                                        {
+                                            print "HeartBeat check ... OK\n";
+                                        } else
+                                        {
+                                            print "FAIL! Seventh line from legacy.RMIHeartBeat is not empty, actual: $output[6]\n";
+                                            $failure = "true";
+                                        }
+
+                                    } else
+                                    {
+                                        print "FAIL! Sixth line from legacy.RMIHeartBeat is not: $hostname, actual: $output[5]\n";
+                                        $failure = "true";
+                                    }
+
+                                } else
+                                {
+                                    print "FAIL! Fifth line from legacy.RMIHeartBeat is not empty, actual: $output[4]\n";
+                                    $failure = "true";
+                                }
+
+                            } else
+                            {
+                                print "FAIL! Fourth line from legacy.RMIHeartBeat is not: command: hostname, actual: $output[3]\n";
+                                $failure = "true";
+                            }
+
+                        } else
+                        {
+                            print "FAIL! Third line from legacy.RMIHeartBeat is not: stdout:, actual: $output[2]\n";
+                            $failure = "true";
+                        }
+                    } else
+                    {
+                        print "FAIL! Second line from legacy.RMIHeartBeat is not: Success: true, actual: $output[1]\n";
+                        $failure = "true";
+                    }
+                } else
+                {
+                    print "FAIL! First line from legacy.RMIHeartBeat does not start with: Starting legacy.RMIHeartBeat..., actual: $output[0]\n";
+                    $failure = "true";
+                } 
+            }
+
+        } else
+        {
+            print STDOUT " FAILED, tnt rmi service $messageSuffix\n";
+            $failure = "true";
+        }
+
+        if ($failure eq 'true')
+        {
+            print STDOUT "em_result=1\n";
+            print STDOUT "em_message=tnt rmi service not accessible on 1 hosts! $hostname Refer: $tnt_rmi_url\n";
+
+        } else
+        {
+            print STDOUT "em_result=0\n";
+            return 0;
+        }
+    }
+
+    sub loadConfigDefaults
+    {
+        # Loads the default values into the config hash, these will be
+        # overwritten if configuration files are created
+
+        $config{'TNT.SCRIPT.JAVA.EXECUTABLE'}       = '/usr/bin/java -Xmx1536m';
+        $config{'TNT.SCRIPT.CLASSPATH'}             = '/home/oracle/tnt/lib/tnt.jar:/home/oracle/tnt/lib/framework.jar:/home/oracle/tnt/lib/ojdbc14.jar';
+        $config{'STATIC.TOASTER.OPTIONS'}           = '-i top -n 100 -r beehive';
+        $config{'TNT.SCRIPT.DEFAULT.COMPONENT'}     = 'mail';
+        $config{'TNT.SCRIPT.DEFAULT.MINUTES'}       = 60;
+        $config{'TNT.SCRIPT.COMPONENT.LIST'}        = 'mail,app,all';
+        $config{'TNT.SCRIPT.COMPONENT.DESCRIPTION'} = "All email components,Beehive application,All components"; 
+        $config{'TNT.SCRIPT.RMI.PROCESS.LIST'}      = "ps auxww|grep legacy.RMIService|grep -v \"grep legacy\"|awk '{printf \"%d \", \$2}'";
+        $config{'TNT.RMI.RMISERVICE.URL'}           = 'TntRMIService';
+        $config{'TNT.RMI.RMISERVICE.LOG.FILENAME'}  = 'rmiservice.log';
+    }
+
+
+    sub loadConfigFiles
+    {
+        # Loads the configuration file details into the config hash.  
+        #
+        # 1 - $TNT_HOME/conf/tnt.prop (common location is /home/oracle/tnt/conf/tnt.prop)
+        # 2 - $HOME/tnt/conf/tnt.prop (common location is /home/oracle/tnt/conf/tnt.prop)
+        # 3 - $TNT_HOME/tnt.prop      (common location is /home/oracle/tnt/tnt.prop)
+        # 4 - $HOME/tnt.prop          (common location is /home/oracle/tnt.prop)
+        # 5 - /home/oracle/tnt/conf/tnt.prop
+        #
+        # As soon as it finds one of these files, it stops looking
+        if ( ! $ENV{TNT_HOME} )
+        {
+          use File::Basename;
+          $ENV{TNT_HOME} = dirname(dirname($0));
+        }
+
+        my($filename) = "$ENV{TNT_HOME}/conf/tnt.prop";
+        
+        
+        # Check if file is there and readable
+        if (-r $filename)
+        {
+            loadConfigFile($filename);
+
+        } else
+        {
+            $filename = "$ENV{HOME}/tnt/conf/tnt.prop";
+
+            if (-r $filename)
+            {
+                loadConfigFile($filename);
+
+            } else
+            {
+                $filename = "$ENV{TNT_HOME}/tnt.prop";
+
+                if (-r $filename)
+                {
+                    loadConfigFile($filename);
+
+                } else
+                {
+                    $filename = "$ENV{HOME}/tnt.prop";
+                    if (-r $filename)
+                    {
+                        loadConfigFile($filename);
+
+                    } else
+                    {
+                        $filename = '/home/oracle/tnt/conf/tnt.prop';
+                        if (-r $filename)
+                        {
+                            loadConfigFile($filename);
+
+                        } else
+                        {
+                            die "ERROR! Unable to locate configuration file for tnt"
+                        }
+                    }
+                }
+            }
+        }
+    }
+
+
+    sub loadConfigFile
+    {
+        my($filename) = shift;
+        $cfgfilename = $filename;
+        if ($verbose)
+        {
+            print STDOUT "VERBOSE: Reading configuration file: $filename\n";
+        }
+
+        if (open(CONFIG, "<$filename"))
+        {
+            while (<CONFIG>)
+            {
+                chomp;                  # No newline
+                s/^\s+//;               # No leading white
+                s/\s+$//;               # No trailing white
+                s/^#.*//;               # No leading comments, trailing comments are included in the parameter / property value, this is required
+                                        # in case the # is needed in the pattern for exclusion rules
+                next unless length;     # Anything left?
+    
+                my($var,$value) = split(/\s*=\s*/, $_,2);   # Split the parameter and the value based on the equals sign
+                $var =~ tr/[a-z]/[A-Z]/;                    # Uppercase the parameter name
+                $config{$var} = $value;                     # Put the value into the array
+            }
+
+            close CONFIG;
+
+        } else
+        {
+            print STDOUT "WARNING! Unable to open configuration file: $filename, default values used where possible.";
+        }
+    }
+
+
+
+    sub printConfigDetails
+    {
+        # Prints details of the configuration file if in verbose mode
+
+        if ($verbose) 
+        { 
+            my($key);
+            print STDOUT "VERBOSE: Configuration details...\n";
+        
+            foreach $key (sort keys %config)
+            {
+                print "VERBOSE: $key=$config{$key}\n";
+            }
+        }
+    }
+
+    sub getRMIProcessID
+    {
+        if ($verbose)
+        {
+            print STDOUT "VERBOSE: RMI process list command: $proc_list\n";
+        }
+        return `$proc_list`;
+    }
+
+
+    sub initializeScript
+    {
+        # This routine checks the command line arguments and initializes various settings
+        %option = ();             # Initialize the options
+        getopts("hvet:u:p:d:x:w:f:s:l:", \%option);  # The : indicates a value is required for the option
+
+        if (defined $option{'h'})
+        {
+            printUsage();
+            exit 1;
+        }
+
+        if (defined $option{v})
+        {
+            $verbose = 1;
+        }
+
+        if (defined $option{e})
+        {
+            $extended = 1;
+        } 
+
+        if (defined $option{t})
+        {
+            $type = $option{t};
+        }
+
+        if (defined $option{p})
+        {
+            $grep = $option{p};
+        }
+
+        if (defined $option{f})
+        {
+            $filter = $option{f};
+        }
+  
+        if (defined $option{s})
+        {
+            $from_date = $option{s};
+            if ( $from_date =~ /([\d\w\/]+)\s+([\d\:]+)/ )
+            {
+              $from_date = $1;
+              $extra = $2;
+            }
+        }
+
+        if (defined $option{l})
+        {
+            $to_date = $option{l};
+            if ( $to_date =~ /([\d\w\/]+)\s+([\d\:]+)/ )
+            {
+              $to_date = $1;
+              $extra .= ",".$2;
+            }
+        }
+
+        if (defined $option{d})
+        {
+            $date = $option{d};
+        }
+
+        if (defined $option{u})
+        {
+            $username = $option{u};
+        }
+
+        if (defined $option{x})
+        {
+            $extra = $option{x};
+            print "extra: $extra\n";
+            if (!($extra =~ /^[0-9:,]+$/))
+            {
+                die "ERROR! Extra value $extra is not valid, must only be numbers, colons and comma.";
+            } 
+        } else
+        {
+            if (defined $option{d})
+            {
+                @pieces = split(/ /, $date);
+                $piecesize = @pieces;
+                if ($piecesize > 1)
+                {
+                    $date = $pieces[0];
+                    $extra = $pieces[1];
+                    if (!($extra =~ /^[0-9:,]+$/))
+                    {
+                        die "ERROR! Time range $extra is not valid, must only be numbers, colons and comma.";
+                    } 
+                }
+            }
+        }
+
+        if (defined $option{w})
+        {
+            $writeto = $option{w};
+        }
+    }
+
+
+#!/bin/sh
+
+# $Header: tfa/src/tnt/bin/tnt /main/6 2018/01/22 03:49:31 bibsahoo Exp $
+# $Revision: /main/6 $
+# $Author: bibsahoo $
+# $Date: 2018/01/22 03:49:31 $
+#
+
+# This script starts the tnt RMI service, the port is configured in
+# the rmiservice.properties file.
+#
+#export CLASSPATH=/home/oracle/tnt/lib/tnt.jar:/home/oracle/tnt/rmi/wizard.jar:/home/oracle/tnt/rmi/spring-beans-1.2.1.jar:/home/oracle/tnt/lib/tntbase13.jar:.:/home/oracle/tnt/rmi/douglea-concurrent-1.3.4.jar:/home/oracle/tnt/rmi/commons-logging-1.1.jar:/home/oracle/tnt/rmi/xmlparserv2.jar
+#
+#proc_list="`ps auxww|grep legacy.RMIService|grep -v grep|awk '{printf "%d ", $2}'`"
+#if [ -n "$proc_list" ];
+#then
+#   echo "tnt rmi service is already running - process id: $proc_list, if you need to stop the service, use the stoptntrmi.sh script"
+#   ps -ef|grep $proc_list|grep -v grep
+#else
+#   echo "Starting tnt rmi service..."
+#
+#fi
+
+#!/bin/sh
+
+# $Header: tfa/src/tnt/bin/tnt /main/6 2018/01/22 03:49:31 bibsahoo Exp $
+# $Revision: /main/6 $
+# $Author: bibsahoo $
+# $Date: 2018/01/22 03:49:31 $
+#
+
+# This script stops the tnt RMI service.
+
+#proc_list="`ps auxww|grep legacy.RMIService|grep -v grep|awk '{printf "%d ", $2}'`"
+#if [ -n "$proc_list" ]; 
+#then
+#   echo "Killing tnt RMI Service, process id: $proc_list"
+#   kill -9 $proc_list
+#else
+#   echo "No process for tnt RMI Service found, nothing to stop"
+#fi
+
+#kill -9 `ps auxww|grep legacy.RMIService|grep -v grep|awk '{print $2}'`
+
+
+
+#!/bin/sh
+
+# $Header: tfa/src/tnt/bin/tnt /main/6 2018/01/22 03:49:31 bibsahoo Exp $
+# $Revision: /main/6 $
+# $Author: bibsahoo $
+# $Date: 2018/01/22 03:49:31 $
+#
+
+# This script tests to see if the tnt RMI service is running.  A text message is displayed
+# indicating the registry jvm /process is running followed by a heart beat check.
+	
+#export OLD_CLASSPATH=$CLASSPATH
+#
+#checkHeartBeat() {
+#
+#	export CLASSPATH=/home/oracle/tnt/lib/tnt.jar:/home/oracle/tnt/rmi/wizard.jar
+#
+#	echo "Starting legacy.RMIHeartBeat... (\$Revision: /main/6 $)" > /tmp/rmichk_expected.out
+#	echo "Success: true" >> /tmp/rmichk_expected.out
+#	echo "stdout: " >> /tmp/rmichk_expected.out
+#	echo "command: hostname" >> /tmp/rmichk_expected.out
+#	echo "" >> /tmp/rmichk_expected.out
+#	echo "" >> /tmp/rmichk_expected.out
+#
+#	/u01/app/oracle/product/bh1/jdk/bin/java legacy.RMIHeartBeat /home/oracle/tnt/rmi/rmiservice.properties > /tmp/rmichk_actual.out
+#	diff /tmp/rmichk_expected.out /tmp/rmichk_actual.out > /dev/null
+#	status=$?
+#
+#	if [ "$status" -ne 0 ]
+#	then
+#	   echo "HeartBeat check ... FAILED"
+#        else
+#           echo "HeartBeat check ... OK"
+#	fi
+#}
+#
+#proc_list="`ps auxww|grep legacy.RMIService|grep -v grep|awk '{printf "%d ", $2}'`"
+#if [ -n "$proc_list" ]; 
+#then
+#   echo "Process check ...   OK - process id: $proc_list"
+#   checkHeartBeat
+#else
+#   echo "Process check ...   FAILED"
+#fi
+#
+#export CLASSPATH=$OLD_CLASSPATH
+#
+# END OF SCRIPT
+
+
+# Keep this routine at the bottom end of the section of Subroutines
+# it is always untidy because of the HEREDOC tokens and text, also
+# it keeps it close to the perldoc so you can easily do a cut and
+# paste when you change the usage in either place.
+sub printUsage()
+{
+        print STDERR <<END
+
+Runs the toaster tool for log search, log analysis or system checks, also used to control the tnt rmi services.
+
+Log search finds all log messages that match a pattern specified with the -p option.  The messages shown will be all types of message for the component regardless of message level, so, you'll get error, warning, trace, etc in the output. You can further limit the matches shown using an optional pattern with the -f (filter) option.  Messages that match the -p pattern will be shown as long as they don't match the optional -f pattern.
+
+Log analysis happens automatically when you do not specify a pattern with the -p option.  The analysis summarizes the most common messages showing them in order of frequency within the time interval being analyzed (1 hour by default). By default it will analyze error messages but you can use the -t option to specify a different type of message, for example warning messages could be analyzed.  Typically though, you should just use analysis on error messages, the configuration of the log tool usually isn't optimized for anything other than errors.  Log analysis is able to summarize messages by substituting common values with a known string so that multiple errors are able to be seen for the common error text among the various and sometimes confusing values.  The common values are replaced with (***) so any time you see the (***) in the output you can know that a substitution has taken place.  
+
+Systems checks are available for OSWatch log files using the osw or oswslabinfo component.  This is a form of log file analysis which summarizes the details in the OSWatcher logs.
+
+The -e option is often useful for showing extra info.  For a log search the extra info shown is the source of each message.  For log analysis the extra info shown is the first and last occurrence of the message along with the source of the last and first occurrences.  NOTE. When command line options are used with tnt, they must be specified before the component and minutes.  for example, ( tnt mail 15 -e ) won't work.  Must be specified as ( tnt -e mail 15 )
+
+Usage: $0 [-v (verbose)] [-h (help)] [-d date (format is dd/mon/yyyy i.e. 26/May/2009)] [-e (extended mode)] [-t type of log message to analyze] [-p pattern to search for, patttern "regex" is case insensitive, pattern "/regex/c" is case sensitive] [-f filter to apply to pattern to hide messages from matcher] [-w file to write original info from oswatcher analysis] [-u username] [component] [minutes (default is 60)]
+
+Component depends on tnt configuration, if you aren't sure of the component names available, just try anything: tnt xxx      or tnt abc   and you'll get an error message explaining you've selected an invalid component followed by a list of all the valid components.  If you don't specify a component, it will default so entering just tnt on it's own will provide analysis of all the errors for the default component.  On beehive mid tiers the default component is mail.
+
+example
+
+    tnt
+
+        Shows the tnt log analysis for the default component for the default interval
+
+    tnt mail 45
+
+        Shows the tnt log analysis for the beemail component for the last 45 minutes
+
+    tnt osw 24h
+
+        Shows the OSWatcher analysis for the last 24 hours
+
+    tnt -p "Load error" -f "bee_compid: 7f07da72" mail 15
+
+        Runs a search for "Load error" but filters out any with a specific compid for the last 15 minutes in the beemail logs.
+
+        When using the pattern based searching with -p, consider using the web based toaster tool.  It searches any number of hosts simultaneously and aggregates the results into a single table.  It's much faster if you are looking at resul ts for more than one host.
+
+Usually the minutes option is used to see output for the last X minutes.  You can specify the minutes as whole number, hours (1h, 2h, 24h, etc) or as days (1d, 7d, etc).
+
+Date based searching
+
+If you use the -d option, by default, the minutes are ignored and the analysis / search is done for log entries matching only the date specified.  You must specify the date in a full 11 character format of dd/mmm/yyyy (26/May/2009).
+
+Date searching supports an extended time constraint which allows you to specify hours, minutes, even specific seconds.  Syntax is "13:10:23,13:10:33" or "13,14" or "13:10,16". When using this syntax with the -d date option, put a space between like this: -d "26/May/2009 13:10,15:30".
+
+    tnt -p "ORA-" -d "04/jul/2011 12:15,13:45"
+
+        Runs a search for log messages with "ORA-" on the 4th of July between the hours of 12:15 and 1:45.
+
+If using OSWatcher analysis, the -w option allows you to specify a file name where the details of the original output from oswatcher will be written to for each data point.  The filename will always have a .lst extension appended to the value you provide.
+
+RMI Services
+
+The tnt script is also used to start, stop and check the tnt rmi service.  The tnt rmi service is used by the Toaster web search tool as well as certain Beehive related services on the tnt web site and within the Oracle APS provisioning system.  The tnt rmi service runs on a dedicated port and must be manually started and stopped as required.
+
+To control the tnt rmi services, use the following syntax
+
+tnt rmi start
+tnt rmi stop
+tnt rmi restart
+tnt rmi check
+tnt rmi udm
+
+The 'start' option will only start the tnt rmi service if it is not already running.  The 'restart' option will stop the tnt rmi service if it is already running and then restart it again.  The 'check' and 'udm' options can be used stand alone, or they can be called from User Defined Metrics in Oracle EMGC.  You will notice they provide plain text output as well as the emgc prefixes of em_result and em_message.
+
+Refer to online documentation for more details.
+
+END
+}
+
+__END__
+
+=head1 NAME
+
+$Header: tfa/src/tnt/bin/tnt /main/6 2018/01/22 03:49:31 bibsahoo Exp $
+
+=head1 DATE
+
+$Date: 2018/01/22 03:49:31 $
+
+=head1 AUTHOR
+
+$Author: bibsahoo $
+
+Tony Obermeit, or hey you
+
+=head1 REVISION
+
+$Revision: /main/6 $
+
+=head1 DESCRIPTION
+
+Runs tnt (toaster) log file analysis for the current server
+
+For help run tnt -h  or refer to the printUsage routine above.
+
+=head1 COMMENTS
+
+Refer to online documentation for more details:
+
+=cut
+

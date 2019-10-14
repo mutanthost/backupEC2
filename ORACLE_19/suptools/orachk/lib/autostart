@@ -1,0 +1,131 @@
+#!/bin/env sh
+#
+# $Header: tfa/src/orachk_py/lib/autostart /main/4 2018/11/29 09:23:47 apriyada Exp $
+#
+#
+# Copyright (c) 2014, 2018, Oracle and/or its affiliates. All rights reserved.
+#
+#    NAME
+#    autostart
+#
+#    DESCRIPTION
+#      Auto start feature where tool start without user intervention.
+#
+#
+#    MODIFIED   (MM/DD/YY)
+#        rkchaura         02/22/17 - Creation
+#
+#
+
+PTMPDIR="/opt/oracle.SupportTools"
+if [[ -z $RAT_INSTALLATION_LOC ]];then 
+  if [[ -d $PTMPDIR/orachk ]];then
+    INSTALLATION_LOC="$PTMPDIR/orachk"
+    program_name="orachk"
+  elif [[ -d $PTMPDIR/exachk ]];then 
+  	INSTALLATION_LOC="$PTMPDIR/exachk"
+  	program_name="exachk"
+  else
+    exit 1
+  fi
+else
+  INSTALLATION_LOC=$RAT_INSTALLATION_LOC
+  if [[ -e $INSTALLATION_LOC/orachk ]];then
+  	program_name="orachk"
+  elif [[ -e $INSTALLATION_LOC/exachk ]];then 
+    program_name="exachk"
+  else
+    exit 1
+  fi
+fi
+if [[ -n $RAT_TMPDIR && -d $RAT_TMPDIR ]];then
+  RTEMPDIR=$RAT_TMPDIR
+elif [[ -d $PTMPDIR/$program_name ]];then
+  RTEMPDIR=$PTMPDIR/$program_name
+else
+  RTEMPDIR=$HOME
+fi
+case `/bin/uname` in
+  Linux)
+    usern=`whoami`
+  ;;
+  SunOS)
+    usern=`id|awk '{print $1}'|cut -d'(' -f2|cut -d')' -f1`
+  ;;
+  *)
+    exit 1
+  ;;
+esac
+
+if [[ ! -e $INSTALLATION_LOC/$program_name || ! -f $INSTALLATION_LOC/$program_name ]];then
+  echo -e "\n$program_name binaries do not exist at location $INSTALLATION_LOC\n\nSet RAT_INSTALLATION_LOC variable to specify $program_name binaries location\n"
+  exit 1
+fi
+
+if [[ $usern == "root" ]];then
+  command_argument="$@";
+  if [[ $command_argument == "start" ]];then
+    export RAT_DAEMON_AUTO_START=1
+    export RAT_PROCESS_PRIORITY=10
+    $INSTALLATION_LOC/$program_name -autostart
+  elif [[ $command_argument == "stop" ]];then
+    export RAT_DAEMON_AUTO_START=0
+    if [[ -e "$RTEMPDIR/.${program_name}_root_s/client.pid" && -e "$RTEMPDIR/.${program_name}_root_s/autostart_client.fds" ]];then 
+      while read pid; do
+        client_pid=$pid
+        if [[ $client_pid -gt "0" ]];then
+          kill -9 $client_pid > /dev/null 2>&1
+        fi
+      done < $RTEMPDIR/.${program_name}_root_s/client.pid
+      if [[ -e "$RTEMPDIR/.${program_name}_root_s/autostart_client.fds" ]];then
+        while read FDS; do
+          if [[ -n $FDS ]];then
+            rm -rf $INSTALLATION_LOC/.input_$FDS > /dev/null 2>&1 
+            rm -rf $INSTALLATION_LOC/${program_name}_$FDS > /dev/null 2>&1
+            rm -rf $RTEMPDIR/.${program_name}_$FDS > /dev/null 2>&1
+          fi
+        done < $RTEMPDIR/.${program_name}_root_s/autostart_client.fds
+      fi
+      if [[ -e "$RTEMPDIR/.${program_name}_root_s/nr_homes_tmpdirs" ]];then
+        dirlist=`cat $RTEMPDIR/.${program_name}_root_s/nr_homes_tmpdirs`
+        if [[ -n $dirlist ]];then
+          for nr_home_dir in `echo "$dirlist"`
+          do
+            if [[ -d $nr_home_dir ]];then
+              rm -rf $nr_home_dir > /dev/null 2>&1
+            fi
+          done
+        fi
+      fi
+    fi
+    
+    if [[ -e "$RTEMPDIR/.${program_name}_root_s/discovery_fds" ]];then
+      FDS=`cat $RTEMPDIR/.${program_name}_root_s/discovery_fds`
+      if [[ -n $FDS ]];then
+        rm -rf $INSTALLATION_LOC/.input_${FDS} > /dev/null 2>&1 
+        rm -rf $INSTALLATION_LOC/${program_name}_${FDS} > /dev/null 2>&1
+        rm -rf $RTEMPDIR/.${program_name}_${FDS} > /dev/null 2>&1
+      fi
+    fi
+    
+    if [[ -e "$RTEMPDIR/.${program_name}_root_s/${program_name}_s.pid" ]];then
+      daemon_pid=`cat $RTEMPDIR/.${program_name}_root_s/${program_name}_s.pid`
+      if [[ $daemon_pid -gt "0" ]];then
+        kill -9 $daemon_pid > /dev/null 2>&1
+      fi
+      rm -rf "$RTEMPDIR/.${program_name}_root_s/";
+    fi
+    
+    
+  else
+    exit 1
+  fi
+else
+  exit 1
+fi
+exit 0
+
+
+
+
+

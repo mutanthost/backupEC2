@@ -1,0 +1,75 @@
+printf("==========START_OF_REPORT_chkZSCPU.aksh==========\n");
+var founderrors = false;
+
+function cpu_check(chassis_o, chassis_index){
+    faulted_cpus = "";
+
+    // Only run on first chassis
+    if(chassis_index > 0)
+        return "";
+        
+    chassis_o.cpus = new Array();      
+        
+    run('select cpu');
+    output = run('list').split('\n');
+
+    for (j = 1; (j < output.length) && (output[j].lastIndexOf("cpu-")>=0); j++)  { // go through all the CPUs;
+	    line = output[j].replace(/\s+/g, " ");
+	    items = line.split(' ');
+	    // get position and status
+	    pos = items[0];
+	    status = items[3];
+	
+	    //print("select "+ pos + "\n");
+	    run("select "+ pos);										
+	    cpu = {"label": get("label"), "present": get("present"), "faulted": get("faulted"), "status": status};						
+	
+	    if (cpu["faulted"].toString() == "true") {
+	        founderrors = true;
+	    }
+	
+	    if ((cpu["faulted"].toString() == "true") || (cpu["present"].toString() =="false") || (output[j].lastIndexOf("ok")<0)){
+		    faulted = cpu.label + " - " + cpu.status; //takes disk location and status																	
+		    faulted_cpus = faulted_cpus + "      " +faulted + ";\n";										    
+	    }
+	    else {
+		    try{
+			    cpu.pn = get("part");
+		    }
+		    catch (e){
+			    cpu.pn = "n/a";
+		    }
+		    finally {
+			    try{
+				    cpu.speed = get("speed");																
+			    }
+			    catch(e){
+				    cpu.speed = "n/a";
+			    }
+			    finally{
+				    try{
+					    cpu.rev = get("revision");
+				    }
+				    catch(e){
+					    cpu.rev = "n/a";
+				    }
+			    }
+		    }
+	    }
+	    run("cd ..");
+	    chassis_o.cpus.push(cpu);
+    }        
+    
+    return faulted_cpus;
+}       
+ 
+var hardwareTable = new printTable({name:"CPU Check", headNames:["Name", "Status", "Details"]});
+appl.hardware 	= new Array();	
+failed_hw_components(cpu_check);
+printReportTable(hardwareTable);
+							
+printf("==========END_OF_REPORT_chkZSCPU.aksh==========\n");
+printf("==========START_OF_AUDIT_CHECK_chkZSCPU.aksh==========\n");
+printf("cpu_status = %d\n", founderrors);
+printf("==========END_OF_AUDIT_CHECK_chkZSCPU.aksh==========\n");			
+        

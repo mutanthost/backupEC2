@@ -1,0 +1,142 @@
+<?xml version="1.0"?>
+
+<!--  $Header: tfa/src/v2/tfa_home/resources/srdc_emtbsmetric.xml /main/5 2018/05/28 15:06:26 bburton Exp $ -->
+
+<!-- 
+ Copyright (c) 2016, 2018, Oracle and/or its affiliates. All rights reserved.
+
+   NAME
+     srdc_emtbsmetric.xml - <one-line expansion of the name>
+
+   DESCRIPTION
+     <short description of component this file declares/defines>
+
+   NOTES
+     <other useful comments, qualifications, etc.>
+
+   MODIFIED   (MM/DD/YY)
+   manuegar   07/28/17 - manuegar-srdc_xmlparser.
+   manuegar   05/12/17 - manuegar_srdcwin08.
+   manuegar   04/26/17 - manuegar_srdcwin01.
+   bburton    03/10/17 - New Format
+   manuegar   01/20/17 - Creation
+
+-->
+<collections>
+<collection id="emtbsmetric">
+    <description>SRDC for EM Tablespace Space Used Metric Issues.</description>
+    <user_inputs>
+        <user_input cmdline="" default="" showprompt="1" setenv="NO" validate="" prompt="Enter the value for the EM Target name">USERINPUT-TARGET_DBNAME</user_input>
+        <user_input cmdline="" default="" showprompt="1" setenv="NO" validate="" prompt="Is the EM Repository Database running locally?">USERINPUT-REPODB_LOCAL</user_input>
+        <user_input cmdline="" default="" showprompt="1" setenv="NO" validate="" prompt="Enter the EM Repository Database Name. You can get the repository connect details from EM using the following navigation: Setup -&gt; Manage Cloud Control -&gt; Health Overview -&gt; Repository Details.">USERINPUT-REPOSITORY_DBNAME</user_input>
+        <user_input cmdline="" default="" showprompt="1" setenv="REPLACE" validate="" prompt="Enter the dbsnmp credential for Target DB where the issue is seen">USERINPUT-DBSNMP_PWD</user_input>
+        <user_input cmdline="" default="" showprompt="1" setenv="REPLACE" validate="" prompt="Enter the sysman credential for Repository DB">USERINPUT-SYSMAN_PWD</user_input>
+    </user_inputs>
+    <onevents>
+        <event>
+        </event>
+    </onevents>
+    <duration>12h</duration>
+    <clusterwide>no</clusterwide>
+    <filter_files>
+        <types>
+        </types>
+        <filter_file_patterns>
+            <filter_file_pattern>alert_.*\.log</filter_file_pattern>
+            <filter_file_pattern>trc</filter_file_pattern>
+            <filter_file_pattern>log</filter_file_pattern>
+            <filter_file_pattern>archive\/osw</filter_file_pattern>
+            <filter_file_pattern>ExaWatcher\/archive</filter_file_pattern>
+        </filter_file_patterns>
+    </filter_files>
+    <components>
+        <component>OS</component>
+    </components>
+    <commands>
+        <script type="OS" name="os_AgentTbsProb" timeout="300" validfor="EMAGENT" platform="allux" version="">
+            export ORACLE_HOME=%EMAGENTOHOME%
+            export PATH=$ORACLE_HOME/bin:$PATH
+            emctl status agent
+            emctl listplugins agent
+            emctl status agent scheduler | grep problemTbsp
+            emctl getmetric agent %EMTARGETDBNAME%,oracle_database,problemTbsp
+            emctl status agent target TARGET_NAME,TARGET_TYPE | grep problemTbsp
+        </script>
+        <script type="OS" name="os_AgentTbsProbWin" timeout="300" validfor="EMAGENT" platform="MSWin32" version="">
+            set ORACLE_HOME=%EMAGENTOHOME%
+            set PATH=%ORACLE_HOME%\bin;%PATH%
+            emctl status agent
+            emctl listplugins agent
+            emctl status agent scheduler | findstr problemTbsp
+            emctl getmetric agent %EMTARGETDBNAME%,oracle_database,problemTbsp
+            emctl status agent target TARGET_NAME,TARGET_TYPE | findstr problemTbsp
+        </script>
+
+        <script type="EMSQL" name="sql_TargetTbs" timeout="300" validfor="TARGETDB" platform="" version="">
+            conn dbsnmp/%DBSNMP_PWD%;
+            set mark html on
+            spool TargetTbs.html
+            TTITLE CENTER 'CURRENT DATE'
+            select to_char(sysdate,'dd-mon-yyyy hh24:mi:ss') from dual;
+            TTITLE CENTER 'DB Version'
+            SELECT * FROM V$VERSION;
+            TTITLE CENTER 'CURRENT TABLESPACE USAGE AS DETERMINED BY EM METRIC'
+            SELECT m.tablespace_name, m.used_percent, (m.tablespace_size - m.used_space)*t.block_size/1024/1024 mb_free
+            FROM dba_tablespace_usage_metrics m,
+            dba_tablespaces t,
+            v$parameter p
+            WHERE p.name='statistics_level' and p.value!='BASIC'
+            AND t.contents NOT IN ('TEMPORARY', 'UNDO') AND t.tablespace_name = m.tablespace_name;
+            TTITLE CENTER 'DB BLOCK SIZE'
+            SELECT value FROM v$parameter WHERE name = 'db_block_size';
+            TTITLE CENTER 'TABLESPACE USAGE IN BLOCKS and GIG'
+            select TABLESPACE_NAME,
+            (USED_SPACE*(select value FROM v$parameter WHERE name = 'db_block_size'))/(1024*1024*1024) "USED_SPACE G" ,
+            USED_SPACE "USED_SPACE BLOCKS",
+            (TABLESPACE_SIZE*(select value FROM v$parameter WHERE name = 'db_block_size'))/(1024*1024*1024) "TABLESPACE_SIZE G",
+            TABLESPACE_SIZE "TABLESPACE SIZE BLOCKS",
+            USED_PERCENT
+            FROM DBA_TABLESPACE_USAGE_METRICS
+            order by tablespace_name asc;
+            TTITLE CENTER 'DBA_DATA_FILES'
+            SELECT tablespace_name,
+            sum(BYTES/(1024*1024*1024)) "ALLOCATED G",
+            sum (BLOCKS) "ALLOCATED BLOCKS",
+            sum(MAXBYTES/(1024*1024*1024)) "MAX SIZE G",
+            sum (maxblocks) "MAX BLOCK SIZE",
+            count (file_name)
+            FROM DBA_DATA_FILES
+            group by tablespace_name
+            order by tablespace_name asc;
+            TTITLE CENTER 'TABLESPACE MANAGEMENT'
+            select tablespace_name, extent_management, allocation_type, contents from dba_tablespaces;
+            spool off;
+            set mark html off;
+            exit;
+        </script>
+
+        <script type="EMSQL" name="sql_TbsReposSettings" timeout="300" validfor="REPOSITORYDB" platform="" version="">
+            conn sysman/%SYSMAN_PWD%;
+            set mark html on
+            spool TbsReposSettings.html
+            alter session set nls_date_format='dd-mon-yyyy hh24:mi:ss';
+            TTITLE CENTER 'CURRENT OPEN EVENTS FOR THE TARGET'
+            select em_current_violation.target_guid, mgmt_targets.target_name, mgmt_targets.target_type,violation_guid, collection_timestamp, violation_level, string_value,
+            message, MESSAGE_NLSID
+            from em_current_violation,mgmt_targets
+            where em_current_violation.target_guid=mgmt_targets.target_guid
+            and mgmt_targets.target_guid=(select target_guid from mgmt_targets where target_name='%EMTARGETDBNAME%' and target_type='%TARGETTYPE%');
+            TTITLE CENTER 'THRESHOLDS AS SAVED IN THE EM REPOSITORY FOR THE TARGET'
+            select mt.target_name, mt.target_type, mmt.coll_name, mmt.warning_threshold, mmt.critical_threshold, mmt.message, mmt.key_value
+            from mgmt_targets mt, mgmt_metric_thresholds mmt where mt.target_guid = mmt.target_guid
+            and mt.target_name='%EMTARGETDBNAME%'
+            and mmt.coll_name in ('problemTbsp_10i_Loc','problemTbspTemp_10i_Loc','problemTbspUndo_10i_Loc','problemTbsp_10i_Dct' );
+            spool off;
+            set mark html off;
+            exit;
+        </script>
+    </commands>
+    <runtime_flags>
+    </runtime_flags>
+</collection>
+</collections>

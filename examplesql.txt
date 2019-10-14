@@ -1,0 +1,25 @@
+#!/usr/bin/env bash
+# check_db_open() {
+# check_db_open()
+# Use		  : check_db_open <system_password>
+# Description :
+#		The check_db_open function will open an sqlplus session, query the
+#		v$instance table to determine the status of the database of the
+#		ORACLE_SID you are currently connected to.
+#	chsid "crdemo"
+#	db_status=$(
+#		sqlplus -s /nolog <<-EOF 2>&1
+#		connect $1
+#		-- Setup error catching
+#		WHENEVER SQLERROR EXIT SQL.SQLCODE;
+#		-- Get Status
+#		set heading off
+#		set feedback off
+#		set pause off
+#		set linesize 32767
+#		set pagesize 0
+#		select status from v\$instance;
+#		quit
+#EOF
+#	)
+#}

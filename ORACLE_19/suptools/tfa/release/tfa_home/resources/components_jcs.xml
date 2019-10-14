@@ -1,0 +1,429 @@
+<?xml version="1.0"?>
+
+<!--  $Header: tfa/src/v2/tfa_home/resources/components_jcs.xml /main/4 2016/02/09 22:40:29 cnagur Exp $ -->
+
+<!-- 
+ Copyright (c) 2015, 2016, Oracle and/or its affiliates. All rights reserved.
+
+   NAME
+     components_jcs.xml - <one-line expansion of the name>
+
+   DESCRIPTION
+     <short description of component this file declares/defines>
+
+   NOTES
+     <other useful comments, qualifications, etc.>
+
+   MODIFIED   (MM/DD/YY)
+   cnagur      01/25/16 - Added pending directory
+   gadiga      12/08/15 - clean up components for jcs
+   cnagur      11/19/15 - Set required to false on JCS
+   cnagur      09/15/15 - Creation
+
+-->
+<components>
+<!-- Components for JCS -->
+<component validate="true">
+<name>5242</name>
+<alt_name>wls</alt_name>
+<description>Oracle WebLogic Server</description>
+<INSTANCE_HOME>/u01/data</INSTANCE_HOME>
+<types>
+<type>collection</type>
+</types>
+<config>all</config>
+<DIRECTORIES>
+<DIRECTORY pattern="%INSTANCE_HOME%/domains/*/*/servers/*/logs" type="TRACE" />
+<DIRECTORY pattern="%INSTANCE_HOME%/domains/*/servers/*/logs" type="TRACE" />
+<DIRECTORY pattern="%INSTANCE_HOME%/domains/*/*/server/*/adr" type="TRACE" />
+<DIRECTORY pattern="%INSTANCE_HOME%/domains/*/server/*/adr" type="TRACE" />
+<DIRECTORY pattern="%INSTANCE_HOME%/domains/*/pending" type="CONFIG" />
+<DIRECTORY pattern="%INSTANCE_HOME%/lcm/logs" type="TRACE" />
+<DIRECTORY pattern="%INSTANCE_HOME%/domains/*/*/config" type="CONFIG" />
+<DIRECTORY pattern="%INSTANCE_HOME%/domains/*/config" type="CONFIG" />
+<DIRECTORY pattern="%INSTANCE_HOME%/domains/*/*/servers/*/adr/diag/ofm/*/*/incident" type="TRACE" />
+<DIRECTORY pattern="%INSTANCE_HOME%/domains/*/servers/*/adr/diag/ofm/*/*/incident" type="TRACE" />
+<DIRECTORY pattern="%INSTANCE_HOME%/nodemanager" type="TRACE" />
+</DIRECTORIES>
+<sub-components>
+<subcomponent idx="1" name="fmwdomain" required="false" default=".*" />
+<subcomponent idx="2" name="appserver" required="false" default=".*" />
+</sub-components>
+</component>
+<!--
+<component validate="true">
+<name>2271</name>
+<alt_name>wccontent</alt_name>
+<description>Oracle WebCenter Content</description>
+<DOMAIN_HOME>/u01/data/domains</DOMAIN_HOME>
+<types>
+<type>collection</type>
+</types>
+<config>all</config>
+<DIRECTORIES>
+<DIRECTORY pattern="%DOMAIN_HOME%/*/*/ucm/cs/data/trace" type="TRACE" />
+<DIRECTORY pattern="%DOMAIN_HOME%/*/*/servers/UCM_*/logs" type="TRACE" />
+<DIRECTORY pattern="%DOMAIN_HOME%/*/*/servers/UCM_*/adr/diag/ofm/*/*/incident" type="TRACE" />
+<DIRECTORY pattern="%DOMAIN_HOME%/*/*/ucm/cs/data" type="CONFIG" />
+<DIRECTORY pattern="%DOMAIN_HOME%/*/*/ucm/cs/config" type="CONFIG" />
+<DIRECTORY pattern="%DOMAIN_HOME%/*/*/ucm/cs/install" type="CONFIG" />
+</DIRECTORIES>
+<sub-components>
+<subcomponent idx="1" name="fmwdomain" required="false" default=".*" />
+<subcomponent idx="2" name="appserver" required="false" default=".*" />
+</sub-components>
+</component>
+<component validate="true">
+<name>1696</name>
+<alt_name>wcportal</alt_name>
+<description>Oracle WebCenter Portal</description>
+<DOMAIN_HOME>/u01/data/domains</DOMAIN_HOME>
+<types>
+<type>collection</type>
+</types>
+<config>all</config>
+<DIRECTORIES>
+<DIRECTORY pattern="%DOMAIN_HOME%/*/*/servers/WC_Spaces/logs" type="TRACE" />
+<DIRECTORY pattern="%DOMAIN_HOME%/*/*/servers/WC_Spaces/adr/diag/ofm/*/WC_Spaces/incident" type="TRACE" />
+<DIRECTORY pattern="%DOMAIN_HOME%/*/*/config" type="CONFIG" />
+<DIRECTORY pattern="%DOMAIN_HOME%/*/*/config/fmwconfig" type="CONFIG" />
+<DIRECTORY pattern="%DOMAIN_HOME%/*/*/config/fmwconfig/servers/WC_*" type="CONFIG" />
+</DIRECTORIES>
+<sub-components>
+<subcomponent idx="1" name="fmwdomain" required="false" default=".*" />
+<subcomponent idx="2" name="appserver" required="false" default=".*" />
+</sub-components>
+</component>
+<component validate="true">
+<name>2025</name>
+<alt_name>obiee</alt_name>
+<description>Oracle Busines Intelligence EE</description>
+<INSTANCE_HOME>/u01/data</INSTANCE_HOME>
+<types>
+<type>collection</type>
+</types>
+<config>all</config>
+<DIRECTORIES>
+<DIRECTORY pattern="%INSTANCE_HOME%/BIInstance/*/diagnostics/logs" type="TRACE" />
+<DIRECTORY pattern="%INSTANCE_HOME%/BIInstance/config" type="CONFIG" />
+<DIRECTORY pattern="%INSTANCE_HOME%/domains/*/*/servers/bi_server*/logs" type="TRACE" />
+<DIRECTORY pattern="%INSTANCE_HOME%/domains/*/*/servers/AdminServer/logs" type="TRACE" />
+<DIRECTORY pattern="%INSTANCE_HOME%/domains/*/*/servers/AdminServer/adr/diag/ofm/*/AdminServer/incident" type="TRACE" />
+<DIRECTORY pattern="%INSTANCE_HOME%/domains/*/*/config" type="CONFIG" />
+<DIRECTORY pattern="%FUSION_APPS_HOME%/bi/.patch_storage" type="TRACE" />
+<DIRECTORY pattern="%FUSION_APPS_HOME%/bi/.biapps_patch_storage" type="TRACE" />
+<DIRECTORY pattern="%FUSION_APPS_HOME%/bi/cfgtoollogs" type="TRACE" />
+<DIRECTORY pattern="%FUSION_APPS_HOME%/bi/inventory/ContentsXML" type="TRACE" />
+</DIRECTORIES>
+<sub-components>
+<subcomponent idx="1" name="fmwhost" required="false" default=".*" />
+<subcomponent idx="2" name="fmwdomain" required="false" default=".*" />
+<subcomponent idx="3" name="appserver" required="false" default=".*" />
+</sub-components>
+</component>
+<component validate="true">
+<name>1479</name>
+<alt_name>bipublisher</alt_name>
+<description>Oracle BI Publisher</description>
+<INSTANCE_HOME>/u01/data</INSTANCE_HOME>
+<types>
+<type>collection</type>
+</types>
+<DIRECTORIES>
+<DIRECTORY pattern="%INSTANCE_HOME%/*/*/servers/bi_server*/logs/bipublisher" type="TRACE" />
+<DIRECTORY pattern="%INSTANCE_HOME%/*/*/servers/bi_server*/logs" type="TRACE" />
+<DIRECTORY pattern="%INSTANCE_HOME%/*/*/servers/bi_server*/adr/diag/ofm/*/bi_server*/incident" type="TRACE" />
+<DIRECTORY pattern="%INSTANCE_HOME%/*/*/config/bipublisher" type="CONFIG" />
+</DIRECTORIES>
+<sub-components>
+<subcomponent idx="1" name="fmwhost"    required="false" default=".*" />
+<subcomponent idx="2" name="fmwdomain"  required="false" default=".*" />
+<subcomponent idx="3" name="appserver"  required="false" default=".*" />
+</sub-components>
+<config>all</config>
+</component>
+<component validate="true">
+-->
+<!-- Work TODO: on this comp for TNS_ADMIN -->
+<!--
+<name>991</name>
+<alt_name>osecserv</alt_name>
+<description>Oracle Security Services</description>
+<MIDDLEWARE_HOME>/u01/app/oracle/middleware</MIDDLEWARE_HOME>
+<types>
+<type>collection</type>
+</types>
+<DIRECTORIES>
+<DIRECTORY pattern="%MIDDLEWARE_HOME%/webtier" type="TRACE" />
+</DIRECTORIES>
+<config>all</config>
+</component>
+<component validate="true">
+<name>1980</name>
+<alt_name>oim</alt_name>
+<description>Oracle Identity Manager</description>
+<DOMAIN_HOME>/u01/IDMTOP/config/domains</DOMAIN_HOME>
+<types>
+<type>collection</type>
+</types>
+<DIRECTORIES>
+<DIRECTORY pattern="%DOMAIN_HOME%/*/servers/*oim*/logs" type="TRACE" />
+<DIRECTORY pattern="%DOMAIN_HOME%/*/servers/*soa*/logs" type="TRACE" />
+<DIRECTORY pattern="%DOMAIN_HOME%/*/servers/AdminServer/logs" type="TRACE" />
+<DIRECTORY pattern="%DOMAIN_HOME%/*/servers/*oim*/adr/diag/ofm/*/*oim*/incident" type="TRACE" />
+<DIRECTORY pattern="%DOMAIN_HOME%/*/servers/*soa*/adr/diag/ofm/*/*soa*/incident" type="TRACE" />
+<DIRECTORY pattern="%DOMAIN_HOME%/*/servers/AdminServer/adr/diag/ofm/*/AdminServer/incident" type="TRACE" />
+</DIRECTORIES>
+<config>all</config>
+<sub-components>
+<subcomponent idx="1" name="fmwdomain" required="false" default=".*" />
+<subcomponent idx="2" name="appserver" required="false" default=".*" />
+</sub-components>
+</component>
+<component validate="true">
+<name>5565</name>
+<alt_name>oam</alt_name>
+<description>Oracle Access Manager</description>
+<DOMAIN_HOME>/u01/IDMTOP/config/domains</DOMAIN_HOME>
+<types>
+<type>collection</type>
+</types>
+<DIRECTORIES>
+<DIRECTORY pattern="%DOMAIN_HOME%/*/servers/*oam*/logs" type="TRACE" />
+<DIRECTORY pattern="%DOMAIN_HOME%/*/servers/AdminServer/logs" type="TRACE" />
+<DIRECTORY pattern="%DOMAIN_HOME%/*/servers/*oam*/adr/diag/ofm/*/*oim*/incident" type="TRACE" />
+<DIRECTORY pattern="%DOMAIN_HOME%/*/servers/AdminServer/adr/diag/ofm/*/AdminServer/incident" type="TRACE" />
+<DIRECTORY pattern="%DOMAIN_HOME%/*/config/fmwconfig" type="TRACE" />
+</DIRECTORIES>
+<config>all</config>
+<sub-components>
+<subcomponent idx="1" name="fmwdomain" required="false" default=".*" />
+<subcomponent idx="2" name="appserver" required="false" default=".*" />
+</sub-components>
+</component>
+<component validate="true">
+<name>355</name>
+<alt_name>oid</alt_name>
+<description>Oracle Internet Directory</description>
+<INSTANCE_HOME>/u01/IDMTOP/config/instances</INSTANCE_HOME>
+<types>
+<type>collection</type>
+</types>
+<DIRECTORIES>
+<DIRECTORY pattern="%DOMAIN_HOME%/*oid*/diagnostics/logs/OID/tools" type="TRACE" />
+<DIRECTORY pattern="%DOMAIN_HOME%/*oid*/diagnostics/logs/OID" type="TRACE" />
+</DIRECTORIES>
+<config>all</config>
+<sub-components>
+<subcomponent idx="1" name="oidcomponent" required="false" default=".*" />
+</sub-components>
+</component>
+<component validate="true">
+<name>1978</name>
+<alt_name>ovd</alt_name>
+<description>Oracle Virtual Directory</description>
+<DOMAIN_HOME>/u01/data/domains</DOMAIN_HOME>
+<types>
+<type>collection</type>
+</types>
+<config>all</config>
+<DIRECTORIES>
+<DIRECTORY pattern="%DOMAIN_HOME%/*/*Domain/servers/*/logs" type="TRACE" />
+<DIRECTORY pattern="%DOMAIN_HOME%/*Domain/servers/*/logs" type="TRACE" />
+<DIRECTORY pattern="%DOMAIN_HOME%/*/*Domain/servers/*/adr/diag/ofm/*Domain/*/incident" type="TRACE" />
+<DIRECTORY pattern="%DOMAIN_HOME%/*Domain/servers/*/adr/diag/ofm/*Domain/*/incident" type="TRACE" />
+-->
+<!-- Check these below *.*|server-->
+<!--
+<DIRECTORY pattern="%DOMAIN_HOME%/*/*/config/fmwconfig/ovd/default" type="CONFIG" />
+<DIRECTORY pattern="%DOMAIN_HOME%/*/config/fmwconfig/ovd/default" type="CONFIG" />
+</DIRECTORIES>
+<sub-components>
+<subcomponent idx="1" name="fmwdomain" required="false" default=".*" />
+<subcomponent idx="2" name="appserver" required="false" default=".*" />
+</sub-components>
+</component>
+<component validate="true">
+<name>2233</name>
+<alt_name>ops4j</alt_name>
+<description>Oracle Platform Security for Java</description>
+<DOMAIN_HOME>/u01/data/domains</DOMAIN_HOME>
+<types>
+<type>collection</type>
+</types>
+<config>all</config>
+<DIRECTORIES>
+<DIRECTORY pattern="%DOMAIN_HOME%/*/*Domain/servers/*/logs" type="TRACE" />
+<DIRECTORY pattern="%DOMAIN_HOME%/*Domain/servers/*/logs" type="TRACE" />
+<DIRECTORY pattern="%DOMAIN_HOME%/*/*Domain/servers/*/adr/diag/ofm/*Domain/*/incident" type="TRACE" />
+<DIRECTORY pattern="%DOMAIN_HOME%/*Domain/servers/*/adr/diag/ofm/*Domain/*/incident" type="TRACE" />
+-->
+<!-- Check these below *.xml|server-->
+<!--
+<DIRECTORY pattern="%DOMAIN_HOME%/*/*/config/fmwconfig" type="CONFIG" />
+<DIRECTORY pattern="%DOMAIN_HOME%/*/config/fmwconfig" type="CONFIG" />
+</DIRECTORIES>
+<sub-components>
+<subcomponent idx="1" name="fmwdomain" required="false" default=".*" />
+<subcomponent idx="2" name="appserver" required="false" default=".*" />
+</sub-components>
+</component>
+<component validate="true">
+<name>1775</name>
+<alt_name>securitydevtools</alt_name>
+<description>Oracle Security Developer Tools</description>
+<DOMAIN_HOME>/u01/data/domains</DOMAIN_HOME>
+<types>
+<type>collection</type>
+</types>
+<config>all</config>
+<DIRECTORIES>
+<DIRECTORY pattern="%DOMAIN_HOME%/*/*Domain/servers/*/logs" type="TRACE" />
+<DIRECTORY pattern="%DOMAIN_HOME%/*Domain/servers/*/logs" type="TRACE" />
+<DIRECTORY pattern="%DOMAIN_HOME%/*/*Domain/servers/*/logs/owsm/msglogging" type="TRACE" />
+<DIRECTORY pattern="%DOMAIN_HOME%/*Domain/servers/*/logs/owsm/msglogging" type="TRACE" />
+<DIRECTORY pattern="%DOMAIN_HOME%/*/*Domain/servers/*/adr/diag/ofm/*Domain/*/incident" type="TRACE" />
+<DIRECTORY pattern="%DOMAIN_HOME%/*Domain/servers/*/adr/diag/ofm/*Domain/*/incident" type="TRACE" />
+<DIRECTORY pattern="%DOMAIN_HOME%/*/*/config/fmwconfig" type="CONFIG" />
+<DIRECTORY pattern="%DOMAIN_HOME%/*/config/fmwconfig" type="CONFIG" />
+</DIRECTORIES>
+<sub-components>
+<subcomponent idx="1" name="fmwdomain" required="false" default=".*" />
+<subcomponent idx="2" name="appserver" required="false" default=".*" />
+</sub-components>
+</component>
+<component validate="true">
+<name>1162</name>
+<alt_name>soasuite</alt_name>
+<description>Oracle SOA Suite BPEL-SE,Fabric,B2B,Mediator</description>
+<DOMAIN_HOME>/u01/data/domains</DOMAIN_HOME>
+<types>
+<type>collection</type>
+</types>
+<config>all</config>
+<DIRECTORIES>
+<DIRECTORY pattern="%DOMAIN_HOME%/*/*Domain/servers/*soa*/logs" type="TRACE" />
+<DIRECTORY pattern="%DOMAIN_HOME%/*Domain/servers/*soa*/logs" type="TRACE" />
+<DIRECTORY pattern="%DOMAIN_HOME%/*/*Domain/servers/*soa*/adr/diag/ofm/*Domain/*soa*/incident" type="TRACE" />
+<DIRECTORY pattern="%DOMAIN_HOME%/*Domain/servers/*soa*/adr/diag/ofm/*Domain/*soa*/incident" type="TRACE" />
+</DIRECTORIES>
+<sub-components>
+<subcomponent idx="1" name="fmwdomain" required="false" default=".*" />
+<subcomponent idx="2" name="appserver" required="false" default=".*"/>
+</sub-components>
+</component>
+<component validate="true">
+<name>5325</name>
+<alt_name>bpmsuite</alt_name>
+<description>Oracle Business Process Management Suite</description>
+<DOMAIN_HOME>/u01/data/domains</DOMAIN_HOME>
+<types>
+<type>collection</type>
+</types>
+<config>all</config>
+<DIRECTORIES>
+<DIRECTORY pattern="%DOMAIN_HOME%/*/*Domain/servers/*soa*/logs" type="TRACE" />
+<DIRECTORY pattern="%DOMAIN_HOME%/*Domain/servers/*soa*/logs" type="TRACE" />
+<DIRECTORY pattern="%DOMAIN_HOME%/*/*Domain/servers/*soa*/adr/diag/ofm/*Domain/*soa*/incident" type="TRACE" />
+<DIRECTORY pattern="%DOMAIN_HOME%/*Domain/servers/*soa*/adr/diag/ofm/*Domain/*soa*/incident" type="TRACE" />
+</DIRECTORIES>
+<sub-components>
+<subcomponent idx="1" name="fmwdomain" required="false" default=".*" />
+<subcomponent idx="2" name="appserver" required="false" default=".*" />
+</sub-components>
+</component>
+<name>2545</name>
+<alt_name>coherence</alt_name>
+<description>Oracle Coherence</description>
+<DOMAIN_HOME>/u01/data/domains</DOMAIN_HOME>
+<types>
+<type>collection</type>
+</types>
+<config>all</config>
+<DIRECTORIES>
+<DIRECTORY pattern="%DOMAIN_HOME%/*/*Domain/servers/*/logs" type="TRACE" />
+<DIRECTORY pattern="%DOMAIN_HOME%/*Domain/servers/*/logs" type="TRACE" />
+<DIRECTORY pattern="%DOMAIN_HOME%/*/*Domain/servers/*/adr/diag/ofm/*/*/incident" type="TRACE" />
+<DIRECTORY pattern="%DOMAIN_HOME%/*Domain/servers/*/adr/diag/ofm/*/*/incident" type="TRACE" />
+</DIRECTORIES>
+<sub-components>
+<subcomponent idx="1" name="fmwdomain" required="false" default=".*" />
+<subcomponent idx="2" name="appserver" required="false" default=".*" />
+</sub-components>
+</component>
+<component validate="true">
+<name>1339</name>
+<alt_name>toplink</alt_name>
+<description>Oracle TopLink</description>
+<DOMAIN_HOME>/u01/data/domains</DOMAIN_HOME>
+<types>
+<type>collection</type>
+</types>
+<config>all</config>
+<DIRECTORIES>
+<DIRECTORY pattern="%DOMAIN_HOME%/*/*Domain/servers/*/logs" type="TRACE" />
+<DIRECTORY pattern="%DOMAIN_HOME%/*Domain/servers/*/logs" type="TRACE" />
+<DIRECTORY pattern="%DOMAIN_HOME%/*/*Domain/servers/*/adr/diag/ofm/*/*/incident" type="TRACE" />
+<DIRECTORY pattern="%DOMAIN_HOME%/*Domain/servers/*/adr/diag/ofm/*/*/incident" type="TRACE" />
+</DIRECTORIES>
+<sub-components>
+<subcomponent idx="1" name="fmwdomain" required="false" default=".*" />
+<subcomponent idx="2" name="appserver" required="false" default=".*" />
+</sub-components>
+</component>
+<component validate="true">
+<name>9276</name>
+<alt_name>otd</alt_name>
+<description>Oracle OTD</description>
+<OTD_INSTANCE_HOME>/u01/APPLTOP/OTDInstance</OTD_INSTANCE_HOME>
+<types>
+<type>collection</type>
+</types>
+<DIRECTORIES>
+<DIRECTORY pattern="%OTD_INSTANCE_HOME%/logs" type="TRACE" />
+<DIRECTORY pattern="%OTD_INSTANCE_HOME%/config" type="CONFIG" />
+</DIRECTORIES>
+<config>all</config>
+</component>
+<component validate="true">
+<name>1042</name>
+<alt_name>ohsplugins</alt_name>
+<description>Oracle OHS Plugins</description>
+<INSTANCE_HOME>/u01/data</INSTANCE_HOME>
+<types>
+<type>collection</type>
+</types>
+<DIRECTORIES>
+<DIRECTORY pattern="%INSTANCE_HOME%/home/*webtier_local*/diagnostics/logs/*/*" type="TRACE" />
+<DIRECTORY pattern="%INSTANCE_HOME%/home/*webtier_local*/config/*/*" type="CONFIG" />
+</DIRECTORIES>
+<config>all</config>
+<sub-components>
+<subcomponent idx="1" name="ohscomponenttype" required="false" default=".*" />
+<subcomponent idx="2" name="ohscomponentname" required="false" default=".*" />
+</sub-components>
+</component>
+<component validate="true">
+<name>2196</name>
+<alt_name>dataintegrator</alt_name>
+<description>Oracle Data Integrator</description>
+<DOMAIN_HOME>/u01/data/domains</DOMAIN_HOME>
+<types>
+<type>collection</type>
+</types>
+<config>all</config>
+<DIRECTORIES>
+<DIRECTORY pattern="%DOMAIN_HOME%/*/*Domain/servers/*/logs/oracledi/client/log" type="TRACE" />
+<DIRECTORY pattern="%DOMAIN_HOME%/*/*Domain/servers/*/logs/oracledi" type="TRACE" />
+<DIRECTORY pattern="%DOMAIN_HOME%/*/*Domain/servers/*/adr/diag/ofm/*/*/incident" type="TRACE" />
+<DIRECTORY pattern="%DOMAIN_HOME%/*Domain/servers/*/adr/diag/ofm/*/*/incident" type="TRACE" />
+</DIRECTORIES>
+<sub-components>
+<subcomponent idx="1" name="fmwdomain" required="false" default=".*" />
+<subcomponent idx="2" name="appserver" required="false" default=".*" />
+</sub-components>
+</component>
+-->
+<!-- End Components for FMW Saas -->
+</components>
+

@@ -1,0 +1,79 @@
+-- Current Date as Timestamp
+CURRENT_TIMESTAMP
+
+-- Current Date as Date
+SYSDATE
+
+-- Insert multiple rows
+insert into countries select rownum, 'Name'||rownum from dual connect by rownum <= 1000000;
+
+-- Delete all rows from a table
+TRUNCATE TABLE countries;
+
+-- OR (slower):
+DELETE countries;
+
+-- Get size of each table in MB
+SELECT segment_name, bytes/1024/1024 AS mb FROM dba_segments WHERE owner='PRIVATE_CUSTOMER' ORDER BY bytes DESC;
+
+-- Show current recycle bin content
+SELECT * FROM RECYCLEBIN;
+
+-- Remove the Contents of Your Recycle Bin
+PURGE RECYCLEBIN;
+
+-- Show all tables in current schema
+SELECT * FROM user_tables
+
+-- Show all sequences in current schema
+SELECT * FROM user_sequences
+
+-- Show current database sessions
+SELECT * FROM v$session
+
+-- Show current processes
+SELECT * FROM v$process
+
+-- Show current RAM usage and maximal RAM
+SELECT * FROM v$sga
+
+-- Global Oracle config
+SELECT * FROM v$parameter WHERE name LIKE '%target%'
+
+-- Create a backup table
+CREATE TABLE countries_bak AS
+  SELECT * FROM countries;
+
+-- Remove a foreign key constraint from a table
+ALTER TABLE countries DROP CONSTRAINT countries_fk;
+
+-- Restore a backup table into the orignial table
+INSERT INTO countries
+  SELECT * FROM countries_bak;
+
+-- Add foreign key constraint to a table
+ALTER TABLE countries ADD CONSTRAINT countries_fk FOREIGN KEY (capital_id) REFERENCES cities (id);
+
+-- Compare with timestamp
+select employee_id
+  from employee
+ where employee_date_hired > timestamp '1995-12-31 12:31:02'
+
+-- Compare with date
+-- Oracle date datatype includes a time element, so the date without a time portion '1995-12-31' is equivalent to 1995-12-31 00:00:00
+select employee_id
+  from employee
+ where employee_date_hired > date '1995-12-31'
+ 
+-- Read XML Tag content of a string column containing XML data
+extractvalue(xmltype(my_xml_column), '/customer/address/street/text()')
+
+-- Paging: Fetch 200 rows with an offset of 200 rows (since Oracle 12c)
+SELECT * FROM employee ORDER BY id
+OFFSET 200 ROWS FETCH NEXT 200 ROWS ONLY;
+
+-- Show Timezone of current database
+SELECT DBTIMEZONE FROM DUAL;
+
+-- Show Oracle DB version of current database
+SELECT * FROM V$VERSION;

@@ -1,0 +1,31 @@
+#!/bin/sh
+#
+# $Id: oerr.sh /linuxamd64/4 2011/10/09 12:09:37 pkharter Exp $
+# Copyright (c) 1994, 2011, Oracle and/or its affiliates. All rights reserved. 
+#
+# Usage: oerr facility error
+#
+# This shell script is a driver to invoke oerr.pl using the perl shipped in 
+# Oracle home.  
+#
+
+#
+# Turn on script tracing if, requested
+[ "$ORACLE_TRACE" = "T" ] && set -x
+
+#
+# If ORACLE_HOME is not set, we will not be able to locate
+# the facilities file or message text file.
+if [ ! "$ORACLE_HOME" ]
+then
+	echo "ORACLE_HOME not set.  Please set ORACLE_HOME and try again." 1>&2
+	exit 1
+fi
+
+PERL_DIR=$ORACLE_HOME/perl
+PERL_BIN=$PERL_DIR/bin
+export PERL_BIN
+
+$PERL_BIN/perl $ORACLE_HOME/bin/oerr.pl "$@"
+
+exit 0

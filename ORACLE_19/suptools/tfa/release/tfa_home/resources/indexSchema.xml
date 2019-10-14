@@ -1,0 +1,119 @@
+<?xml version="1.0"?>
+
+<!--  $Header: tfa/src/v2/tfa_home/resources/indexSchema.xml /main/2 2018/07/02 23:57:08 llakkana Exp $ -->
+
+<!-- 
+ Copyright (c) 2018, Oracle and/or its affiliates. All rights reserved.
+
+   NAME
+     schema.xml - <one-line expansion of the name>
+
+   DESCRIPTION
+     <short description of component this file declares/defines>
+
+   NOTES
+     <other useful comments, qualifications, etc.>
+
+   MODIFIED   (MM/DD/YY)
+   llakkana    06/28/18 - Add tags field
+   bibsahoo    03/25/18 - tfactl changes support
+   bibsahoo    03/08/18 - TFA Index purging
+   bibsahoo    02/23/18 - Creation
+
+-->
+
+<schemas>
+<schema name="search_string">
+<fields>
+<field name="id" type="StringField" index="false" store="true" facet="false" class=""/>
+<field name="filetype" type="TextField" index="true" store="false" facet="false" class=""/>
+<field name="pattern" type="TextField" index="true" store="false" facet="false" class=""/>
+<field name="*" type="StringField" index="true" store="true" facet="false" class=""/>
+</fields>
+<default_output_fields></default_output_fields>
+<purge_policy></purge_policy>
+<capture_changes>false</capture_changes>
+</schema>
+<schema name="server">
+<fields>
+<field name="hostname" type="StringField" index="true" store="true" facet="false" class=""/>
+<field name="timestamp" type="LongPoint" index="true" store="true" facet="false" class=""/>
+<field name="domainname" type="StringField" index="true" store="true" facet="false" class=""/>
+<field name="osname" type="StringField" index="true" store="true" facet="false" class=""/>
+<field name="osversion" type="StringField" index="true" store="true" facet="false" class=""/>
+<field name="*" type="StringField" index="true" store="true" facet="false" class=""/>
+</fields>
+<default_output_fields>hostname,timestamp,domainname,osname,osversion</default_output_fields>
+<purge_policy></purge_policy>
+<capture_changes>false</capture_changes>
+</schema>
+<schema name="server_osparameter">
+<fields>
+<field name="*" type="StringField" index="true" store="true" facet="false" class=""/>
+</fields>
+<default_output_fields></default_output_fields>
+<purge_policy></purge_policy>
+<capture_changes>true</capture_changes>
+</schema>
+<schema name="server_ospackages">
+<fields>
+<field name="*" type="StringField" index="true" store="true" facet="false" class=""/>
+</fields>
+<default_output_fields></default_output_fields>
+<purge_policy></purge_policy>
+<capture_changes>true</capture_changes>
+</schema>
+<schema name="server_network">
+<fields>
+<field name="*" type="StringField" index="true" store="true" facet="false" class=""/>
+</fields>
+<default_output_fields></default_output_fields>
+<purge_policy></purge_policy>
+<capture_changes>false</capture_changes>
+</schema>
+<schema name="server_disk">
+<fields>
+<field name="*" type="StringField" index="true" store="true" facet="false" class=""/>
+</fields>
+<default_output_fields></default_output_fields>
+<purge_policy></purge_policy>
+<capture_changes>false</capture_changes>
+</schema>
+<schema name="server_memory">
+<fields>
+<field name="*" type="StringField" index="true" store="true" facet="false" class=""/>
+</fields>
+<default_output_fields></default_output_fields>
+<purge_policy></purge_policy>
+<capture_changes>false</capture_changes>
+</schema>
+<schema name="server_cpu">
+<fields>
+<field name="*" type="StringField" index="true" store="true" facet="false" class=""/>
+</fields>
+<default_output_fields></default_output_fields>
+<purge_policy></purge_policy>
+<capture_changes>false</capture_changes>
+</schema>
+<schema name="event">
+<fields>
+<field name="name" type="StringField" index="true" store="true" facet="true" class=""/>
+<field name="timestamp" type="LongPoint" index="true" store="true" facet="true" class=""/>
+<field name="content" type="TextField" index="true" store="true" facet="false" class=""/>
+<field name="tags" type="TextField" index="true" store="true" facet="false" class=""/>
+<field name="*" type="StringField" index="true" store="true" facet="false" class=""/>
+</fields>
+<default_output_fields>name,timestamp,source,component,database,instance,content,alertlevel</default_output_fields>
+<purge_policy>30d</purge_policy>
+<capture_changes>false</capture_changes>
+</schema>
+<schema name="db_param">
+<fields>
+<field name="timestamp" type="LongPoint" index="true" store="true" facet="true" class=""/>
+<field name="*" type="StringField" index="true" store="true" facet="false" class=""/>
+</fields>
+<default_output_fields></default_output_fields>
+<purge_policy></purge_policy>
+<capture_changes>true</capture_changes>
+</schema>
+</schemas>

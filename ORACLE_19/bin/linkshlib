@@ -1,0 +1,67 @@
+#! /bin/sh
+
+set -x
+
+PATH=/bin:/usr/bin:/usr/ccs/bin
+export PATH
+
+lib=$1
+makefile=$2
+so_ext=$3
+target=$4
+libname=`basename $lib .$so_ext`
+sodir=`dirname $lib`
+# ardir always has trailing /
+# it is expected in the makefile.
+ardir=$ORACLE_HOME/lib/
+if [ "var" = "$target" ]
+then
+    admin=$5
+    liblist=$admin/varlib.lst
+    if [ ! -r "$liblist" ]
+    then
+	echo "Cannot find list of lib variants"
+	exit
+    fi
+    reallib=`grep -w $libname $liblist | cut -d: -f1 | head -1`
+    if [ "" = "$reallib" ]
+    then
+	echo "Cannot find base libname for variant $libname"
+	exit
+    fi
+    if [ ! -f $ardir$libname.a ]
+    then
+	ardir=`dirname $admin`/lib/
+    fi
+    save_so=$sodir/$reallib.${so_ext}-sav$$
+    rm -f $save_so
+    test -f $sodir/$reallib.$so_ext && mv $sodir/$reallib.$so_ext $save_so
+    rm -f $ardir$reallib.a
+    cp $ardir$libname.a $ardir$reallib.a
+
+    make -f $makefile $sodir/$reallib.$so_ext VARLIB=$libname
+
+    mv $sodir/$reallib.$so_ext $lib
+    test -f $save_so && mv $save_so $sodir/$reallib.$so_ext
+else
+    suffix=$5
+    var=$6
+    if [ ! -f $ardir$libname.a ]
+    then
+	ardir='$(PRODLIBHOME)'
+    fi
+    if [ "" != "$var" ]
+    then
+	make -f $makefile $target _FULL_LIBNAME=$lib _LIBNAME=$libname \
+	    _LIBDIR=$ardir \
+	    _LIBNAME_LIBS='$('"$libname$suffix"')' \
+	    _VAR_LIBS='$('"$var"'_LIBS)' \
+	    _LIBNAME_EXTRALIBS='$('"$libname"'EXTRA'"$suffix"')' \
+	    _VAR_EXTRALIBS='$('"$var"'_EXTRALIBS)'
+    else
+	make -f $makefile $target _FULL_LIBNAME=$lib _LIBNAME=$libname \
+	    _LIBDIR=$ardir \
+	    _LIBNAME_LIBS='$('"$libname$suffix"')' \
+	    _LIBNAME_EXTRALIBS='$('"$libname"'EXTRALIBS)' 
+    fi
+fi

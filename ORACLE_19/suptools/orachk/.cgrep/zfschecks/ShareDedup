@@ -1,0 +1,22 @@
+printf("==========START_OF_REPORT_chkShareDedup.aksh==========\n");
+
+var founderrorsShareDedup = false; // Track error findings
+var report = 1;
+
+var projects, p, shares, s, shareDedup, projDedup;
+
+getHostname();
+
+if(!isExalogicNode()) {
+    printreport("OK: " + host_name + " Share Dedup Check Completed: Passive Header\n");
+}
+else {
+    checkShareDedup();
+}
+
+printf("==========END_OF_REPORT_chkShareDedup.aksh==========\n");
+
+printf("==========START_OF_AUDIT_CHECK_chkShareDedup.aksh==========\n");
+printf("share_dedup_check_status = %d\n", founderrorsShareDedup);
+printf("==========END_OF_AUDIT_CHECK_chkShareDedup.aksh==========\n");
+

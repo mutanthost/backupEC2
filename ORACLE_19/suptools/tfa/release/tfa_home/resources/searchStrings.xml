@@ -1,0 +1,1371 @@
+<?xml version="1.0"?>
+
+
+<!--  $Header: tfa/src/v2/tfa_home/resources/searchStrings.xml /main/18 2018/07/17 04:50:47 bburton Exp $ -->
+
+
+<!-- 
+ Copyright (c) 2012, 2018, Oracle and/or its affiliates. All rights reserved.
+
+   NAME
+     searchStrings.xml - <one-line expansion of the name>
+
+   DESCRIPTION
+     <short description of component this file declares/defines>
+
+   NOTES
+     <other useful comments, qualifications, etc.>
+
+   MODIFIED   (MM/DD/YY)
+   bburton     07/10/18 - Added 2730(0|1|2) and 00060 search strings - 28181132
+   llakkana    06/27/18 - Support for tags
+   bibsahoo    04/17/18 - FIX BUG 27873484
+   llakkana    12/22/17 - Add fields for indexing
+   bburton     01/16/17 - fixx lack of 00 at start of errors
+   cnagur      09/16/16 - Updated notify flag to 1
+   llakkana    01/25/16 - Add score/notify/clsuterwide fields
+   amchaura    01/05/16 - Fix 21972031,21909661 - Added more ORA errors for
+                          auto collect
+   llakkana    12/10/15 - Dump from db
+   cnagur      12/03/15 - Removed Errors and ORA-.* for DBCS
+   amchaura    12/01/15 - Fix 22142600 - TFA : AUTODIAGCOLLECT EVENT TRIGGERING
+                          FOR 'SYSTEM STATE DUMP'
+   bibsahoo    09/30/15 - FIX BUG 21774147 - LNX64-12.2-TFA:DID NOT COLLECT APX
+                          TRACE FILES WHEN HIT ORA-07445 IN APX ALERT
+   amchaura    11/30/14 - Fix Bug 19700480 - LNX64-12102GIPSU-TFA-SCS:AUTO
+                          DIAGCOLLECT DID NOT COLLECT OS LOGS
+   bburton     03/07/14 - Make some events applicable to ASMPROXY too.
+   bburton     03/07/14 - Add CRS Alert Log to search for ADR Incidents
+   bburton     03/07/14 - Fix Bug 18257190
+   bburton     08/30/13 - Add search string for ADR Incidents
+   bburton     01/11/13 - Update with new strings to fire aut diagcollection
+   bburton     07/30/12 - Creation
+
+-->
+<search_strings>
+<search_string>
+<eventid>288FDD7108A6A090E0530B98EB0AAE9C</eventid>
+<eventname>ORA-ERRORCODE</eventname>
+<search>.*ORA-031(13|37).*</search>
+<entities></entities>
+<searchend>NONE</searchend>
+<linestoprocess>1</linestoprocess>
+<file_types>
+<file>Alert Log - ASM</file>
+<file>Alert Log - ASMIO</file>
+<file>Alert Log - ASMPROXY</file>
+<file>Alert Log - DB</file>
+</file_types>
+<event_start_trim_buffer>600000</event_start_trim_buffer>
+<event_end_trim_buffer>600000</event_end_trim_buffer>
+<generate_trim>1</generate_trim>
+<clusterwide>0</clusterwide>
+<score>1</score>
+<notify>1</notify>
+<tags></tags>
+<extra_files_to_collect>
+<file_component>OS</file_component>
+</extra_files_to_collect>
+<index_filetype>AlertLog-ASM AlertLog-ASMIO AlertLog-ASMPROXY AlertLog-DB</index_filetype>
+<index_pattern>ORA-03113: ORA-03137:</index_pattern>
+</search_string>
+<search_string>
+<eventid>288FDD7108A7A090E0530B98EB0AAE9C</eventid>
+<eventname>ORA-ERRORCODE</eventname>
+<search>.*ORA-00603.*</search>
+<entities></entities>
+<searchend>NONE</searchend>
+<linestoprocess>1</linestoprocess>
+<file_types>
+<file>Alert Log - ASM</file>
+<file>Alert Log - ASMIO</file>
+<file>Alert Log - ASMPROXY</file>
+<file>Alert Log - DB</file>
+</file_types>
+<event_start_trim_buffer>600000</event_start_trim_buffer>
+<event_end_trim_buffer>600000</event_end_trim_buffer>
+<generate_trim>1</generate_trim>
+<clusterwide>0</clusterwide>
+<score>1</score>
+<notify>1</notify>
+<tags></tags>
+<extra_files_to_collect>
+<file_component>OS</file_component>
+</extra_files_to_collect>
+<index_filetype>AlertLog-ASM AlertLog-ASMIO AlertLog-ASMPROXY AlertLog-DB</index_filetype>
+<index_pattern>ORA-00603:</index_pattern>
+</search_string>
+<search_string>
+<eventid>2890472BA409C52EE0530A98EB0A573F</eventid>
+<eventname>ORA-ERRORCODE</eventname>
+<search>.*ORA-00700.*</search>
+<entities></entities>
+<searchend>NONE</searchend>
+<linestoprocess>1</linestoprocess>
+<file_types>
+<file>Alert Log - ASM</file>
+<file>Alert Log - ASMIO</file>
+<file>Alert Log - ASMPROXY</file>
+<file>Alert Log - DB</file>
+</file_types>
+<event_start_trim_buffer>600000</event_start_trim_buffer>
+<event_end_trim_buffer>600000</event_end_trim_buffer>
+<generate_trim>1</generate_trim>
+<clusterwide>0</clusterwide>
+<score>2</score>
+<notify>1</notify>
+<tags></tags>
+<extra_files_to_collect>
+<file_component>OS</file_component>
+</extra_files_to_collect>
+<index_filetype>AlertLog-ASM AlertLog-ASMIO AlertLog-ASMPROXY AlertLog-DB</index_filetype>
+<index_pattern>ORA-00700:</index_pattern>
+</search_string>
+<search_string>
+<eventid>2890A2A4B3A44B6BE0530D98EB0A245F</eventid>
+<eventname>ORA-ERRORCODE</eventname>
+<search>.*ORA-0035(3|5|6).*</search>
+<entities></entities>
+<searchend>NONE</searchend>
+<linestoprocess>1</linestoprocess>
+<file_types>
+<file>Alert Log - ASM</file>
+<file>Alert Log - ASMIO</file>
+<file>Alert Log - ASMPROXY</file>
+<file>Alert Log - DB</file>
+</file_types>
+<event_start_trim_buffer>600000</event_start_trim_buffer>
+<event_end_trim_buffer>600000</event_end_trim_buffer>
+<generate_trim>1</generate_trim>
+<clusterwide>0</clusterwide>
+<score>1</score>
+<notify>1</notify>
+<tags></tags>
+<extra_files_to_collect>
+<file_component>ASM</file_component>
+<file_component>OS</file_component>
+</extra_files_to_collect>
+<index_filetype>AlertLog-ASM AlertLog-ASMIO AlertLog-ASMPROXY AlertLog-DB</index_filetype>
+<index_pattern>ORA-00353: ORA-00355: ORA-00356:</index_pattern>
+</search_string>
+<search_string>
+<eventid>28932FC7A0B84C39E0530A98EB0ADD92</eventid>
+<eventname>ORA-ERRORCODE</eventname>
+<search>.*ORA-040(20|36).*</search>
+<entities></entities>
+<searchend>NONE</searchend>
+<linestoprocess>1</linestoprocess>
+<file_types>
+<file>Alert Log - ASM</file>
+<file>Alert Log - ASMIO</file>
+<file>Alert Log - ASMPROXY</file>
+<file>Alert Log - DB</file>
+</file_types>
+<event_start_trim_buffer>600000</event_start_trim_buffer>
+<event_end_trim_buffer>600000</event_end_trim_buffer>
+<generate_trim>1</generate_trim>
+<clusterwide>0</clusterwide>
+<score>1</score>
+<notify>1</notify>
+<tags></tags>
+<extra_files_to_collect>
+<file_component>OS</file_component>
+</extra_files_to_collect>
+<index_filetype>AlertLog-ASM AlertLog-ASMIO AlertLog-ASMPROXY AlertLog-DB</index_filetype>
+<index_pattern>ORA-04020: ORA-04036:</index_pattern>
+</search_string>
+<search_string>
+<eventid>2895A00325573AF2E0530A98EB0AC7E9</eventid>
+<eventname>ORA-ERRORCODE</eventname>
+<search>.*ORA-0403(0|1).*</search>
+<entities></entities>
+<searchend>NONE</searchend>
+<linestoprocess>1</linestoprocess>
+<file_types>
+<file>Alert Log - ASM</file>
+<file>Alert Log - ASMIO</file>
+<file>Alert Log - ASMPROXY</file>
+<file>Alert Log - DB</file>
+</file_types>
+<event_start_trim_buffer>600000</event_start_trim_buffer>
+<event_end_trim_buffer>600000</event_end_trim_buffer>
+<generate_trim>1</generate_trim>
+<clusterwide>0</clusterwide>
+<score>1</score>
+<notify>1</notify>
+<tags></tags>
+<extra_files_to_collect>
+<file_component>OS</file_component>
+</extra_files_to_collect>
+<index_filetype>AlertLog-ASM AlertLog-ASMIO AlertLog-ASMPROXY AlertLog-DB</index_filetype>
+<index_pattern>ORA-04030: ORA-04031:</index_pattern>
+</search_string>
+<search_string>
+<eventid>2895A0C752EDD264E0530B98EB0A7E1E</eventid>
+<eventname>ORA-ERRORCODE</eventname>
+<search>.*ORA-002(27|39|40|55).*</search>
+<entities></entities>
+<searchend>NONE</searchend>
+<linestoprocess>1</linestoprocess>
+<file_types>
+<file>Alert Log - ASM</file>
+<file>Alert Log - ASMIO</file>
+<file>Alert Log - ASMPROXY</file>
+<file>Alert Log - DB</file>
+</file_types>
+<event_start_trim_buffer>600000</event_start_trim_buffer>
+<event_end_trim_buffer>600000</event_end_trim_buffer>
+<generate_trim>1</generate_trim>
+<clusterwide>0</clusterwide>
+<score>1</score>
+<notify>1</notify>
+<tags></tags>
+<extra_files_to_collect>
+<file_component>ASM</file_component>
+<file_component>CRS</file_component>
+<file_component>OS</file_component>
+</extra_files_to_collect>
+<index_filetype>AlertLog-ASM AlertLog-ASMIO AlertLog-ASMPROXY AlertLog-DB</index_filetype>
+<index_pattern>ORA-00227: ORA-00239: ORA-00240: ORA-00255:</index_pattern>
+</search_string>
+<search_string>
+<eventid>2895A3F1B4B6BFD8E0530B98EB0AF9FF</eventid>
+<eventname>ORA-ERRORCODE</eventname>
+<search>.*ORA-01578.*</search>
+<entities></entities>
+<searchend>NONE</searchend>
+<linestoprocess>1</linestoprocess>
+<file_types>
+<file>Alert Log - ASM</file>
+<file>Alert Log - ASMIO</file>
+<file>Alert Log - ASMPROXY</file>
+<file>Alert Log - DB</file>
+</file_types>
+<event_start_trim_buffer>600000</event_start_trim_buffer>
+<event_end_trim_buffer>600000</event_end_trim_buffer>
+<generate_trim>1</generate_trim>
+<clusterwide>0</clusterwide>
+<score>1</score>
+<notify>1</notify>
+<tags></tags>
+<extra_files_to_collect>
+<file_component>ASM</file_component>
+<file_component>OS</file_component>
+</extra_files_to_collect>
+<index_filetype>AlertLog-ASM AlertLog-ASMIO AlertLog-ASMPROXY AlertLog-DB</index_filetype>
+<index_pattern>ORA-01578:</index_pattern>
+</search_string>
+<search_string>
+<eventid>2895E580AF62EB5AE0530A98EB0A5892</eventid>
+<eventname>ORA-ERRORCODE</eventname>
+<search>.*ORA-2(5319|4982).*</search>
+<entities></entities>
+<searchend>NONE</searchend>
+<linestoprocess>1</linestoprocess>
+<file_types>
+<file>Alert Log - ASM</file>
+<file>Alert Log - ASMIO</file>
+<file>Alert Log - ASMPROXY</file>
+<file>Alert Log - DB</file>
+</file_types>
+<event_start_trim_buffer>600000</event_start_trim_buffer>
+<event_end_trim_buffer>600000</event_end_trim_buffer>
+<generate_trim>1</generate_trim>
+<clusterwide>0</clusterwide>
+<score>1</score>
+<notify>1</notify>
+<tags></tags>
+<extra_files_to_collect>
+<file_component>OS</file_component>
+</extra_files_to_collect>
+<index_filetype>AlertLog-ASM AlertLog-ASMIO AlertLog-ASMPROXY AlertLog-DB</index_filetype>
+<index_pattern>ORA-25319: ORA-24982:</index_pattern>
+</search_string>
+<search_string>
+<eventid>2895E7DC45055746E0530A98EB0A6795</eventid>
+<eventname>ORA-ERRORCODE</eventname>
+<search>.*ORA-56729.*</search>
+<entities></entities>
+<searchend>NONE</searchend>
+<linestoprocess>1</linestoprocess>
+<file_types>
+<file>Alert Log - ASM</file>
+<file>Alert Log - ASMIO</file>
+<file>Alert Log - ASMPROXY</file>
+<file>Alert Log - DB</file>
+</file_types>
+<event_start_trim_buffer>600000</event_start_trim_buffer>
+<event_end_trim_buffer>600000</event_end_trim_buffer>
+<generate_trim>1</generate_trim>
+<clusterwide>0</clusterwide>
+<score>1</score>
+<notify>1</notify>
+<tags></tags>
+<extra_files_to_collect>
+<file_component>OS</file_component>
+</extra_files_to_collect>
+<index_filetype>AlertLog-ASM AlertLog-ASMIO AlertLog-ASMPROXY AlertLog-DB</index_filetype>
+<index_pattern>ORA-56729:</index_pattern>
+</search_string>
+<search_string>
+<eventid>2895F5A20A7D8B1EE0530A98EB0AB5A0</eventid>
+<eventname>OCI-ERRORCODE</eventname>
+<search>.*OCI-31(06|35).*</search>
+<entities></entities>
+<searchend>NONE</searchend>
+<linestoprocess>1</linestoprocess>
+<file_types>
+<file>Alert Log - ASM</file>
+<file>Alert Log - ASMIO</file>
+<file>Alert Log - ASMPROXY</file>
+<file>Alert Log - DB</file>
+</file_types>
+<event_start_trim_buffer>600000</event_start_trim_buffer>
+<event_end_trim_buffer>600000</event_end_trim_buffer>
+<generate_trim>1</generate_trim>
+<clusterwide>0</clusterwide>
+<score>1</score>
+<notify>1</notify>
+<tags></tags>
+<extra_files_to_collect>
+<file_component>OS</file_component>
+</extra_files_to_collect>
+<index_filetype>AlertLog-ASM AlertLog-ASMIO AlertLog-ASMPROXY AlertLog-DB</index_filetype>
+<index_pattern>OCI-3106 OCI-3135</index_pattern>
+</search_string>
+<search_string>
+<eventid>28BA3D3A63D044D9E0530A98EB0A1F24</eventid>
+<eventname>ORA-ERRORCODE</eventname>
+<search>.*ORA-00445.*</search>
+<entities></entities>
+<searchend>NONE</searchend>
+<linestoprocess>1</linestoprocess>
+<file_types>
+<file>Alert Log - ASM</file>
+<file>Alert Log - ASMIO</file>
+<file>Alert Log - DB</file>
+<file>Alert Log - ASMPROXY</file>
+</file_types>
+<event_start_trim_buffer>600000</event_start_trim_buffer>
+<event_end_trim_buffer>600000</event_end_trim_buffer>
+<generate_trim>1</generate_trim>
+<clusterwide>0</clusterwide>
+<score>1</score>
+<notify>1</notify>
+<tags></tags>
+<extra_files_to_collect>
+<file_component>OS</file_component>
+</extra_files_to_collect>
+<index_filetype>AlertLog-ASM AlertLog-ASMIO AlertLog-DB AlertLog-ASMPROXY</index_filetype>
+<index_pattern>ORA-00445:</index_pattern>
+</search_string>
+<search_string>
+<eventid>64B1B23DC4AB23DBE053D398EB0A4BD7</eventid>
+<eventname>Fatal Error from AGFW Proxy</eventname>
+<search>.*Fatal Error from AGFW Proxy:.*</search>
+<entities></entities>
+<searchend>NONE</searchend>
+<linestoprocess>1</linestoprocess>
+<file_types>
+<file>CRS Alert Log</file>
+</file_types>
+<event_start_trim_buffer></event_start_trim_buffer>
+<event_end_trim_buffer></event_end_trim_buffer>
+<generate_trim>0</generate_trim>
+<clusterwide>0</clusterwide>
+<score>1</score>
+<notify>0</notify>
+<tags></tags>
+<extra_files_to_collect>
+</extra_files_to_collect>
+<index_filetype>CRSAlertLog</index_filetype>
+<index_pattern>Fatal Error AGFW Proxy</index_pattern>
+</search_string>
+<search_string>
+<eventid>64B1C5DF8E551CD5E053D398EB0A1A69</eventid>
+<eventname>PRVF-ERRORCODE</eventname>
+<search>.*PRVF-5305:.*</search>
+<entities></entities>
+<searchend>NONE</searchend>
+<linestoprocess>1</linestoprocess>
+<file_types>
+<file>CRS Alert Log</file>
+</file_types>
+<event_start_trim_buffer></event_start_trim_buffer>
+<event_end_trim_buffer></event_end_trim_buffer>
+<generate_trim>0</generate_trim>
+<clusterwide>0</clusterwide>
+<score>1</score>
+<notify>0</notify>
+<tags></tags>
+<extra_files_to_collect>
+</extra_files_to_collect>
+<index_filetype>CRSAlertLog</index_filetype>
+<index_pattern>PRVF-5305:</index_pattern>
+</search_string>
+<search_string>
+<eventid>64B1C5DF8E561CD5E053D398EB0A1A69</eventid>
+<eventname>CRS-ERRORCODE</eventname>
+<search>.*CRS-(1714|2409|2765):.*</search>
+<entities></entities>
+<searchend>NONE</searchend>
+<linestoprocess>1</linestoprocess>
+<file_types>
+<file>CRS Alert Log</file>
+</file_types>
+<event_start_trim_buffer></event_start_trim_buffer>
+<event_end_trim_buffer></event_end_trim_buffer>
+<generate_trim>0</generate_trim>
+<clusterwide>0</clusterwide>
+<score>1</score>
+<notify>0</notify>
+<tags></tags>
+<extra_files_to_collect>
+</extra_files_to_collect>
+<index_filetype>CRSAlertLog</index_filetype>
+<index_pattern>CRS-1714: CRS-2409: CRS-2765:</index_pattern>
+</search_string>
+<search_string>
+<eventid>64B1C5DF8E601CD5E053D398EB0A1A69</eventid>
+<eventname>PANIC CRSD exiting</eventname>
+<search>.*PANIC. CRSD exiting:.*</search>
+<entities></entities>
+<searchend>NONE</searchend>
+<linestoprocess>1</linestoprocess>
+<file_types>
+<file>CRS Alert Log</file>
+</file_types>
+<event_start_trim_buffer></event_start_trim_buffer>
+<event_end_trim_buffer></event_end_trim_buffer>
+<generate_trim>0</generate_trim>
+<clusterwide>0</clusterwide>
+<score>1</score>
+<notify>0</notify>
+<tags></tags>
+<extra_files_to_collect>
+</extra_files_to_collect>
+<index_filetype>CRSAlertLog</index_filetype>
+<index_pattern>PANIC CRSD exiting</index_pattern>
+</search_string>
+<search_string>
+<eventid>64B1FC16A71E29DCE053D398EB0A698C</eventid>
+<eventname>CRS-ERRORCODE</eventname>
+<search>.*CRS-80(11|13):.*</search>
+<entities></entities>
+<searchend>NONE</searchend>
+<linestoprocess>1</linestoprocess>
+<file_types>
+<file>CRS Alert Log</file>
+</file_types>
+<event_start_trim_buffer></event_start_trim_buffer>
+<event_end_trim_buffer></event_end_trim_buffer>
+<generate_trim>0</generate_trim>
+<clusterwide>0</clusterwide>
+<score>1</score>
+<notify>0</notify>
+<tags></tags>
+<extra_files_to_collect>
+</extra_files_to_collect>
+<index_filetype>CRSAlertLog</index_filetype>
+<index_pattern>CRS-8011: CRS-8013:</index_pattern>
+</search_string>
+<search_string>
+<eventid>64BD9A5974C0EA8AE053D498EB0A58DB</eventid>
+<eventname>IPC Send timeout detected</eventname>
+<search>.*IPC Send timeout detected. Sender: ospid.*</search>
+<entities></entities>
+<searchend>NONE</searchend>
+<linestoprocess>1</linestoprocess>
+<file_types>
+<file>Alert Log - ASM</file>
+<file>Alert Log - ASMPROXY</file>
+<file>Alert Log - DB</file>
+</file_types>
+<event_start_trim_buffer></event_start_trim_buffer>
+<event_end_trim_buffer></event_end_trim_buffer>
+<generate_trim>0</generate_trim>
+<clusterwide>0</clusterwide>
+<score>1</score>
+<notify>0</notify>
+<tags></tags>
+<extra_files_to_collect>
+</extra_files_to_collect>
+<index_filetype>AlertLog-ASM AlertLog-ASMPROXY AlertLog-DB</index_filetype>
+<index_pattern>IPC Send timeout detected Sender:</index_pattern>
+</search_string>
+<search_string>
+<eventid>64BD9A5974C1EA8AE053D498EB0A58DB</eventid>
+<eventname>Global Enqueue Services Deadlock detected</eventname>
+<search>.*Global Enqueue Services Deadlock detected</search>
+<entities></entities>
+<searchend>NONE</searchend>
+<linestoprocess>1</linestoprocess>
+<file_types>
+<file>Alert Log - ASM</file>
+<file>Alert Log - ASMPROXY</file>
+<file>Alert Log - DB</file>
+</file_types>
+<event_start_trim_buffer></event_start_trim_buffer>
+<event_end_trim_buffer></event_end_trim_buffer>
+<generate_trim>0</generate_trim>
+<clusterwide>0</clusterwide>
+<score>1</score>
+<notify></notify>
+<tags></tags>
+<extra_files_to_collect>
+</extra_files_to_collect>
+<index_filetype>AlertLog-ASM AlertLog-ASMPROXY AlertLog-DB</index_filetype>
+<index_pattern>Enqueue Services Deadlock detected</index_pattern>
+</search_string>
+<search_string>
+<eventid>64BF5BB9EFBAE388E053D498EB0A7742</eventid>
+<eventname>Direct NFS channel path filer is DOWN</eventname>
+<search>.*Direct NFS: channel id .* path .* to filer .* is DOWN .*</search>
+<entities></entities>
+<searchend></searchend>
+<linestoprocess>1</linestoprocess>
+<file_types>
+<file>Alert Log - ASM</file>
+<file>Alert Log - ASMPROXY</file>
+<file>Alert Log - DB</file>
+</file_types>
+<event_start_trim_buffer></event_start_trim_buffer>
+<event_end_trim_buffer></event_end_trim_buffer>
+<generate_trim>0</generate_trim>
+<clusterwide>0</clusterwide>
+<score>1</score>
+<notify>0</notify>
+<tags></tags>
+<extra_files_to_collect>
+</extra_files_to_collect>
+<index_filetype>AlertLog-ASM AlertLog-ASMPROXY AlertLog-DB</index_filetype>
+<index_pattern>Direct NFS: channel path filer DOWN</index_pattern>
+</search_string>
+<search_string>
+<eventid>64BF62711D2B2192E053D398EB0AEEA7</eventid>
+<eventname>OSPID has not called a wait for secs</eventname>
+<search>.*ospid: .* has not called a wait for .* secs.*</search>
+<entities></entities>
+<searchend>NONE</searchend>
+<linestoprocess>1</linestoprocess>
+<file_types>
+<file>Alert Log - ASM</file>
+<file>Alert Log - ASMPROXY</file>
+<file>Alert Log - DB</file>
+</file_types>
+<event_start_trim_buffer></event_start_trim_buffer>
+<event_end_trim_buffer></event_end_trim_buffer>
+<generate_trim>0</generate_trim>
+<clusterwide>0</clusterwide>
+<score>1</score>
+<notify>0</notify>
+<tags></tags>
+<extra_files_to_collect>
+</extra_files_to_collect>
+<index_filetype>AlertLog-ASM AlertLog-ASMPROXY AlertLog-DB</index_filetype>
+<index_pattern>called wait</index_pattern>
+</search_string>
+<search_string>
+<eventid>64C2B9F81D15AB14E053D498EB0A7463</eventid>
+<eventname>DNFS PING timeout</eventname>
+<search>.*Direct NFS: channel id .* path .* to filer .* PING timeout .*</search>
+<entities></entities>
+<searchend></searchend>
+<linestoprocess>1</linestoprocess>
+<file_types>
+<file>Alert Log - ASM</file>
+<file>Alert Log - ASMPROXY</file>
+<file>Alert Log - DB</file>
+</file_types>
+<event_start_trim_buffer></event_start_trim_buffer>
+<event_end_trim_buffer></event_end_trim_buffer>
+<generate_trim>0</generate_trim>
+<clusterwide>0</clusterwide>
+<score>1</score>
+<notify>0</notify>
+<tags></tags>
+<extra_files_to_collect>
+</extra_files_to_collect>
+<index_filetype>AlertLog-ASM AlertLog-ASMPROXY AlertLog-DB</index_filetype>
+<index_pattern>Direct NFS: channel path filer PING timeout</index_pattern>
+</search_string>
+<search_string>
+<eventid>64C2DB65B5648D8FE053D598EB0A0D86</eventid>
+<eventname>Terminating instance due to error</eventname>
+<search>.*terminating .* instance due to error.*</search>
+<entities></entities>
+<searchend>NONE</searchend>
+<linestoprocess>1</linestoprocess>
+<file_types>
+<file>Alert Log - ASM</file>
+<file>Alert Log - ASMPROXY</file>
+<file>Alert Log - DB</file>
+</file_types>
+<event_start_trim_buffer></event_start_trim_buffer>
+<event_end_trim_buffer></event_end_trim_buffer>
+<generate_trim>1</generate_trim>
+<clusterwide>0</clusterwide>
+<score>1</score>
+<notify>0</notify>
+<tags></tags>
+<extra_files_to_collect>
+</extra_files_to_collect>
+<index_filetype>AlertLog-ASM AlertLog-ASMPROXY AlertLog-DB</index_filetype>
+<index_pattern>terminating</index_pattern>
+</search_string>
+<search_string>
+<eventid>654D2C0E42B271F5E053D598EB0AC048</eventid>
+<eventname>ORA-ERRORCODE</eventname>
+<search>.*ORA-5014:.*</search>
+<entities></entities>
+<searchend>NONE</searchend>
+<linestoprocess>1</linestoprocess>
+<file_types>
+<file>CRS Alert Log</file>
+</file_types>
+<event_start_trim_buffer>600000</event_start_trim_buffer>
+<event_end_trim_buffer>600000</event_end_trim_buffer>
+<generate_trim>1</generate_trim>
+<clusterwide>0</clusterwide>
+<score>1</score>
+<notify>1</notify>
+<tags></tags>
+<extra_files_to_collect>
+</extra_files_to_collect>
+<index_filetype>CRSAlertLog</index_filetype>
+<index_pattern>ORA-5014:</index_pattern>
+</search_string>
+<search_string>
+<eventid>654D2C0E42B971F5E053D598EB0AC048</eventid>
+<eventname>Receiver</eventname>
+<search>.*Receiver: inst .* binc .* ospid.*</search>
+<entities></entities>
+<searchend>NONE</searchend>
+<linestoprocess>1</linestoprocess>
+<file_types>
+<file>Alert Log - ASM</file>
+<file>Alert Log - ASMPROXY</file>
+<file>Alert Log - DB</file>
+</file_types>
+<event_start_trim_buffer></event_start_trim_buffer>
+<event_end_trim_buffer></event_end_trim_buffer>
+<generate_trim>0</generate_trim>
+<clusterwide>0</clusterwide>
+<score>1</score>
+<notify>0</notify>
+<tags></tags>
+<extra_files_to_collect>
+</extra_files_to_collect>
+<index_filetype>AlertLog-ASM AlertLog-ASMPROXY AlertLog-DB</index_filetype>
+<index_pattern>Receiver binc</index_pattern>
+</search_string>
+<search_string>
+<eventid>654D7CD0EDECD7CFE053D398EB0A9717</eventid>
+<eventname>IPC Send Timeout terminating pid</eventname>
+<search>.*IPC Send timeout: Terminating pid.*</search>
+<entities></entities>
+<searchend>NONE</searchend>
+<linestoprocess>1</linestoprocess>
+<file_types>
+<file>Alert Log - ASM</file>
+<file>Alert Log - ASMPROXY</file>
+<file>Alert Log - DB</file>
+</file_types>
+<event_start_trim_buffer></event_start_trim_buffer>
+<event_end_trim_buffer></event_end_trim_buffer>
+<generate_trim>0</generate_trim>
+<clusterwide>0</clusterwide>
+<score>1</score>
+<notify>0</notify>
+<tags></tags>
+<extra_files_to_collect>
+</extra_files_to_collect>
+<index_filetype>AlertLog-ASM AlertLog-ASMPROXY AlertLog-DB</index_filetype>
+<index_pattern>IPC Send timeout: Terminating</index_pattern>
+</search_string>
+<search_string>
+<eventid>65505319DA20D0B1E053D498EB0AEFA8</eventid>
+<eventname>CRS-ERRORCODE</eventname>
+<search>.*CRS-16(03|25):.*</search>
+<entities></entities>
+<searchend>NONE</searchend>
+<linestoprocess>1</linestoprocess>
+<file_types>
+<file>CRS Alert Log</file>
+</file_types>
+<event_start_trim_buffer></event_start_trim_buffer>
+<event_end_trim_buffer></event_end_trim_buffer>
+<generate_trim>0</generate_trim>
+<clusterwide>0</clusterwide>
+<score>2</score>
+<notify>0</notify>
+<tags></tags>
+<extra_files_to_collect>
+</extra_files_to_collect>
+<index_filetype>CRSAlertLog</index_filetype>
+<index_pattern>CRS-1603: CRS-1625:</index_pattern>
+</search_string>
+<search_string>
+<eventid>65505319DA25D0B1E053D498EB0AEFA8</eventid>
+<eventname>FRA Corrupted Block</eventname>
+<search>.*NOTE: a corrupted block from group FRA was dumped.*</search>
+<entities></entities>
+<searchend>NONE</searchend>
+<linestoprocess>1</linestoprocess>
+<file_types>
+<file>Alert Log - ASM</file>
+<file>Alert Log - ASMPROXY</file>
+<file>Alert Log - DB</file>
+</file_types>
+<event_start_trim_buffer></event_start_trim_buffer>
+<event_end_trim_buffer></event_end_trim_buffer>
+<generate_trim>0</generate_trim>
+<clusterwide>0</clusterwide>
+<score>2</score>
+<notify>0</notify>
+<tags></tags>
+<extra_files_to_collect>
+</extra_files_to_collect>
+<index_filetype>AlertLog-ASM AlertLog-ASMPROXY AlertLog-DB</index_filetype>
+<index_pattern>corrupted block FRA dumped</index_pattern>
+</search_string>
+<search_string>
+<eventid>65516639E0FCE708E053D398EB0A1532</eventid>
+<eventname>IPC Send Timeout</eventname>
+<search>.*IPC Send timeout to .* inc .* for msg type .* from opid.*</search>
+<entities></entities>
+<searchend>NONE</searchend>
+<linestoprocess>1</linestoprocess>
+<file_types>
+<file>Alert Log - ASM</file>
+<file>Alert Log - ASMPROXY</file>
+<file>Alert Log - DB</file>
+</file_types>
+<event_start_trim_buffer></event_start_trim_buffer>
+<event_end_trim_buffer></event_end_trim_buffer>
+<generate_trim>0</generate_trim>
+<clusterwide>0</clusterwide>
+<score>1</score>
+<notify>0</notify>
+<tags></tags>
+<extra_files_to_collect>
+</extra_files_to_collect>
+<index_filetype>AlertLog-ASM AlertLog-ASMPROXY AlertLog-DB</index_filetype>
+<index_pattern>IPC Send timeout</index_pattern>
+</search_string>
+<search_string>
+<eventid>65533F6CA3A6A684E053D598EB0AFF54</eventid>
+<eventname>TNS-ERRORCODE</eventname>
+<search>.*TNS-.*</search>
+<entities></entities>
+<searchend>NONE</searchend>
+<linestoprocess>1</linestoprocess>
+<file_types>
+<file>Alert Log - ASM</file>
+<file>Alert Log - ASMPROXY</file>
+<file>Alert Log - DB</file>
+</file_types>
+<event_start_trim_buffer></event_start_trim_buffer>
+<event_end_trim_buffer></event_end_trim_buffer>
+<generate_trim>0</generate_trim>
+<clusterwide>0</clusterwide>
+<score>1</score>
+<notify>0</notify>
+<tags></tags>
+<extra_files_to_collect>
+</extra_files_to_collect>
+<index_filetype>AlertLog-ASM AlertLog-ASMPROXY AlertLog-DB</index_filetype>
+<index_pattern>TNS</index_pattern>
+</search_string>
+<search_string>
+<eventid>655439CB55149D31E053D298EB0A7F2F</eventid>
+<eventname>CRS-ERRORCODE</eventname>
+<search>.*CRS-10051:.*</search>
+<entities></entities>
+<searchend>NONE</searchend>
+<linestoprocess>1</linestoprocess>
+<file_types>
+<file>CRS Alert Log</file>
+</file_types>
+<event_start_trim_buffer></event_start_trim_buffer>
+<event_end_trim_buffer></event_end_trim_buffer>
+<generate_trim>0</generate_trim>
+<clusterwide>0</clusterwide>
+<score>2</score>
+<notify>1</notify>
+<tags></tags>
+<extra_files_to_collect>
+</extra_files_to_collect>
+<index_filetype>CRSAlertLog</index_filetype>
+<index_pattern>CRS-10051:</index_pattern>
+</search_string>
+<search_string>
+<eventid>6556643960E8972FE053D298EB0A0C03</eventid>
+<eventname>Corrupted Block</eventname>
+<search>.*WARNING: cache read a corrupted block group.*</search>
+<entities></entities>
+<searchend>NONE</searchend>
+<linestoprocess>1</linestoprocess>
+<file_types>
+<file>Alert Log - ASM</file>
+<file>Alert Log - ASMPROXY</file>
+<file>Alert Log - DB</file>
+</file_types>
+<event_start_trim_buffer></event_start_trim_buffer>
+<event_end_trim_buffer></event_end_trim_buffer>
+<generate_trim>0</generate_trim>
+<clusterwide>0</clusterwide>
+<score>2</score>
+<notify>0</notify>
+<tags></tags>
+<extra_files_to_collect>
+</extra_files_to_collect>
+<index_filetype>AlertLog-ASM AlertLog-ASMPROXY AlertLog-DB</index_filetype>
+<index_pattern>WARNING: cache read corrupted block</index_pattern>
+</search_string>
+<search_string>
+<eventid>655801699C43DCA9E053D198EB0AD1DF</eventid>
+<eventname>Disk Offline</eventname>
+<search>.*NOTE: process .* initiating offline of disk.*</search>
+<entities></entities>
+<searchend>NONE</searchend>
+<linestoprocess>1</linestoprocess>
+<file_types>
+<file>Alert Log - ASM</file>
+<file>Alert Log - ASMPROXY</file>
+<file>Alert Log - DB</file>
+</file_types>
+<event_start_trim_buffer></event_start_trim_buffer>
+<event_end_trim_buffer></event_end_trim_buffer>
+<generate_trim>0</generate_trim>
+<clusterwide>0</clusterwide>
+<score>2</score>
+<notify>0</notify>
+<tags></tags>
+<extra_files_to_collect>
+</extra_files_to_collect>
+<index_filetype>AlertLog-ASM AlertLog-ASMPROXY AlertLog-DB</index_filetype>
+<index_pattern>initiating offline</index_pattern>
+</search_string>
+<search_string>
+<eventid>66C817030616051EE053D298EB0A82F1</eventid>
+<eventname>Instance Critical Process died unexpectedly</eventname>
+<search>Instance Critical Process .* died unexpectedly</search>
+<entities></entities>
+<searchend>NONE</searchend>
+<linestoprocess>1</linestoprocess>
+<file_types>
+<file>Alert Log - ASM</file>
+<file>Alert Log - ASMIO</file>
+<file>Alert Log - ASMPROXY</file>
+<file>Alert Log - DB</file>
+</file_types>
+<event_start_trim_buffer></event_start_trim_buffer>
+<event_end_trim_buffer></event_end_trim_buffer>
+<generate_trim>0</generate_trim>
+<clusterwide>0</clusterwide>
+<score>1</score>
+<notify>0</notify>
+<tags></tags>
+<extra_files_to_collect>
+</extra_files_to_collect>
+<index_filetype>AlertLog-ASM AlertLog-ASMIO AlertLog-ASMPROXY AlertLog-DB</index_filetype>
+<index_pattern>Critical died unexpectedly</index_pattern>
+</search_string>
+<search_string>
+<eventid>67E9F0367C6FF1C3E053D198EB0AA12C</eventid>
+<eventname>Alter System Set</eventname>
+<search>ALTER SYSTEM SET .* SCOPE.*</search>
+<entities></entities>
+<searchend>NONE</searchend>
+<linestoprocess>1</linestoprocess>
+<file_types>
+<file>Alert Log - ASM</file>
+<file>Alert Log - ASMIO</file>
+<file>Alert Log - ASMPROXY</file>
+<file>Alert Log - DB</file>
+</file_types>
+<event_start_trim_buffer></event_start_trim_buffer>
+<event_end_trim_buffer></event_end_trim_buffer>
+<generate_trim>0</generate_trim>
+<clusterwide>0</clusterwide>
+<score>3</score>
+<notify>0</notify>
+<tags></tags>
+<extra_files_to_collect>
+</extra_files_to_collect>
+<index_filetype>AlertLog-ASM AlertLog-ASMIO AlertLog-ASMPROXY AlertLog-DB</index_filetype>
+<index_pattern>ALTER SYSTEM SET SCOPE</index_pattern>
+</search_string>
+<search_string>
+<eventid>6F986F4DEEB7841AE053D398EB0A9B66</eventid>
+<eventname>PDB Status - Open DB</eventname>
+<search>Pluggable database (.*) opened (.*)</search>
+<entities>pdb_name,mode</entities>
+<searchend></searchend>
+<linestoprocess>1</linestoprocess>
+<file_types>
+<file>Alert Log - DB</file>
+</file_types>
+<event_start_trim_buffer></event_start_trim_buffer>
+<event_end_trim_buffer></event_end_trim_buffer>
+<generate_trim>0</generate_trim>
+<clusterwide>0</clusterwide>
+<score>3</score>
+<notify></notify>
+<tags>CNS</tags>
+<extra_files_to_collect>
+</extra_files_to_collect>
+<index_filetype>AlertLog-DB</index_filetype>
+<index_pattern>Pluggable database opened read write</index_pattern>
+</search_string>
+<search_string>
+<eventid>6FAF1F91E5DB12D8E053D398EB0AB48C</eventid>
+<eventname>PDB Status - Close DB</eventname>
+<search>Pluggable database (.*) closed</search>
+<entities>pdb_name</entities>
+<searchend></searchend>
+<linestoprocess>1</linestoprocess>
+<file_types>
+<file>Alert Log - DB</file>
+</file_types>
+<event_start_trim_buffer></event_start_trim_buffer>
+<event_end_trim_buffer></event_end_trim_buffer>
+<generate_trim></generate_trim>
+<clusterwide>0</clusterwide>
+<score>3</score>
+<notify>0</notify>
+<tags>CNS</tags>
+<extra_files_to_collect>
+</extra_files_to_collect>
+<index_filetype>AlertLog-DB</index_filetype>
+<index_pattern>Pluggable database closed</index_pattern>
+</search_string>
+<search_string>
+<eventid>70A63CE537E7B801E053D298EB0A8CB4</eventid>
+<eventname>ORA-ERRORCODE</eventname>
+<search>.*ORA-2730(0|1|2).*</search>
+<entities></entities>
+<searchend>NONE</searchend>
+<linestoprocess>1</linestoprocess>
+<file_types>
+<file>Alert Log - ASM</file>
+<file>Alert Log - ASMIO</file>
+<file>Alert Log - ASMPROXY</file>
+<file>Alert Log - DB</file>
+</file_types>
+<event_start_trim_buffer>600000</event_start_trim_buffer>
+<event_end_trim_buffer>600000</event_end_trim_buffer>
+<generate_trim>0</generate_trim>
+<clusterwide>0</clusterwide>
+<score>1</score>
+<notify>1</notify>
+<tags></tags>
+<extra_files_to_collect>
+<file_component>OS</file_component>
+</extra_files_to_collect>
+<index_filetype>AlertLog-ASM AlertLog-ASMIO AlertLog-ASMPROXY AlertLog-DB</index_filetype>
+<index_pattern>ORA-27300: ORA-27301: ORA-27302:</index_pattern>
+</search_string>
+<search_string>
+<eventid>70AABDD40ED9E8EDE053D398EB0AA8B1</eventid>
+<eventname>ORA-ERRORCODE</eventname>
+<search>.*ORA-00060.*</search>
+<entities></entities>
+<searchend>NONE</searchend>
+<linestoprocess>10</linestoprocess>
+<file_types>
+<file>Alert Log - ASM</file>
+<file>Alert Log - ASMIO</file>
+<file>Alert Log - ASMPROXY</file>
+<file>Alert Log - DB</file>
+</file_types>
+<event_start_trim_buffer>600000</event_start_trim_buffer>
+<event_end_trim_buffer>600000</event_end_trim_buffer>
+<generate_trim>0</generate_trim>
+<clusterwide>0</clusterwide>
+<score>1</score>
+<notify>1</notify>
+<tags></tags>
+<extra_files_to_collect>
+</extra_files_to_collect>
+<index_filetype>AlertLog-ASM AlertLog-ASMIO AlertLog-ASMPROXY AlertLog-DB</index_filetype>
+<index_pattern>ORA-00060:</index_pattern>
+</search_string>
+<search_string>
+<eventid>95659CB9C2911BF1E040E50A1FC06617</eventid>
+<eventname>Reconfiguration started</eventname>
+<search>^Reconfiguration started.*</search>
+<entities></entities>
+<searchend>^Reconfiguration complete.*</searchend>
+<linestoprocess>100</linestoprocess>
+<file_types>
+<file>Alert Log - ASM</file>
+<file>Alert Log - DB</file>
+</file_types>
+<event_start_trim_buffer>3600000</event_start_trim_buffer>
+<event_end_trim_buffer>3600000</event_end_trim_buffer>
+<generate_trim>0</generate_trim>
+<clusterwide>0</clusterwide>
+<score>3</score>
+<notify>0</notify>
+<tags></tags>
+<extra_files_to_collect>
+</extra_files_to_collect>
+<index_filetype>AlertLog-ASM AlertLog-DB</index_filetype>
+<index_pattern>Reconfiguration</index_pattern>
+</search_string>
+<search_string>
+<eventid>991BD027D876ADB7E040E50A1FC05C84</eventid>
+<eventname>CRS-ERRORCODE</eventname>
+<search>.*CRS-16(01|15|56):.*</search>
+<entities></entities>
+<searchend>NONE</searchend>
+<linestoprocess>1</linestoprocess>
+<file_types>
+<file>CRS Alert Log</file>
+</file_types>
+<event_start_trim_buffer></event_start_trim_buffer>
+<event_end_trim_buffer></event_end_trim_buffer>
+<generate_trim>0</generate_trim>
+<clusterwide>0</clusterwide>
+<score>1</score>
+<notify>0</notify>
+<tags></tags>
+<extra_files_to_collect>
+</extra_files_to_collect>
+<index_filetype>CRSAlertLog</index_filetype>
+<index_pattern>CRS-1601: CRS-1615: CRS-1656:</index_pattern>
+</search_string>
+<search_string>
+<eventid>991C1B44C9B0F21FE040E50A1FC06076</eventid>
+<eventname>System parameters with non-default values</eventname>
+<search>^System parameters with non-default values.*</search>
+<entities></entities>
+<searchend>NONE</searchend>
+<linestoprocess>1</linestoprocess>
+<file_types>
+<file>Alert Log - ASM</file>
+<file>Alert Log - DB</file>
+</file_types>
+<event_start_trim_buffer>3600000</event_start_trim_buffer>
+<event_end_trim_buffer>3600000</event_end_trim_buffer>
+<generate_trim>0</generate_trim>
+<clusterwide>0</clusterwide>
+<score>3</score>
+<notify>0</notify>
+<tags></tags>
+<extra_files_to_collect>
+</extra_files_to_collect>
+<index_filetype>AlertLog-ASM AlertLog-DB</index_filetype>
+<index_pattern>System parameters non-default values</index_pattern>
+</search_string>
+<search_string>
+<eventid>991C3833630A87B4E040E50A1FC06071</eventid>
+<eventname>Starting ORACLE instance</eventname>
+<search>^Starting ORACLE instance.*</search>
+<entities></entities>
+<searchend>NONE</searchend>
+<linestoprocess>1</linestoprocess>
+<file_types>
+<file>Alert Log - ASM</file>
+<file>Alert Log - ASMPROXY</file>
+<file>Alert Log - DB</file>
+</file_types>
+<event_start_trim_buffer>3600000</event_start_trim_buffer>
+<event_end_trim_buffer>3600000</event_end_trim_buffer>
+<generate_trim>0</generate_trim>
+<clusterwide>0</clusterwide>
+<score>3</score>
+<notify>0</notify>
+<tags></tags>
+<extra_files_to_collect>
+</extra_files_to_collect>
+<index_filetype>AlertLog-ASM AlertLog-ASMPROXY AlertLog-DB</index_filetype>
+<index_pattern>Starting ORACLE instance</index_pattern>
+</search_string>
+<search_string>
+<eventid>991C3C7F41D6BA94E040E50A1FC061DF</eventid>
+<eventname>Shutting down instance</eventname>
+<search>.*Shutting down instance .*</search>
+<entities></entities>
+<searchend>NONE</searchend>
+<linestoprocess>1</linestoprocess>
+<file_types>
+<file>Alert Log - ASM</file>
+<file>Alert Log - ASMPROXY</file>
+<file>Alert Log - DB</file>
+</file_types>
+<event_start_trim_buffer>3600000</event_start_trim_buffer>
+<event_end_trim_buffer>3600000</event_end_trim_buffer>
+<generate_trim>0</generate_trim>
+<clusterwide>0</clusterwide>
+<score>3</score>
+<notify>0</notify>
+<tags></tags>
+<extra_files_to_collect>
+</extra_files_to_collect>
+<index_filetype>AlertLog-ASM AlertLog-ASMPROXY AlertLog-DB</index_filetype>
+<index_pattern>Shutting down instance</index_pattern>
+</search_string>
+<search_string>
+<eventid>991C42E9E746F4F7E040E50A1FC062E5</eventid>
+<eventname>Instance terminated</eventname>
+<search>.*Instance terminated by .*</search>
+<entities></entities>
+<searchend>NONE</searchend>
+<linestoprocess>1</linestoprocess>
+<file_types>
+<file>Alert Log - ASM</file>
+<file>Alert Log - ASMPROXY</file>
+<file>Alert Log - DB</file>
+</file_types>
+<event_start_trim_buffer></event_start_trim_buffer>
+<event_end_trim_buffer></event_end_trim_buffer>
+<generate_trim>0</generate_trim>
+<clusterwide>0</clusterwide>
+<score>1</score>
+<notify>0</notify>
+<tags></tags>
+<extra_files_to_collect>
+</extra_files_to_collect>
+<index_filetype>AlertLog-ASM AlertLog-ASMPROXY AlertLog-DB</index_filetype>
+<index_pattern>Instance terminated</index_pattern>
+</search_string>
+<search_string>
+<eventid>C0DA322EA7CF0589E0431FC0E50AE7D3</eventid>
+<eventname>ORA-ERRORCODE</eventname>
+<search>.*ORA-00600.*</search>
+<entities></entities>
+<searchend>NONE</searchend>
+<linestoprocess>10</linestoprocess>
+<file_types>
+<file>Alert Log - ASM</file>
+<file>Alert Log - ASMIO</file>
+<file>Alert Log - ASMPROXY</file>
+<file>Alert Log - DB</file>
+</file_types>
+<event_start_trim_buffer>600000</event_start_trim_buffer>
+<event_end_trim_buffer>600000</event_end_trim_buffer>
+<generate_trim>1</generate_trim>
+<clusterwide>0</clusterwide>
+<score>1</score>
+<notify>1</notify>
+<tags></tags>
+<extra_files_to_collect>
+</extra_files_to_collect>
+<index_filetype>AlertLog-ASM AlertLog-ASMIO AlertLog-ASMPROXY AlertLog-DB</index_filetype>
+<index_pattern>ORA-00600:</index_pattern>
+</search_string>
+<search_string>
+<eventid>D251FD7873D27D30E0431FC0E50A4E1F</eventid>
+<eventname>ORA-ERRORCODE</eventname>
+<search>.*ORA-07445.*</search>
+<entities></entities>
+<searchend>NONE</searchend>
+<linestoprocess>1</linestoprocess>
+<file_types>
+<file>Alert Log - ASM</file>
+<file>Alert Log - ASMIO</file>
+<file>Alert Log - ASMPROXY</file>
+<file>Alert Log - DB</file>
+</file_types>
+<event_start_trim_buffer>600000</event_start_trim_buffer>
+<event_end_trim_buffer>600000</event_end_trim_buffer>
+<generate_trim>1</generate_trim>
+<clusterwide>0</clusterwide>
+<score>1</score>
+<notify>1</notify>
+<tags></tags>
+<extra_files_to_collect>
+</extra_files_to_collect>
+<index_filetype>AlertLog-ASM AlertLog-ASMIO AlertLog-ASMPROXY AlertLog-DB</index_filetype>
+<index_pattern>ORA-07445:</index_pattern>
+</search_string>
+<search_string>
+<eventid>D2520839E2137DE9E0431FC0E50A26B5</eventid>
+<eventname>ORA-ERRORCODE</eventname>
+<search>.*ORA-004(69|([7-8][0-9]|9([0-3]|[5-8]))).*</search>
+<entities></entities>
+<searchend>NONE</searchend>
+<linestoprocess>1</linestoprocess>
+<file_types>
+<file>Alert Log - ASM</file>
+<file>Alert Log - ASMIO</file>
+<file>Alert Log - ASMPROXY</file>
+<file>Alert Log - DB</file>
+</file_types>
+<event_start_trim_buffer>600000</event_start_trim_buffer>
+<event_end_trim_buffer>600000</event_end_trim_buffer>
+<generate_trim>1</generate_trim>
+<clusterwide>0</clusterwide>
+<score>1</score>
+<notify>1</notify>
+<tags></tags>
+<extra_files_to_collect>
+</extra_files_to_collect>
+<index_filetype>AlertLog-ASM AlertLog-ASMIO AlertLog-ASMPROXY AlertLog-DB</index_filetype>
+<index_pattern>ORA-00469: ORA-0047: ORA-0048: ORA-00490: ORA-00491: ORA-00492: ORA-00493: ORA-00495: ORA-00496: ORA-00497: ORA-00498:</index_pattern>
+</search_string>
+<search_string>
+<eventid>D2527A817D5B081AE0431FC0E50AD8EC</eventid>
+<eventname>ORA-ERRORCODE</eventname>
+<search>.*ORA-297(01|02|03|08|09|10|40|70|71).*</search>
+<entities></entities>
+<searchend>NONE</searchend>
+<linestoprocess>1</linestoprocess>
+<file_types>
+<file>Alert Log - ASM</file>
+<file>Alert Log - ASMIO</file>
+<file>Alert Log - ASMPROXY</file>
+<file>Alert Log - DB</file>
+</file_types>
+<event_start_trim_buffer>3600000</event_start_trim_buffer>
+<event_end_trim_buffer>600000</event_end_trim_buffer>
+<generate_trim>1</generate_trim>
+<clusterwide>0</clusterwide>
+<score>1</score>
+<notify>1</notify>
+<tags></tags>
+<extra_files_to_collect>
+<file_component>ASM</file_component>
+<file_component>CRS</file_component>
+<file_component>OS</file_component>
+</extra_files_to_collect>
+<index_filetype>AlertLog-ASM AlertLog-ASMIO AlertLog-ASMPROXY AlertLog-DB</index_filetype>
+<index_pattern>ORA-29701: ORA-29702: ORA-29703: ORA-29708: ORA-29709: ORA-29710: ORA-29740: ORA-29770: ORA-29771:</index_pattern>
+</search_string>
+<search_string>
+<eventid>D2528520F3B3059AE0431FC0E50ABEB8</eventid>
+<eventname>ORA-ERRORCODE</eventname>
+<search>.*ORA-3270(1|3|4).*</search>
+<entities></entities>
+<searchend>NONE</searchend>
+<linestoprocess>1</linestoprocess>
+<file_types>
+<file>Alert Log - ASM</file>
+<file>Alert Log - ASMIO</file>
+<file>Alert Log - ASMPROXY</file>
+<file>Alert Log - DB</file>
+</file_types>
+<event_start_trim_buffer>600000</event_start_trim_buffer>
+<event_end_trim_buffer>600000</event_end_trim_buffer>
+<generate_trim>1</generate_trim>
+<clusterwide>0</clusterwide>
+<score>1</score>
+<notify>1</notify>
+<tags></tags>
+<extra_files_to_collect>
+<file_component>ASM</file_component>
+<file_component>CRS</file_component>
+<file_component>OS</file_component>
+<file_component>ASMIO</file_component>
+<file_component>ASMPROXY</file_component>
+</extra_files_to_collect>
+<index_filetype>AlertLog-ASM AlertLog-ASMIO AlertLog-ASMPROXY AlertLog-DB</index_filetype>
+<index_pattern>ORA-32701: ORA-32703: ORA-32704:</index_pattern>
+</search_string>
+<search_string>
+<eventid>D2E9EFB5CC987AC6E0431FC0E50A0622</eventid>
+<eventname>ORA-ERRORCODE</eventname>
+<search>.*ORA-00494.*</search>
+<entities></entities>
+<searchend>NONE</searchend>
+<linestoprocess>1</linestoprocess>
+<file_types>
+<file>Alert Log - ASM</file>
+<file>Alert Log - ASMIO</file>
+<file>Alert Log - ASMPROXY</file>
+<file>Alert Log - DB</file>
+</file_types>
+<event_start_trim_buffer>1200000</event_start_trim_buffer>
+<event_end_trim_buffer>600000</event_end_trim_buffer>
+<generate_trim>1</generate_trim>
+<clusterwide>0</clusterwide>
+<score>1</score>
+<notify>1</notify>
+<tags></tags>
+<extra_files_to_collect>
+<file_component>ASM</file_component>
+</extra_files_to_collect>
+<index_filetype>AlertLog-ASM AlertLog-ASMIO AlertLog-ASMPROXY AlertLog-DB</index_filetype>
+<index_pattern>ORA-00494:</index_pattern>
+</search_string>
+<search_string>
+<eventid>D302ECF5F6237B86E0431FC0E50A45A3</eventid>
+<eventname>System State dumped</eventname>
+<search>.*System State dumped.*</search>
+<entities></entities>
+<searchend>NONE</searchend>
+<linestoprocess>1</linestoprocess>
+<file_types>
+<file>Alert Log - ASM</file>
+<file>Alert Log - ASMIO</file>
+<file>Alert Log - ASMPROXY</file>
+<file>Alert Log - DB</file>
+</file_types>
+<event_start_trim_buffer>1200000</event_start_trim_buffer>
+<event_end_trim_buffer>1200000</event_end_trim_buffer>
+<generate_trim>1</generate_trim>
+<clusterwide>0</clusterwide>
+<score>2</score>
+<notify>1</notify>
+<tags></tags>
+<extra_files_to_collect>
+<file_component>ASM</file_component>
+<file_component>CRS</file_component>
+<file_component>OS</file_component>
+</extra_files_to_collect>
+<disableInADE>1</disableInADE>
+<index_filetype>AlertLog-ASM AlertLog-ASMIO AlertLog-ASMPROXY AlertLog-DB</index_filetype>
+<index_pattern>System State dumped</index_pattern>
+</search_string>
+<search_string>
+<eventid>D302ECF5F6247B86E0431FC0E50A45A3</eventid>
+<eventname>CRS-ERRORCODE</eventname>
+<search>.*CRS-16(07|10|11|12).*</search>
+<entities></entities>
+<searchend>NONE</searchend>
+<linestoprocess>1</linestoprocess>
+<file_types>
+<file>CRS Alert Log</file>
+</file_types>
+<event_start_trim_buffer>3600000</event_start_trim_buffer>
+<event_end_trim_buffer>600000</event_end_trim_buffer>
+<generate_trim>1</generate_trim>
+<clusterwide>0</clusterwide>
+<score>1</score>
+<notify>1</notify>
+<tags></tags>
+<extra_files_to_collect>
+<file_component>OS</file_component>
+</extra_files_to_collect>
+<index_filetype>CRSAlertLog</index_filetype>
+<index_pattern>CRS-1607: CRS-1610: CRS-1611: CRS-1612:</index_pattern>
+</search_string>
+<search_string>
+<eventid>E5232D6E43825010E04312C0E50A709E</eventid>
+<eventname>Incident details</eventname>
+<search>Incident details in.*</search>
+<entities></entities>
+<searchend>NONE</searchend>
+<linestoprocess>1</linestoprocess>
+<file_types>
+<file>Alert Log - ASM</file>
+<file>Alert Log - ASMPROXY</file>
+<file>Alert Log - DB</file>
+<file>CRS Alert Log</file>
+</file_types>
+<event_start_trim_buffer></event_start_trim_buffer>
+<event_end_trim_buffer></event_end_trim_buffer>
+<generate_trim>0</generate_trim>
+<clusterwide>0</clusterwide>
+<score>3</score>
+<notify>0</notify>
+<tags></tags>
+<extra_files_to_collect>
+</extra_files_to_collect>
+<index_filetype>AlertLog-ASM AlertLog-ASMPROXY AlertLog-DB CRSAlertLog</index_filetype>
+<index_pattern>Incident details</index_pattern>
+</search_string>
+</search_strings>

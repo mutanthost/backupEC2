@@ -1,0 +1,618 @@
+printf("==========START_OF_REPORT_chkComputeZSServices.aksh==========\n");
+var founderrors = false;
+var serverList =  ['asr-services', 'transport', 'inv-cs'];
+
+//
+// Other services to check for
+var serv=['dns', 'ipmp', 'iscsi', 'ndmp', 'nfs', 'ntp', 'replication', 'rest', 'shadow', 'smtp', 'ssh'];
+
+// Global variable to store the Proxy settings
+var proxy_results = {};
+
+// Get info related to proxy info and build transport options
+function getProxySettings(){
+	var serviceName        = "Phone Home/Scrk Proxy",
+	    serviceStatus      = "",
+	    serviceDetails     = "",
+	    serviceDetailsLong = "";
+	try {
+		run('cd /');
+		run('configuration services scrk');	
+			
+		proxy_results["scrk_status"] = (get('<status>').lastIndexOf("online") >=0) ? true : false;
+		proxy_results["proxy_status"] = (get('proxy_on').toString().lastIndexOf("true") >=0) ? true : false;
+		proxy_results["proxy_host"] = get('proxy_host');	
+		proxy_results["proxy_user"] = get("proxy_user");
+		proxy_results["proxy_pass"] = get("proxy_pass");
+		appl.services.push(proxy_results);
+		
+		var options = "--spider -nv --no-check-certificate -T 10";
+		options += (proxy_results["scrk_status"] && proxy_results["proxy_status"]) ? " -e https_proxy="+proxy_results["proxy_host"] : "";
+		serviceStatus = proxy_results["proxy_status"] === true ? "Configured" : "Not Configured";
+		serviceDetails = proxy_results["proxy_host"];		
+		servicesTable.data.push([serviceName, serviceStatus, serviceDetails]);
+		return(options);
+	}
+	catch(e){	
+		serviceDetailsLong = "*\tPhone Home: Unable to get proxy settings\n";
+		servicesTable.data.push([serviceName, serviceStatus, serviceDetails]);
+        servicesTable.details.push(serviceDetailsLong);
+        return("");
+	}
+}	
+
+
+// Transport validation: Verify connection to transports, ASR and inv-cs
+function connection_to_transports(){	
+	var i,
+	serviceName    	   = "ASR Connection",
+	serviceStatus      = "N/A",
+	serviceDetails     = "",
+	serviceDetailsLong = "",
+	results            = [],
+	isOK			   = false;
+	options 		   = getProxySettings();
+
+	var wgetLinks = [];
+	var s0 = 'https';
+	var s1 = '.oracle';
+	var s2 = 'com';
+	var s3;
+	for (i = 0; i < 3; i++) {
+		if (i == 1)
+			s3 = "/v1/";
+		else
+			s3 = "";
+
+		wgetLinks[i] = s0 + "://" + serverList[i] + s1 + s2 + s3;
+	}
+	for (var i = 0; i < wgetLinks.length; i++){
+		try {
+			var command = "wget "+options+" "+wgetLinks[i];				
+			output = shell(command).toString();			
+			http_response = output.split(wgetLinks[i])[1].replace(/\s/, "").replace(/\n/, "").replace(/\//, "");
+			
+			//print ("Transport link: " + command +"\n");
+			//print ("Transport output: " + output +"\n"); 			
+			
+			if (http_response.lastIndexOf("200 OK")>=0){					
+				isOK = true;				
+			}
+			else {				
+				isOK = false;
+			}
+			results.push({server: wgetLinks[i], response: http_response, 'isOK': isOK});
+			
+			o = {"ASR_server": wgetLinks[i], "http_response": http_response};
+			appl.services.push(o);
+			
+		} 
+		catch (err) {
+			results.push({server:wgetLinks[i], response: err.message, 'isOK':false});
+			o = {"ASR_server": wgetLinks[i], "http_response": err};
+			appl.services.push(o);
+		}
+	}
+	
+	serviceDetails = "Good Connections: "+results.countObjKeyValue({'isOK': true})+", Failed: "+
+		             results.countObjKeyValue({'isOK': false});
+	serviceDetailsLong = "*\tASR Connection Tests:\n";
+	for(i=0; results.length>i;i++){
+		serviceDetailsLong += "\t"+results[i].server+">> "+results[i].response+"\n";
+	}
+	servicesTable.data.push([serviceName, serviceStatus, serviceDetails]);
+	servicesTable.details.push(serviceDetailsLong);
+}	
+
+
+function validateSSL(links){
+	var i,shellResults,
+		serviceName 	   = "SSL Cert Check",
+		serviceStatus 	   = "",
+		serviceDetails 	   = "",
+		serviceDetailsLong = "",
+		proxyUser		   = "",
+		proxyPass		   = "",
+		proxyHost          = "",
+		curlOpt            = "curl -s -S --trace-ascii - -L --connect-timeout 5",
+		isProxyEnabled     = false,
+		isScrkOnline	   = false,
+		curlSuccessCount   = 0,
+		curlFailCount      = 0;
+
+		var links = [];
+		var s0 = 'https';
+		var s1 = '.oracle';
+		var s2 = 'com';
+		var s3;
+		for (i = 0; i < 3; i++) {
+			if (i == 1)
+				s3 = "/v1/";
+			else
+				s3 = "";
+
+			links[i] = s0 + "://" + serverList[i] + s1 + s2 + s3;
+		}
+		
+		//Get proxy info
+		for(i=0; i<appl.services.length; i++){
+			if(appl.services[i].proxy_host){
+				isScrkOnline   = appl.services[i].scrk_status;
+				isProxyEnabled = appl.services[i].proxy_status;
+				proxyHost 	   = appl.services[i].proxy_host;
+				proxyUser 	   = appl.services[i].proxy_user;
+				proxyPass 	   = appl.services[i].proxy_pass;
+				break;	
+			}
+		}
+		serviceStatus  = isScrkOnline.toString();
+		
+		if(isProxyEnabled && proxyHost !== ""){
+			//-U/--proxy-user <user:password>
+			//-x/--proxy <proxyhost[:port]>
+			curlOpt += " -x "+proxyHost;
+			if(proxyUser !== ""){
+				curlOpt += " -U "+proxyUser+":"+proxyPass;
+			}
+		}
+		
+		if(isScrkOnline){
+			for(i=0; i<links.length; i++){
+				try{
+					//If this works then its successful
+					shell(curlOpt+" --url "+links[i]);
+					curlSuccessCount += 1;
+				}catch(e){
+					curlFailCount += 1;
+					if(serviceDetailsLong === ""){
+						serviceDetailsLong = "*\tSSL Cert Check Error:\n"+
+											 "\t"+e.message+"\n";
+					}else{
+						serviceDetailsLong += "\t"+e.message+"\n";
+					}
+				}
+			}
+			
+			serviceDetails = "Addresses: "+links.length+", Success: "+curlSuccessCount+", Fail: "+curlFailCount;
+		}else{		 
+			serviceDetails = "Scrk is not enabled, skipping ...";	
+		}
+		
+		servicesTable.data.push([serviceName, serviceStatus, serviceDetails]);
+		servicesTable.details.push(serviceDetailsLong);
+		
+}
+
+/*-------------------------------------------------------------*
+  Service Tags
+*--------------------------------------------------------------*/
+function service_tags(){
+    var serviceName        = "Service TAGS",
+        serviceStatus      = "",
+        serviceDetails     = "";
+        serviceDetailsLong = "";
+	run('cd /');
+	run('configuration services tags');
+	
+	status = get('<status>').toUpperCase();	
+	discovery_port = get('discovery_port');
+	listener_port = get('listener_port');
+	
+	o = {"service": "service_tags", "status": status, "discovery_port": discovery_port, "listener_port": listener_port};	
+	appl.services.push(o);	
+	
+	s = "";
+	if (status.lastIndexOf("DISABLED")>=0){
+        serviceStatus = status;
+        serviceDetails = "Tags facilitate product inventory";
+        servicdeDetailsLong = "*\tService Tags are used to facilitate product inventory and support,\n"+
+                              "\tby allowing the appliance to be queried for data such as:\n" +
+                              "\tSystem serial number\n" +
+                              "\tSystem type\n" +
+                              "\tSoftware version numbers\n" +
+                              "\tYou can register the service tags with Oracle support, allowing\n"+
+                              "\tyou to easily keep track of your Oracle equipment and also expedite\n"+
+                              "\tservice calls. The service tags are enabled by default. Use the help\n"+
+                              "\tfeature in the BUI/CLI to enable this service\n";
+        founderrors = true;                              
+	}
+	else {
+        serviceStatus = status;
+        serviceDetailsLong = "*\t"+serviceName+": Listener Port:"+listener_port+", Discovery Port:"+discovery_port+"\n";
+        
+        /* 
+                             "\tnc -z localhost "+listener_port+" result:\n"
+                             "\t"+shell("nc -z localhost "+listener_port).trim()+"\n";
+         */
+        serviceDetails = "Port:"+listener_port;
+	}	
+    servicesTable.data.push([serviceName, serviceStatus, serviceDetails]);
+    servicesTable.details.push(serviceDetailsLong);   
+}
+
+
+/*------------*
+  Phone Home
+*-------------*/
+
+function phone_home(){	
+	var serviceName = 'Phone Home/Scrk Service', 
+	    serviceDetails = '', 
+	    serviceStatus = '',
+	    serviceDetailsLong = '';
+	try{		
+		run ('cd /');
+		run('configuration services scrk');
+		var soa;
+		status = get('<status>');	
+		soa = get('soa_id');	
+		serviceStatus = status;
+		serviceDetails = "SOA: "+soa;
+		if ((soa=='' && status =="disabled") || (soa=='' && status =="online")){		
+			serviceDetails = "Not Configured";
+			serviceDetailsLong = "*\tPhone Home service: Not Configured\n"+
+			                     "\tUse the help feature in the BUI/CLI to configure it. For additional info,\n"+
+			                     "\tcheck Doc ID 1285455.1: Oracle ZFS Storage Appliance: How to (and why)\n"+
+			                     "\tenable the Automated Service Request (ASR) Feature on MOS\n";
+            founderrors = true;			                     
+		}
+		else if((soa!='' && status =="disabled")){
+			//s = "PHONE HOME service: DISABLED. This machine is registered to " + soa + ". You can enable the service manually using the BUI or the CLI."
+			serviceDetailsLong = "*\tPhone Home service: Disabled\n"+
+								 "\tThis machine is registered to "+soa+"\n"+
+								 "\tYou can enable the service manually using the BUI or the CLI.\n"
+            founderrors = true;								 
+		}
+		else {		
+			
+			/*
+			// Test phone home connection
+			serviceDetailsLong = "*\tPhone Home Service: Configured\n";
+			var args; 
+			args = "'" + soa + "', '" + params.email + "'";  // scrk.sendTestMessage needs to have 2 email addresses: soa_id + the email entered by the user		
+			
+			var rawcommand;
+			rawcommand='scrk.sendTestMessage(' + args + ')';			
+			
+			try {
+				output = run(rawcommand);
+				
+				if (output.lastIndexOf('result = 0')>=0){
+					//s = '  Sending request for ASR Creation... Request sent SUCCESFULLY. Check your email for test results.\n';
+					serviceDetailsLong += "\tSending request for ASR Creation... Request sent SUCCESFULLY. Check your\n"+
+										  "\temail for test results.\n";
+				}
+				else {
+					//s = '  Sending request for ASR Creation... Request FAILED. Please consult the following Doc ID 1574071.1:\n' + 
+					//		'\tSun Storage 7000 Unified Storage System: How to troubleshoot Phone Home (i.e. scrk) connection issues\n';
+					serviceDetailsLong += "\tSending request for ASR Creation... Request FAILED. Please consult the\n"+
+										  "\tfollowing Doc ID 1574071.1:Sun Storage 7000 Unified Storage System: How to\n"+
+										  "\ttroubleshoot Phone Home (i.e. scrk) connection issues\n";
+				}				
+				
+				connection_to_transports();
+				validateSSL();
+			}		
+			catch(err){
+				serviceDetailsLong = "*\tSending request for ASR Creation Failed:\n"+
+									 "\t"+err.message+"\n";
+			}
+			finally {
+				 o = {"service": "phone_home", "status": status, "soa": soa};	
+				appl.services.push(o);
+			}
+			
+			*/
+		}
+		
+	}	
+	catch(err){
+		serviceDetails = "Phone Home/ASR Check Failed";
+		serviceDetailsLong = "*\tPhone Home / ASR Creation failed:\n"+
+							 "\t"+err.message+"\n";
+        founderrors = true;							 
+	}
+	servicesTable.data.push([serviceName, serviceStatus, serviceDetails]);
+    servicesTable.details.push(serviceDetailsLong);
+}
+
+
+/*----------------------------------------------------------------------*
+  NIS status + server config
+*-----------------------------------------------------------------------*/
+function nis() {
+    var serviceName        = "NIS Service",
+        serviceStatus      = "",
+        serviceDetails     = "",
+        serviceDetailsLong = "";
+        
+	try {
+		run('cd /');
+		run('configuration services nis');
+		nis = get('<status>').toUpperCase();	
+		servers = get('ypservers');
+		
+		o = {"service": "nis", "status": nis, "servers": servers};	
+		appl.services.push(o);	
+		
+		if (nis.lastIndexOf("DISABLED")>=0 ) {
+            serviceStatus = nis;
+            serviceDetails = "NONE";
+            serviceDetailsLong = "*\tNIS Service:"+nis+"\n"+
+                                 "\tNetwork Information Service (NIS) is a name service for centralized management.\n"+
+                                 "\tFor more infomation on how NIS works and how to configure it, please consult\n"+
+                                 "\tthe help feature in the BUI/CLI.\n";
+            servicesTable.data.push([serviceName, serviceStatus, serviceDetails]);
+            servicesTable.details.push(serviceDetailsLong);
+			return false;
+		}
+		else {
+            serviceStatus = nis;
+            serviceDetails = "NONE";
+            servicesTable.data.push([serviceName, serviceStatus, serviceDetails]);
+			return true;
+		}	
+	}	
+	catch(err){
+        serviceStatus = "N/A";
+        serviceDetails = "NIS check failed";
+        serviceDatailsLong = "*\tNIS status error:\n"+
+                             "\t "+err.message+"\n";
+        servicesTable.data.push([serviceName, serviceStatus, serviceDetails]);
+        servicesTable.details.push(serviceDetailsLong);	
+		return false;		
+	}
+}
+
+
+/*----------------------------------------------------------------------*
+  Active Directory status + mode + workgroup config
+*-----------------------------------------------------------------------*/
+function ad() {
+    var serviceName        = "AD Service",
+        serviceStatus      = "",
+        serviceDetails     = "",
+        serviceDetailsLong = "";
+	s = "";
+	is_online = false;
+	try {
+		run('cd /');
+		run('configuration services ad');
+		status = get('<status>').toUpperCase();	
+		mode = get('mode');				
+		
+		if (status.lastIndexOf("DISABLED")>=0 ) {
+            serviceStatus = status;
+            serviceDetails = "NONE";
+            serviceDetailsLong = "*\tActive Directory:"+status+"\n"+
+                                 "\tThe Active Directory service provides access to a Microsoft Active\n"+
+                                 "\tDirectory database, which stores information about users, groups,\n"+
+                                 "\tshares, and other shared objects. For more infomation on how AD \n"+
+                                 "\tworks and how to configure it, please consult the help feature in \n"+
+                                 "\tthe BUI/CLI.\n";
+            
+		}
+		else {
+			try {
+				workgroup = get('workgroup');					
+				}
+			catch (err) {				
+				workgroup = "-";
+			}
+			finally{
+                serviceStatus = status;
+                serviceDetails = "Workgroup: "+workgroup;
+				is_online = true; 
+				
+				o = {"service": "active_directory", "status": status, "mode": mode, "workgroup": workgroup};	
+				appl.services.push(o);	
+			}
+		}
+	}
+	catch (err){
+        serviceDetails = "AD check failed";
+        serviceDetailsLong = "*\tAD Service Error:\n"+
+                             "\t "+err.message+"\n";
+	}
+	finally{
+        servicesTable.data.push([serviceName, serviceStatus, serviceDetails]);
+        servicesTable.details.push(serviceDetailsLong);
+		return is_online;
+	}
+}
+
+/*----------------------------------------------------------------------*
+  LDAP status + server config
+*-----------------------------------------------------------------------*/
+function ldap() {
+    var serviceName        = "LDAP Service",
+        serviceStatus      = "",
+        serviceDetails     = "",
+        serviceDetailsLong = "";
+	try {
+		run('cd /');
+		run('configuration services ldap');
+		serviceStatus = get('<status>').toUpperCase();	
+		def_servers = get('default_servers');
+		
+		o = {"service": "ldap", "status": ldap, "servers": def_servers};	
+		appl.services.push(o);	
+		if (serviceStatus.lastIndexOf("DISABLED")>=0 ) {
+            serviceDetails = "NONE";
+            serviceDetailsLong = "*\tLDAP (Lightweight Directory Access Protocol) is a directory service for \n"+
+                                 "\tcentralizing management of users, groups, hostnames and other resources \n"+
+                                 "\t(called objects). For more infomation on how LDAP works and how to \n"+
+                                 "\tconfigure it, please consult the help feature in the BUI/CLI.\n";
+            servicesTable.data.push([serviceName, serviceStatus, serviceDetails]);
+            servicesTable.details.push(serviceDetailsLong);
+			return false;
+		}
+		else {
+			serviceDetails = "Server Count: "+def_servers.getMatchCount(/\d+\.\d+\.\d+\.\d+/g);
+			serviceDeatailsLong = "*\tLDAP Servers: "+def_servers+"\n";
+			
+			servicesTable.data.push([serviceName, serviceStatus, serviceDetails]);
+            servicesTable.details.push(serviceDetailsLong);
+			return true;
+		}
+	}
+	catch(err){
+		serviceDetailsLong = "*\tLDAP Servers Check failed:\n"+
+							 "\t"+err.message+"\n";
+		servicesTable.data.push([serviceName, serviceStatus, serviceDetails]);
+		servicesTable.details.push(serviceDetailsLong);
+		return false;	
+	}	
+}
+
+/*----------------------------------------------------------------------*
+  System Identity status
+*-----------------------------------------------------------------------*/
+function sys_identity() {
+	var i,cert,
+		serviceName 	   = "Identity Service",
+		serviceStatus 	   = '',
+		serviceDetails     = '',
+		serviceDetailsLong = '',
+		certList           = [];
+	try {
+		run('cd /');
+		run('configuration services identity');
+		identity = get('<status>');
+		serviceStatus = identity;
+		
+		if (identity.lastIndexOf("online")>=0 ) {
+			try{
+				certList = run("certificates list").trim().replace(/\n/g, "\n\t");
+				serviceDetailsLong = "*\tIdentity Certificates:\n"+
+									 "\t"+certList+"\n";
+				//~ for(i=0;certList.length > i;i++){
+					//~ cert = certList[i].trim();
+					//~ serviceDetailsLong += "\t"+cert+"\n";
+				//~ }				
+			}
+			catch(err){
+				serviceDetails = "Could not get certificate list";
+				founderrors = true;
+			}
+			
+		}
+		else {
+    		serviceDetailsLong = "System Identity service is not online.\n";
+		    founderrors = true;
+		}		    		
+	}	
+	catch(err){
+		serviceDetails = "Error Checking IDENTITY";
+		serviceDetailsLong = "*\tIdentity Error:\n"+
+							 "\t"+err.message+"\n";
+        founderrors = true;							 
+	}
+	servicesTable.data.push([serviceName, serviceStatus, serviceDetails]);
+	servicesTable.details.push(serviceDetailsLong);
+}
+
+/*----------------------------------------------------------------------*
+  Identity Mapping status
+*-----------------------------------------------------------------------*/
+function idmap() {
+	var i,
+		serviceName 	   = "Idmap Service",
+		serviceStatus 	   = '',
+		serviceDetails     = '',
+		serviceDetailsLong = '',
+		idmaps             = [],
+		idmapCount         = 0;
+	try {
+		run('cd /');
+		run('configuration services idmap');
+		idmap = get('<status>');
+		serviceStatus = idmap;	
+		if (idmap.lastIndexOf("online")>=0 ) {
+			
+			idmaps = run("list").trim().split("\n");
+			if (idmaps.length <= 1){
+				serviceDetails = "No ID Maps found";
+			} 			
+		}
+		else {
+            serviceDetails = "Identity Mapping service is not online";
+		    founderrors = true;
+		}
+	}	
+	catch(err){
+		//s = 'IDENTITY MAPPING: Could not get status\n';		
+		serviceDetailsLong = "*\tIdentity Mapping Error:\n"+
+							 "\t"+err.message+"\n";
+        founderrors = true;							 
+	}
+	serviceDetailsLong = "*\tIdentity Mappings:\n";
+	for(i=0; idmaps.length>i;i++){
+		serviceDetailsLong += "\t"+idmaps[i]+"\n";
+		if(i !== 0){
+			idmapCount++;
+		} 
+	}
+	if(serviceDetails === ''){ serviceDetails = "Idmap Count: "+idmapListCount;}
+	servicesTable.data.push([serviceName, serviceStatus, serviceDetails]);
+	servicesTable.details.push(serviceDetailsLong);
+}
+var servicesTable = new printTable({name:"Services", headNames:["Name", "Status", "Details"]});		
+
+/*
+ * Check other services status
+ */
+function checkOtherServices() {
+	for (i=0; i < serv.length; i++) {
+		serviceName=serv[i].toUpperCase()+' Service';
+		try {
+			run('cd /');
+			run('configuration services ' + serv[i]);
+			serv_status=get('<status>').toUpperCase();
+			if (serv_status.lastIndexOf("ONLINE")>=0 ) {
+				serviceStatus = "ONLINE";
+				serviceDetails = "NONE";
+			}
+			if (serv_status.lastIndexOf("DISABLED")>=0 ) {
+				serviceStatus = "DISABLED";
+				serviceDetails = "Service should be enabled.";
+        			founderrors = true;
+			}
+			if (serv_status.lastIndexOf("MAINTENANCE")>=0 ) {
+				serviceStatus = "MAINTENANCE";
+				serviceDetails = "Service in maintenance. Please check.";
+        			founderrors = true;
+			}
+            		servicesTable.data.push([serviceName, serviceStatus, serviceDetails]);
+		} catch(err){
+			serviceStatus = "N/A";
+			serviceDetails = serviceName + " check failed";
+			servicesTable.data.push([serviceName, serviceStatus, serviceDetails]);
+		}
+	}
+}
+function services(){
+    var serviceDetailsLong = '';
+    
+    appl.services 	= new Array();
+    service_tags();
+	phone_home();
+	
+	if (!(nis() || ad() || ldap())){
+        serviceDetailsLong = "*\tWe recommend that you consider configuring one of these services: LDAP,\n"+
+                             "\tNIS or Active Directory. Please consult the help feature in the BUI/CLI\n"+
+                             "\tfor more info\n";
+        servicesTable.details.push(serviceDetailsLong);
+        founderrors = true;
+	}
+	sys_identity();
+	idmap();
+	// Check the status of other services
+	checkOtherServices();
+}
+services();
+printReportTable(servicesTable);
+printf("==========END_OF_REPORT_chkComputeZSServices.aksh==========\n");
+printf("==========START_OF_AUDIT_CHECK_chkComputeZSServices.aksh==========\n");
+printf("services_status = %d\n", founderrors);
+printf("==========END_OF_AUDIT_CHECK_chkComputeZSServices.aksh==========\n");

@@ -1,0 +1,137 @@
+<?xml version="1.0"?>
+
+<!--  $Header: tfa/src/v2/tfa_home/resources/srdc_dbimp.xml /main/2 2018/08/15 16:55:52 bburton Exp $ -->
+
+<!-- 
+ Copyright (c) 2018, Oracle and/or its affiliates. All rights reserved.
+
+   NAME
+     srdc_dbimp.xml
+
+   DESCRIPTION
+     Implement for SRDC - Diagnostic Collection for Traditional Import IssuesDoc ID: 1942433.1
+
+
+   NOTES
+     None
+
+   MODIFIED   (MM/DD/YY)
+   xiaodowu    08/02/18 - Resolve Bug 28439844 - ADD PARENTHESIS FOR VALIDATE
+   xiaodowu    07/26/18 - Enable ONERROR verify on ORA600 and ORA7445
+   xiaodowu    06/06/18 - Resolve Bug 28128186 (MODIFICATION OF DBIMP SRDC
+                          COLLECTION)
+   xiaodowu    05/16/18 - Improve user prompts. e.g. allow command line input
+   xiaodowu    01/18/18 - Implement for SRDC - Diagnostic Collection for
+                          Traditional Import IssuesDoc ID: 1942433.1
+   xiaodowu    01/18/18 - Creation
+
+-->
+<collections>
+	<collection id="dbimp">
+		<description>SRDC - Diagnostic Collection for Traditional Import Issues</description>
+		<srdc_docs>Doc ID 1942433.1: SRDC - Diagnostic Collection for Traditional Import Issues.</srdc_docs>
+		<alias>dbimp</alias>
+		<onevents>
+			<event>
+				<onerror>ORA-07445</onerror>
+				<onerror>ORA-00600</onerror>
+				<infile>
+					<name_patterns>
+						<pattern>alert_.*\.log</pattern>
+					</name_patterns>
+				</infile>
+			</event>
+		</onevents>
+		<user_inputs>
+			<user_input cmdline="" default="" showprompt="1" setenv="NO" validate="" prompt="Enter the Database Name">USERINPUT-DATABASE_NAME</user_input>
+			<user_input cmdline="" default="" showprompt="1" setenv="REPLACE" validate="" prompt="Please enter the command line: ">USERINPUT-COMMAND_LINE</user_input>
+			<user_input cmdline="" default="" showprompt="1" setenv="" validate="(y|Y|n|N)" prompt="Do you use a parameter file in the above command? [Y|N]">USERINPUT-PARFLAG</user_input>
+			<user_input cmdline="" default="" showprompt="1" setenv="REPLACE" validate="file" depinput="PARFLAG" deppattern="y|Y" prompt="Enter the full path of the parameter file ">USERINPUT-PAR_FILE</user_input>
+			<user_input cmdline="" default="" showprompt="1" setenv="REPLACE" validate="file" prompt="Please give the full path of the log file? ">USERINPUT-LOG_FILE</user_input>
+			<user_input cmdline="" default="" showprompt="1" setenv="REPLACE" validate="" prompt="What is the type of import failure, full, schema or table? ">USERINPUT-FAILTYPE</user_input>
+			<user_input cmdline="" default="" showprompt="1" setenv="REPLACE" validate="" prompt="Does the import with full=y show=y fail too? [Y|N]">USERINPUT-FAILOPTION</user_input>
+			<user_input cmdline="" default="" showprompt="1" setenv="REPLACE" validate="(y|Y|n|N)" prompt="Does the import with rows=n fail too? [Y|N] ">USERINPUT-EMPTYFLAG</user_input>
+			<user_input cmdline="" default="Y" showprompt="1" setenv="NO" validate="(Y|y|N|n)" prompt="">USERINPUT-ONERROR_VERIFY</user_input>
+			<user_input cmdline="" default="N" showprompt="1" setenv="" validate="(y|Y|n|N)" prompt="Is an ORA-nnnnn raised? [Y|N] ">USERINPUT-ORAERROR</user_input>
+			<user_input cmdline="" default="N" showprompt="1" setenv="" validate="(y|Y|n|N)" depinput="ORAERROR" deppattern="y|Y" prompt="Was a system event trace for the ORA-nnnnn configured? LBREAKIf not configured yet, please consider turning on such event tracing by issuing: LBREAK connect / as sysdba; LBREAK alter system set events '(ORA-error code) trace name errorstack level 10'; LBREAKand LBREAK alter system set max_dump_file_size = unlimited;LBREAKthen reproduce the import issue and come back to rerun this collection. LBREAKPress Enter key to continue. ">USERINPUT-EVENTTRACING</user_input>
+			<user_input cmdline="" default="" showprompt="1" setenv="" validate="(y|Y|n|N)" prompt="Was it a performance or hanging issue? [Y|N] ">USERINPUT-PERFORMANCEFLAG</user_input>
+			<user_input cmdline="" default="" showprompt="1" setenv="NO" validate="" depinput="PERFORMANCEFLAG" deppattern="y|Y" prompt="Do you have an AWR license? &#40;Refer to Doc 1490798.1 for more information &#41;">USERINPUT-LICENSE</user_input>
+			<user_input cmdline="" default="" showprompt="1" setenv="NO" validate="" depinput="PERFORMANCEFLAG" deppattern="y|Y" prompt="AWR duration">USERINPUT-AWR_DURATION</user_input>
+			<user_input cmdline="" default="" showprompt="1" setenv="NO" validate="" depinput="PERFORMANCEFLAG" deppattern="y|Y" prompt="Enter start time when the performance was bad">USERINPUT-EVENT_START_TIME</user_input>
+			<user_input cmdline="" default="" showprompt="1" setenv="NO" validate="" depinput="PERFORMANCEFLAG" deppattern="y|Y" prompt="Enter stop time when the performance was bad">USERINPUT-EVENT_END_TIME</user_input>
+			<user_input cmdline="" default="" showprompt="1" setenv="NO" validate="" depinput="PERFORMANCEFLAG" deppattern="y|Y" prompt="For comparison, it is useful to gather data from another period with similar load where problems are not seen. Typically this is likely to be the same time period on a previous day. To compare to the same time period on a previous day enter the number of days ago you wish to use.">USERINPUT-PERFORM_OK</user_input>
+			<user_input cmdline="" default="" showprompt="1" setenv="NO" validate="" depinput="PERFORMANCEFLAG" deppattern="y|Y" prompt="Enter start time when the performance was good">USERINPUT-EVENT_BASELINE_START_TIME</user_input>
+			<user_input cmdline="" default="" showprompt="1" setenv="NO" validate="" depinput="PERFORMANCEFLAG" deppattern="y|Y" prompt="Enter stop time when the performance was good">USERINPUT-EVENT_BASELINE_END_TIME</user_input>
+			<user_input cmdline="" default="N" showprompt="1" setenv="" validate="(y|Y|n|N)" depinput="PERFORMANCEFLAG" deppattern="y|Y" prompt="Is the performance issue encountered for a particular object? [Y|N] ">USERINPUT-OBJECTFLAG</user_input>
+			<user_input cmdline="" default="N" showprompt="1" setenv="REPLACE" validate="" depinput="OBJECTFLAG" deppattern="y|Y" prompt="Enter the object name: ">USERINPUT-OBJECTNAME</user_input>
+			<user_input cmdline="" default="N" showprompt="1" setenv="REPLACE" validate="" depinput="OBJECTFLAG" deppattern="y|Y" prompt="Enter the object type: ">USERINPUT-OBJECTTYPE</user_input>
+			<user_input cmdline="" default="N" showprompt="1" setenv="REPLACE" validate="" depinput="OBJECTFLAG" deppattern="y|Y" prompt="Enter the object owner name: ">USERINPUT-OBJECTOWNER</user_input>
+		</user_inputs>    
+		<duration>12h</duration>
+		<clusterwide>no</clusterwide>
+		<filter_files>
+			<types>
+			</types>
+			<filter_file_patterns>
+				<filter_file_pattern>alert_.*\.log</filter_file_pattern>
+				<filter_file_pattern>trc</filter_file_pattern>
+				<filter_file_pattern>log</filter_file_pattern>
+				<filter_file_pattern>archive\/osw</filter_file_pattern>
+				<filter_file_pattern>ExaWatcher\/archive</filter_file_pattern>
+			</filter_file_patterns>
+			<filter_file_exclude_patterns>
+				<filter_file_exclude_pattern>cdmp_.*_bucket\.tr[cm]</filter_file_exclude_pattern>
+			</filter_file_exclude_patterns>
+		</filter_files>
+		<components>
+			<component>OS</component>
+			<component>DATABASE</component>
+		</components>
+		<commands>
+			<script type="SQLSCRIPT" name="srdc_imp_error.sql" timeout="300" validfor=""  depinput="PERFORMANCEFLAG" deppattern="n|N" platform="" version=""></script>
+			<script type="SQLSCRIPT" name="srdc_imp_performance.sql" timeout="300" validfor="" depinput="PERFORMANCEFLAG" deppattern="y|Y" platform="" version=""></script>
+			<script type="OS" name="cp_imp_commandfile" timeout="120" validfor="" platform="allux" version="">
+       /bin/echo %COMMAND_LINE% >srdc_imp_commandfile_`date +%F`.txt
+			</script>
+			<script type="OS" name="cp_imp_parfile" timeout="120" validfor="" depinput="EMPTYFLAG" deppattern="Y|y" platform="allux" version="">
+       /bin/cp %PAR_FILE% srdc_imp_parfile_`date +%F`.txt
+			</script>
+			<script type="OS" name="cp_imp_logfile" timeout="120" validfor="" platform="allux" version="">
+       /bin/cp %LOG_FILE% srdc_imp_logfile_`date +%F`.txt
+			</script>
+			<script type="OS" name="cp_imp_parfile" timeout="120" validfor="" depinput="EMPTYFLAG" deppattern="N|n" platform="allux" version="">
+       /bin/cp %PAR_FILE% srdc_imp_parfile_`date +%F`.txt
+			</script>
+			<script type="OS" name="cp_imp_logfile" timeout="120" validfor="" depinput="EMPTYFLAG" deppattern="N|n" platform="allux" version="">
+       /bin/cp %LOG_FILE% srdc_imp_logfile_`date +%F`.txt
+			</script>
+			<script type="TFADBPERF" name="awr_reports" timeout="120" validfor="" depinput="PERFORMANCEFLAG" deppattern="y|Y" platform="" version=""> </script>
+			<script type="IPSPACK" name="ipspack" timeout="120" validfor="" depinput="ONERROR_VERIFY" deppattern="Y|y" platform="" version=""> </script>
+			<script type="DB" name="srdc_impperf_object_metadata.sql" timeout="120" validfor="" platform="" version="" depinput="OBJECTFLAG" deppattern="Y|y">
+	REM srdc_impperf_object_metadata.sql 
+	set pagesize 200 verify off term off entmap off echo off
+	set markup html on spool on
+	COLUMN SRDCSPOOLNAME NOPRINT NEW_VALUE SRDCSPOOLNAME
+	select 'SRDC_'||upper('OBJECT_METADATA')||'_'||upper(instance_name)||'_'|| to_char(sysdate,'YYYYMMDD_HH24MISS') SRDCSPOOLNAME from v$instance;
+	spool SRDC_IMP_%OBJECTTYPE%_%OBJECTOWNER%_%OBJECTNAME%.htm
+	set long 100000
+	select owner, object_type, data_object_id from dba_objects where object_name = upper('%OBJECTNAME%');
+	select dbms_metadata.get_ddl (upper('%OBJECTTYPE%'), upper('%OBJECTNAME%'), upper('%OBJECTOWNER%')) from dual;
+
+	spool off
+	set markup html off spool off
+	set term on
+	set echo off
+	set verify on
+  set echo on
+			</script>
+			<script type="OS" name="failure_info" timeout="120" validfor="" platform="allux" version="">
+		echo "a. What's the type of import failure, full, schema or table? Answer: %FAILTYPE%" >srdc_imp_answers_`date +%F`.txt
+		echo "b. Does the import with full=y show=y fail too? Answer: %FAILOPTION%" >>srdc_imp_answers_`date +%F`.txt
+		echo "c. Does the import with rows=n fail too? Answer: %EMPTYFLAG%" >>srdc_imp_answers_`date +%F`.txt
+</script>
+</commands>
+<runtime_flags>
+</runtime_flags>
+</collection>
+</collections>

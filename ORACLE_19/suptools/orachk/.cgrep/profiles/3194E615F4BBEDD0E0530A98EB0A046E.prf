@@ -1,0 +1,48 @@
+0435F667BBE521C3E05313C0E50A9A4E|Check alerthistory for stateful alerts not cleared [Storage Server]
+043B7FA896FC3720E05313C0E50A4788|Check alerthistory for stateful alerts not cleared [Storage Server]
+08299DCC70B412FBE05313C0E50A8594|Verify celldisk configuration on flash memory devices
+082D1C30E098191AE05313C0E50AC78A|cbc_cell_disk_on_flash
+0851CC663BF52485E05312C0E50AE7CD|Determine storage server type(All flash/High capacity)
+085309C440A256E4E05312C0E50AEF69|cbc_allflash
+08B370BFEC866FD7E05313C0E50ABF23|cbc_cell_disk_on_flash
+30609FAD995D90BFE0530E98EB0A6CDA|cwc_root_clusterwide_check_imagehistory
+3062517A1BFEA0C5E0530B98EB0AA012|Suitable USB device on storage servers
+3077222D5E2164A2E0530E98EB0A4710|LUN status on Storage server
+3232F5FD3DDDFC2AE0530A98EB0AD586|Check alerthistory for stateful alerts not cleared [Storage Server]
+3233B92B938EFB62E0530C98EB0A386B|Verify Ambient Air Temperature [Storage Server]
+3269E2C742674725E0530E98EB0AB69E|Verify RAID disk controller CacheVault capacitor condition [Storage Server]
+327164FCC47B500AE0530B98EB0A5352|Verify RAID disk controller CacheVault capacitor condition [Storage Server]
+69BEA572764D84D2E053D298EB0A40A4|Verify imageinfo on storage server to compare systemwide
+71E79D49C56F3A3CE053D598EB0A7425|9196_test_vw01 [Storage Server]
+71E8BB057138569AE053D198EB0A4439|Verify RAID disk controller CacheVault capacitor condition [Storage Server]
+7AA6C401129E5B06E053D398EB0AF69F|Verify RAID disk controller CacheVault capacitor condition [Storage Server]
+7AA796A86AC8A3FDE053D598EB0A40F8|Verify RAID disk controller CacheVault capacitor condition [Storage Server]
+9AC65EA475A706AEE040E50A1EC03F1E|Verify there are no memory (ECC) errors on Storage Servers
+9AC7D87F87510531E040E50A1EC06FA0|Ambient Temperature on storage server
+9AC9A4D5DF063E18E040E50A1EC03F24|Verify there are no memory (ECC) errors on Storage Servers
+9B79DB80F0902FCBE040E50A1EC07DA7|cbc_dsk_ctrl_cache_policy
+9B7B2A6426054CDEE040E50A1EC03253|cbc_celldisk_predictive_failure
+9B7BE87049DE5301E040E50A1EC04F71|Exadata celldisk predictive failures
+9B7C298DC1446B2EE040E50A1EC053C2|Verify storage server disk controllers use writeback cache 
+9F163DD00B10E98EE040E50A1EC012D0|Verify Hardware and Firmware on Database and Storage Servers (CheckHWnFWProfile) [Storage Server]
+9F18046A544D55EFE040E50A1EC01325|cbc_CheckHWnFWProfile
+A4C28178C200A9CBE040E50A1EC00952|Ambient Temperature on storage server
+A6B5F27DE8C7E335E040E50A1EC05BAB|cbc_disk_cache_policy
+A6B5F27DE8C9E335E040E50A1EC05BAB|Verify Disk Cache Policy on Storage Server
+AA92D5836CAAACE5E040E50A1EC06A0F|cbc_ib_network_cable_connections
+AA92D5836CAEACE5E040E50A1EC06A0F|Verify InfiniBand Cable Connection Quality on storage servers
+ADF1C1D7EF089ABEE040E50A1EC04A26|LUN status on Storage server
+ADF1C1D7EF099ABEE040E50A1EC04A26|cbc_lun_status_on_storage_cells
+ADF242FDDEA3451EE040E50A1EC0718A|cbc_griddisk_status_on_cells 
+ADF269054D5B1FCEE040E50A1EC0791D|cbc_cell_ibstatus
+ADF269054D5C1FCEE040E50A1EC0791D|HCA transfer rate on storage servers
+ADF27ED29B3C4B1DE040E50A1EC05227|cbc_cell_imageinfo_status
+AE035C46D8BCA174E040E50A1EC03506|Physical disk status on storage servers
+AE035C46D8BDA174E040E50A1EC03506|cbc_physicaldisk_status_on_cells
+AE07021E8F035EF0E040E50A1EC0265D|cwc_cell_bios_fmw_version
+AE07021E8F045EF0E040E50A1EC0265D|BIOS firmware version on storage servers
+AE071F58E61D18F0E040E50A1EC01EA8|Image partition status on storage servers
+AE079FA97397E87FE040E50A1EC040DA|cbc_cell_usb_device_status
+AE089FB65A4206D8E040E50A1EC040E6|griddisks status on storage server
+B86B9FE7CB566BD9E0431EC0E50AFC8D|cbc_cell_disk_on_flash
+B87DE57786D55B9CE0431EC0E50A5DC6|Verify celldisk configuration on flash memory devices

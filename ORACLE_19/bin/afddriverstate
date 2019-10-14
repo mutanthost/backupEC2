@@ -1,0 +1,94 @@
+#!/bin/sh 
+#
+#
+# Copyright (c) 2007, 2016, Oracle and/or its affiliates. All rights reserved.
+#
+#    NAME
+#      afddriverstate - front end for the Perl script that does the work.
+#
+#    DESCRIPTION
+#      Purpose
+#          Verify AFD installation/load/version/supported.
+#
+#
+#    NOTES
+#      This wrapper program supports only Lunix/Unix platforms.
+#      Use afddriverstate.bat for Windows platforms.
+#
+#############################################################################
+
+ORA_CRS_HOME=%ORA_CRS_HOME%
+if [ ! -d $ORA_CRS_HOME ]; then
+  ORA_CRS_HOME=$ORACLE_HOME
+fi
+
+# If ORA_CRS_HOME is still not right - that is, it does not
+# contain AFD libraries, it means that the script is being run before it is
+# instantiated with an env variable that is not right.
+# We will try one last time to find a good GIHome to run from.
+# This is because afddriverstate must be able to run
+# before afdroot is run - the patch and install setup uses
+# this script to tell if AFD is supported, and it is run
+# before AFD scripts are instantiated.
+# So we try and use the path we are running from, where we assume
+# that this is a GI home.
+if [ ! -r $ORA_CRS_HOME/lib/osds_afddriverstate.pm ] ; then
+    # Take the path we are running from, which we assume is the
+    # GI Home/bin and go one level up to find the GI Home.
+    ORA_CRS_HOME=`dirname $0`
+    # ORA_CRS_HOME now == '.' if we are running the cwd.  
+    # Otherwise, if we had an absolute path, we have a real name there.
+    #  so, if it == '.', just use 'pwd'.
+    if [ "$ORA_CRS_HOME" = "." ] ; then
+       ORA_CRS_HOME=`pwd`
+    fi
+
+    # Following was tested on AIX, Solaris, Linux under /bin/sh.
+    # Strips the ending 'bin' directory from the path name.
+    # This assumes we are always running afddriverstate from a directory
+    # called bin.
+    # This should be a valid assumption - shiphomes always have it in
+    # GIHome/bin.
+    # (True to form, bourne shell on solaris is missing substitutions.)
+    # The following expr command will return everything from the left up to 
+    #   the final '/bin'.  It has been tested with /1/2/3/4/bin and 
+    #   /1/2bin/3/bin, and appears to work well.
+    # In ADE, if run from usm/bin, with no ORACLE_HOME or ORA_CRS_HOME
+    #  set in the env, this will look in usm/lib for the 
+    #  tools driver, but that is no different from current state.
+    ORA_CRS_HOME=`expr $ORA_CRS_HOME : '\(.*\)/bin.*'`
+fi
+
+CMDNAME=afddriverstate
+ 
+if [ $# -gt 0 ] ; then
+  if [ $1 = "-orahome" ] ; then
+    ORACLE_HOME=$2
+    ORA_CRS_HOME=$2
+    shift # pop -orahome
+    shift # pop <location>
+  else
+    ORACLE_HOME=$ORA_CRS_HOME
+  fi
+fi
+ 
+
+# The script requires that either ORA_CRS_HOME or ORACLE_HOME be set so that
+# it find the right binaries to execute.
+
+if [ -z $ORA_CRS_HOME ]; then
+   echo "Please set the ORACLE_HOME environment variable before invoking"
+   echo "the script"
+   exit -1
+else
+   ORACLE_HOME=$ORA_CRS_HOME
+fi
+
+
+TOOLS_DRIVER=${ORA_CRS_HOME}/lib/afdtoolsdriver.sh
+
+export ORA_CRS_HOME ORACLE_HOME
+
+exec $TOOLS_DRIVER $CMDNAME $@
+# Should never get here.
+exit -1

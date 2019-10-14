@@ -1,0 +1,21 @@
+/
+/ $Header: gitools/src/racassurance/tfa/v2/tfa_home/internal/runstatus.txt /main/1 2012/08/06 13:43:56 bburton Exp $
+/
+/ runstatus.txt
+/
+/ Copyright (c) 2012, Oracle. All Rights Reserved.
+/
+/   NAME
+/     runstatus.txt - <one-line expansion of the name>
+/
+/   DESCRIPTION
+/     <short description of component this file declares/defines>
+/
+/   NOTES
+/     <other useful comments, qualifications, etc.>
+/
+/   MODIFIED   (MM/DD/YY)
+/   bburton     07/30/12 - Creation
+/
+
+stop

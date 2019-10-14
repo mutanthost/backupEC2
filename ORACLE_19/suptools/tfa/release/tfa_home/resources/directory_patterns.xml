@@ -1,0 +1,340 @@
+<?xml version="1.0"?>
+
+<!--  $Header: tfa/src/v2/tfa_home/resources/directory_patterns.xml /main/23 2018/07/17 04:50:46 bburton Exp $ -->
+<!--  $Header: tfa/src/v2/tfa_home/resources/directory_patterns.xml bburton_bug-27339503/3 2018/06/20 19:28:06 bburton Exp $ -->
+
+<!-- 
+ Copyright (c) 2014, 2018, Oracle and/or its affiliates. All rights reserved.
+
+   NAME
+     directory_patterns.xml - <one-line expansion of the name>
+
+   DESCRIPTION
+     <short description of component this file declares/defines>
+
+   NOTES
+     <other useful comments, qualifications, etc.>
+
+   MODIFIED   (MM/DD/YY)
+   bburton     07/26/17 - Changes for dbua
+   bburton     07/12/17 - bug 26431907
+   bburton     09/22/16 - changes for odalite
+   bburton     08/02/16 - add ios
+   arupadhy    06/02/16 - Added Windows System Events logs
+   bburton     02/11/16 - map rhp directory
+   bburton     01/19/16 - add some RACDBCLOUD mappings
+   bburton     10/05/15 - add pattern for afdboot
+   llakkana    10/26/15 - Fix 22089037. Replace (/|\\) with [/|\\]
+   arupadhy    10/16/15 - changes in regex to support windows patterns
+   bburton     07/23/15 - remove fmw patterns from this file
+   bburton     05/06/15 - Fix bug 21035271 - not mapping for CRS incident file
+                          directories
+   bburton     03/10/15 - TFA SaaS/Cloud changes
+   bburton     03/03/15 - add /var/log/xen mappings
+   amchaura    02/05/15 - Fix Bug 20428407 - LNX64-12.2-TFA: DID NOT COLLECT
+                          APX INCIDENT FILES
+   gadiga      11/18/14 - add wls
+   bburton     11/10/14 - change radump for bug 20001916
+   bburton     09/23/14 - add supprt for ZDLRA
+   amchaura    08/26/14 - ER: 19504818
+   amchaura    07/15/14 - Creation
+
+-->
+<mappings>
+<mapping>
+<directory-pattern>/dbfs_obdbfs/OSB/tmp</directory-pattern>
+<components>
+<component name="ZDLRA">
+</component>
+</components>
+</mapping>
+<mapping>
+<directory-pattern>/dbfs_obdbfs/OSB/backup/admin/log/.*</directory-pattern>
+<components>
+<component name="ZDLRA">
+</component>
+</components>
+</mapping>
+<mapping>
+<directory-pattern>/usr/tmp</directory-pattern>
+<components>
+<component name="ZDLRA">
+</component>
+</components>
+</mapping>
+<mapping>
+<directory-pattern>/radump</directory-pattern>
+<components>
+<component name="ZDLRA">
+</component>
+</components>
+</mapping>
+<mapping>
+<directory-pattern>.*[/|\\]cfgtoollogs[/|\\]dbca[/|\\]([^//\\]+)</directory-pattern>
+<components>
+<component name="RDBMS">
+<sub-components>
+<subcomponent id="1">database</subcomponent>
+</sub-components>
+</component>
+</components>
+</mapping>
+<mapping>
+<directory-pattern>.*[/|\\]cfgtoollogs[/|\\]dbua[/|\\]([^//\\]+)[/|\\]upgrade[0-9]+</directory-pattern>
+<components>
+<component name="RDBMS">
+<sub-components>
+<subcomponent id="1">database</subcomponent>
+</sub-components>
+</component>
+</components>
+</mapping>
+<mapping>
+<directory-pattern>.*[/|\\]diag[/|\\]rdbms[/|\\]([^//\\]+)[/|\\]([^//\\]+)[/|\\](trace|incident|cdump).*</directory-pattern>
+<components>
+<component name="RDBMS">
+<sub-components>
+<subcomponent id="1">database</subcomponent>
+<subcomponent id="2">instance</subcomponent>
+</sub-components>
+</component>
+</components>
+</mapping>
+<mapping>
+<directory-pattern>.*[/|\\]diag[/|\\]asm[/|\\]\+asm[/|\\]([^//\\]+)[/|\\](trace|incident|cdump).*</directory-pattern>
+<components>
+<component name ="ASM">
+<sub-components>
+<subcomponent id="1">instance</subcomponent>
+</sub-components>
+</component>
+</components>
+</mapping>
+<mapping>
+<directory-pattern>.*[/|\\]diag[/|\\]asm[/|\\](user.*)[/|\\]host.*[/|\\]trace.*</directory-pattern>
+<components>
+<component name="ASMCLIENT">
+<sub-components>
+<subcomponent id="1">instance</subcomponent>
+</sub-components>
+</component>
+</components>
+</mapping>
+<mapping>
+<directory-pattern>.*[/|\\]diag[/|\\]ios[/|\\]\+ios[/|\\]([^//\\]+)[/|\\](trace|incident|cdump).*</directory-pattern>
+<components>
+<component name="ASMIO">
+<sub-components>
+<subcomponent id="1">instance</subcomponent>
+</sub-components>
+</component>
+</components>
+</mapping>
+<mapping>
+<directory-pattern> .*[/|\\]crsdata[/|\\]([^//\\]+)[/|\\]afd</directory-pattern>
+<components>
+<component name="ASM"></component>
+</components>
+</mapping>
+<mapping>
+<directory-pattern> .*[/|\\]crsdata[/|\\]([^//\\]+)[/|\\]rhp</directory-pattern>
+<components>
+<component name="RHP"></component>
+</components>
+</mapping>
+<mapping>
+<directory-pattern> .*[/|\\]crsdata[/|\\]([^//\\]+)[/|\\]rhp[/|\\]logs</directory-pattern>
+<components>
+<component name="RHP"></component>
+</components>
+</mapping>
+<mapping>
+<directory-pattern>.*[/|\\]diag[/|\\]apx[/|\\]\+apx[/|\\]([^//\\]+)[/|\\](trace|incident|cdump).*</directory-pattern>
+<components>
+<component name="ASMPROXY">
+<sub-components>
+<subcomponent id="1">instance</subcomponent>
+</sub-components>
+</component>
+</components>
+</mapping>
+<mapping>
+<directory-pattern>.*[/|\\]diag[/|\\]afdboot[/|\\]([^//\\]+)[/|\\]([^//\\]+)[/|\\](trace|incident|cdump)</directory-pattern>
+<components>
+<component name="ASM"></component>
+</components>
+</mapping>
+<mapping>
+<directory-pattern>.*[/|\\]diag[/|\\]tnslsnr[/|\\]HOSTNAME[/|\\]listener.*</directory-pattern>
+<components>
+<component name="TNS"></component>
+</components>
+</mapping>
+<mapping>
+<directory-pattern>.*[/|\\]cfgtoollogs.*</directory-pattern>
+<components>
+<component name="CFGTOOLS"></component>
+<component name="ODAPATCHING"></component>
+</components>
+</mapping>
+<mapping>
+<directory-pattern>/var/log.*</directory-pattern>
+<components>
+<component name="OS"></component>
+<component name="RACDBCLOUD"></component>
+<component name="ODASTORAGE"></component>
+</components>
+</mapping>
+<mapping>
+<directory-pattern>.*Windows\\System32\\winevt\\Logs.*</directory-pattern>
+<components>
+<component name="OS"></component>
+</components>
+</mapping>
+<mapping>
+<directory-pattern>/opt/zookeeper/log</directory-pattern>
+<components>
+<component name="RACDBCLOUD"></component>
+<component name="ODALITE"></component>
+<component name="DCS"></component>
+</components>
+</mapping>
+<mapping>
+<directory-pattern>/opt/oracle/dcs/log/HOSTNAME/rman/bkup</directory-pattern>
+<components>
+<component name="ODABACKUP"></component>
+</components>
+</mapping>
+<mapping>
+<directory-pattern>/opt/oracle/dcs/log</directory-pattern>
+<components>
+<component name="RACDBCLOUD"></component>
+<component name="ODALITE"></component>
+<component name="DCS"></component>
+</components>
+</mapping>
+<mapping>
+<directory-pattern>/var/log/xen</directory-pattern>
+<components>
+<component name="ODADOM0"></component>
+<component name="EXADOM0"></component>
+<component name="OS"></component>
+</components>
+</mapping>
+<mapping>
+<directory-pattern>/opt/oracle/oak/log/.*</directory-pattern>
+<components>
+<component name="ODA"></component>
+<component name="ODASTORAGE"></component>
+</components>
+</mapping>
+<mapping>
+<directory-pattern>/opt/oracle/oak/pkgrepos/system/.*</directory-pattern>
+<components>
+<component name="ODA"></component>
+</components>
+</mapping>
+<mapping>
+<directory-pattern>.*[/|\\]admin[/|\\]([^//\\]+)[/|\\]bdump[/|\\]cdmp.*</directory-pattern>
+<components>
+<component name="RDBMS">
+<file-pattern>database</file-pattern>
+<sub-components>
+<subcomponent id="1">instance</subcomponent>
+<subcomponent id="2">database</subcomponent>
+</sub-components>
+</component>
+</components>
+</mapping>
+<mapping>
+<directory-pattern>.*[/|\\]admin[/|\\]([^//\\]+)[/|\\]bdump.*</directory-pattern>
+<components>
+<component name="RDBMS">
+<file-pattern>database</file-pattern>
+<sub-components>
+<subcomponent id="1">instance</subcomponent>
+<subcomponent id="2">database</subcomponent>
+</sub-components>
+</component>
+</components>
+</mapping>
+<mapping>
+<directory-pattern>.*[/|\\]admin[/|\\]([^//\\]+)[/|\\]udump.*</directory-pattern>
+<components>
+<component name="RDBMS">
+<file-pattern>database</file-pattern>
+<sub-components>
+<subcomponent id="1">instance</subcomponent>
+<subcomponent id="2">database</subcomponent>
+</sub-components>
+</component>
+</components>
+</mapping>
+<mapping>
+<directory-pattern>.*[/|\\]admin[/|\\]([^//\\]+)[/|\\]hdump.*</directory-pattern>
+<components>
+<component name="RDBMS">
+<sub-components>
+<subcomponent id="1">instance</subcomponent>
+</sub-components>
+</component>
+</components>
+</mapping>
+<mapping>
+<directory-pattern>.*[/|\\]diag[/|\\]clients[/|\\]([^//\\]+)[/|\\]([^//\\]+).+</directory-pattern>
+<components>
+<component name="DBCLIENT">
+<sub-components>
+<subcomponent id="1">instance</subcomponent>
+</sub-components>
+</component>
+</components>
+</mapping>
+<mapping>
+<directory-pattern>.*[/|\\]diag[/|\\]asmtool[/|\\]([^//\\]+)[/|\\]([^//\\]+).+</directory-pattern>
+<components>
+<component name="ASMTOOL">
+<sub-components>
+<subcomponent id="1">instance</subcomponent>
+</sub-components>
+</component>
+</components>
+</mapping>
+<mapping>
+<directory-pattern>.*[/|\\]diag[/|\\]crs[/|\\]HOSTNAME[/|\\]crs[/|\\](trace|incident|cdump).*</directory-pattern>
+<components>
+<component name="CRS"></component>
+</components>
+</mapping>
+<mapping>
+<directory-pattern>GRID_HOME[/|\\]log[/|\\]diag[/|\\]asmcmd[/|\\]([^//\\]+)[/|\\]HOSTNAME.*</directory-pattern>
+<components>
+<component name="ASM">
+<sub-components>
+<subcomponent id="1">instance</subcomponent>
+</sub-components>
+</component>
+</components>
+</mapping>
+<mapping>
+<directory-pattern>GRID_HOME[/|\\]log[/|\\]HOSTNAME[/|\\](acfs|afd).*</directory-pattern>
+<components>
+<component name="ACFS"></component>
+</components>
+</mapping>
+<mapping>
+<directory-pattern>GRID_HOME[/|\\]log[/|\\]HOSTNAME.*</directory-pattern>
+<components>
+<component name="CRS"></component>
+</components>
+</mapping>
+<!-- Misc Other Mappings -->
+<mapping>
+<directory-pattern>.*[/|\\]servers[/|\\].*[/|\\]logs</directory-pattern>
+<components>
+<component name="WLS">
+</component>
+</components>
+</mapping>
+</mappings>
+

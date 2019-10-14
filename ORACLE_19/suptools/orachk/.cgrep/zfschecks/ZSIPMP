@@ -1,0 +1,154 @@
+printf("==========START_OF_REPORT_chkZSIPMP.aksh==========\n");
+var founderrors = false;
+
+function ipmp(){
+	//s = "";
+	var i,
+		netName = 'Ipmp Service',
+		netStatus = '',
+		netConfig = 'OK',
+		netDetails = '',
+		netDetailsLong = '';
+	try{		
+		// Get service status
+		run('cd /');
+		run('configuration services ipmp');
+		status = get('<status>');	
+		interval = get('interval');
+		failback = get('failback');
+		
+		if (interval != 5000) {
+	        founderrors = true;
+	        netDetails += "\nERROR: Interval should be 5000\n";
+        }
+        if(failback != '') {
+            founderrors = true;
+            netDetails += "ERROR: Fail-back should not be set\n";
+        }		
+		
+		netStatus = status;
+		//s = "IPMP: " + status + "\n  Failure detection latency: " + interval + " ms\n  Fail-back enabled: " +failback + "\n";	
+		//~ audit(s);
+		//~ print(s);
+		//~ all_checks += s;				
+		netDetails += "Latency Interval: "+interval+", Fail-back: "+failback;
+		netDetailsLong += "*\tIPMP Interfaces:\n";
+		//	If the service is online, check for configured IMPM interfaces
+		if (status=="online"){
+			run ('cd /');
+			run("configuration net interfaces");
+			interfaces = run("list");
+			line = interfaces.split("\n");
+			
+			ipmp_list = []; // array to contain all the ipmp interfaces we find
+			for (i=1; i<line.length; i++){
+				if (line[i].lastIndexOf("ipmp")>0){
+					ipmp = line[i].replace(/\s+/g, " ").split(' ')[0];
+					ipmp_list.push(ipmp);
+				}
+			}
+			
+			if (ipmp_list.length == 0){
+				//s = "  No ipmp interfaces found\n";
+				netConfig = "No Interfaces";                
+			}
+			else {
+				// for each ipmp interface, get the IP and the links and check if they're 0.0.0.0/8
+				
+				for (i=0; i< ipmp_list.length; i++){
+					ipmp = ipmp_list[i];
+					run("select " +  ipmp);
+					
+					state = get("state").toString();					
+					IP = get("curaddrs").toString();
+					admin = get("admin").toString();
+					links = get("links").toString();
+										
+					// Check if IPMP standby setting is configured properly 
+                    if (state == "up" && get("links")[0].indexOf("ibp") != -1 ) {
+						standbys=get("standbys");
+    					if (standbys == "" || (get("links")[0] != standbys && get("links")[1] != standbys)){
+							founderrors=true;
+							netConfig = "Warning";
+							netDetailsLong += "\tStandby setting is NOT configured properly.\n";
+						} 
+					}					
+					
+					if (links.lastIndexOf(",")>0){													
+						IPs = links.split(",");											
+						good_link_config = 1;						
+					
+						for (j=0; j < IPs.length; j++){
+							link = IPs[j];
+							run("cd ..");							
+							run ("select " + link); 
+							link_ip = get("curaddrs").toString();							
+							if (link_ip!="0.0.0.0/8"){
+								good_link_config = 0;
+							}
+							
+						}												
+						
+						IP = IP.split("/")[0];
+						netDetailsLong += "\t"+ipmp+", IP: "+IP+", linked interfaces: "+links+"\n";
+						if (good_link_config){
+						    netDetailsLong += "\tLink based failure detection is configured properly.\n";
+						}
+						else {
+							netConfig = "Warning";
+							netDetailsLong += "\tLink based failure detection is NOT configured properly.\n";
+                            founderrors=true;
+						}
+					} 
+					else { // this is not IPMP
+						netConfig = "Warning";
+						netDetailsLong += "\t"+ipmp+" is NOT configured properly.\n";
+						//s = "  "+ ipmp + " is not configured properly.\n"
+						founderrors=true;
+					}
+                    run("cd ..");
+				}
+			}
+			if(netConfig === "Warning"){
+					netDetailsLong += "\tTo enable link-based failure detection you need to make sure that the test\n"+
+									  "\tinterfaces in an IPMP group do not have a traditional IP addresses\n"+
+									  "\tconfigured. Instead they should be configured with the address and netmask\n"+
+									  "\tof 0.0.0.0/8. Only the IPMP interface itself should be configured with a\n"+
+									  "\tvalid IP address and netmask for the appropriate subnet.\n";
+                    founderrors=true;									  
+			}
+		}
+		else {
+			netDetailsLong += "\tIPMP is used primarily as a way of increasing redundancy so that network\n"+
+			                  "\tconnectivity is unaffected by the failure of a single component be it a\n"+
+			                  "\tphysical network port, a cable or a switch. Link-based failure detection\n"+
+			                  "\tuses properties of the network device driver to check on whether the link\n"+
+			                  "\tto the network is active.\n"+
+			                  "\tTo enable link-based failure detection you need to make sure that the test\n"+
+							  "\tinterfaces in an IPMP group do not have a traditional IP addresses\n"+
+							  "\tconfigured. Instead they should be configured with the address and netmask\n"+
+							  "\tof 0.0.0.0/8. Only the IPMP interface itself should be configured with a\n"+
+							  "\tvalid IP address and netmask for the appropriate subnet.\n";
+            founderrors=true;							  
+		}		
+	}
+	catch(err){
+		netDetailsLong = "*\tIPMP Error:\n"+
+						 "\t"+err.message+"\n";
+        founderrors=true;							  						 
+	}
+	finally{
+		networkTable.data.push([netName, netStatus, netConfig, netDetails]);
+		networkTable.details.push(netDetailsLong);
+	}
+}
+
+var networkTable = new printTable({name:"Network Best Practice", headNames:["Type", "Status", "Config", "Details"]});
+appl.network 	= new Array();		
+ipmp();
+printReportTable(networkTable);
+
+printf("==========END_OF_REPORT_chkZSIPMP.aksh==========\n");
+printf("==========START_OF_AUDIT_CHECK_chkZSIPMP.aksh==========\n");
+printf("ipmp_status = %d\n", founderrors);
+printf("==========END_OF_AUDIT_CHECK_chkZSIPMP.aksh==========\n");			

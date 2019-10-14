@@ -1,0 +1,74 @@
+printf("==========START_OF_REPORT_chkNFSDelegation.aksh==========\n");
+//
+//
+// This script will check if the NFSv4 Delegation is properly disabled to avoid hanging problems within ZFS storage
+//
+
+// ----------------------------------------------------------------------------
+// VARS
+
+var founderrors = true; // Track error findings
+var auditcheck = 0;
+var report = 1;
+var runonetime = 1;
+var configuration_services_out = "";
+
+// ----------------------------------------------------------------------------
+// MAIN STARTS HERE	
+if(runonetime==1)
+{
+    getHostname();
+
+    // Check if LDAP is enabled on this ZFS
+    run("cd /");
+    run("configuration services ldap");
+    ldap_status = safeGet('<status>');
+    if ( ldap_status == 'enabled' ) {
+        configuration_services_out+="\nCheck skipped: LDAP is enabled.\n";
+        founderrors = 'false'
+    } else {
+        // Get to a known context
+        run("cd /");
+
+
+        // Get the delegation setting
+        try { 
+            configuration_services_out+="> configuration services nfs show\n";
+            configuration_services_out+=run('configuration services nfs show');
+            run('configuration services nfs');
+            enable_delegation=get('enable_delegation');
+            run('cd /');
+        } catch(err) { 
+            enable_delegation="UNKNOWN";
+        }
+
+        if ( enable_delegation == '') {
+            founderrors=false;
+        }
+        runonetime=0;
+    }
+}
+// Report Command
+
+if ( report == 1 ) {
+    if ( founderrors == false ) {
+        printf("OK: %s NFS Delegation Check Completed: NFSv4 Delegation setting is disabled\n",host_name);
+    }
+    else {
+        printf("WARNING: %s NFS Delegation Check Completed: NFSv4 Delegation Setting is enabled\n",host_name);
+    }
+    printf("%s",configuration_services_out);
+}
+
+//END
+
+printf("==========END_OF_REPORT_chkNFSDelegation.aksh==========\n");
+printf("==========START_OF_AUDIT_CHECK_chkNFSDelegation.aksh==========\n");
+if ( founderrors == false ) {
+    printf("nfs_delegation_check_status = 0\n");
+}
+else {
+    printf("nfs_delegation_check_status = 1\n");
+}
+
+printf("==========END_OF_AUDIT_CHECK_chkNFSDelegation.aksh==========\n");

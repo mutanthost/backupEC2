@@ -1,0 +1,68 @@
+<?xml version="1.0"?>
+
+<!--  $Header: tfa/src/v2/tfa_home/resources/srdc_dbxdb.xml /main/1 2018/05/28 15:06:26 bburton Exp $ -->
+
+<!-- 
+ Copyright (c) 2017, 2018, Oracle and/or its affiliates. All rights reserved.
+
+   NAME
+     srdc_dbxdb.xml - <one-line expansion of the name>
+
+   DESCRIPTION
+     <short description of component this file declares/defines>
+
+   NOTES
+     <other useful comments, qualifications, etc.>
+
+   MODIFIED   (MM/DD/YY)
+   bburton     07/17/17 - add description for help
+   bburton     07/11/17 - Driver for Database XDB diagnostic collection
+   bburton     07/11/17 - Creation
+
+-->
+<collections>
+  <collection id="dbxdb">
+    <user_description></user_description>
+    <description>SRDC for database XDB Installation and Invalid Object problems</description>
+    <user_inputs>
+        <user_input cmdline="" default="" showprompt="1" setenv="NO" validate="" prompt="Enter the Database Name">USERINPUT-DATABASE_NAME</user_input>
+    </user_inputs>
+    <duration>12h</duration>
+    <clusterwide>no</clusterwide>
+    <filter_files>
+      <filter_file_patterns>
+        <filter_file_pattern>ExaWatcher\/archive</filter_file_pattern>
+        <filter_file_pattern>alert_.*\.log</filter_file_pattern>
+        <filter_file_pattern>archive\/osw</filter_file_pattern>
+        <filter_file_pattern>log</filter_file_pattern>
+        <filter_file_pattern>trc</filter_file_pattern>
+      </filter_file_patterns>
+      <filter_file_exclude_patterns>
+      </filter_file_exclude_patterns>
+    </filter_files>
+    <components>
+      <component>DATABASE</component>
+      <component>NOCHMOS</component>
+      <component>OS</component>
+    </components>
+    <commands>
+      <script type="TFACTL" name="rdahcve1120" timeout="120" validfor="" platform="" version="11.2">
+        tfactl run darda run rda_HCVE_11_2 menu menus/oracle_database.xml
+      </script>
+      <script type="TFACTL" name="rdahcve1210" timeout="120" validfor="" platform="" version="12.1">
+        tfactl run darda run rda_HCVE_12_1_0 menu menus/oracle_database.xml
+      </script>
+      <script type="TFACTL" name="rdahcve1110" timeout="120" validfor="" platform="" version="11.1">
+        tfactl run darda run rda_HCVE_11_1 menu menus/oracle_database.xml
+      </script>
+      <script type="IPSPACK" name="ipspack" timeout="120" validfor="" platform="" version="">
+      </script>
+      <script type="SQLSCRIPT" name="srdc_xdbusage10gcheck.sql" timeout="300" validfor="" platform="" version="10.2">
+       </script>
+       <script type="SQLSCRIPT" name="srdc_xdbusage11gpluscheck.sql" timeout="300" validfor="" platform="" version="11.1,11.2,12.1,12.2">
+       </script>
+       <script type="SQLSCRIPT" name="srdc_xdbinfo.sql" timeout="300" validfor="" platform="" version="">
+       </script>
+    </commands>
+  </collection>
+</collections>

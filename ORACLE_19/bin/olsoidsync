@@ -1,0 +1,40 @@
+#!/bin/sh
+#
+# $Header: rdbms/src/server/security/ols/java/jsrc/oracle/security/ols/util/olsoidsyncpre.sbs /main/7 2018/04/14 11:57:17 risgupta Exp $
+#
+# Copyright (c) 2002, 2018, Oracle and/or its affiliates. All rights reserved.
+#
+#    NAME
+#      olsoidsync - Shell script to run the OID/OLS bootstrap utility
+#
+#    DESCRIPTION
+#      Runs the OID/OLS bootstrap utility.  This file comes in two
+#      forms its original, with a .sbs extension, and its final, without
+#      a .sbs extension.  The .sbs version is source for the final
+#      version which the Oracle Universal Installer creates by
+#      doing variable substitution at install time.
+#
+#    MODIFIED   (MM/DD/YY)
+#    risgupta    03/23/18 - Bug 27598788: Update classpath to support SEPS
+#    risgupta    11/14/14 - Bug 20031696: replace ojdbc6 with 
+#                           JDBC_CURRENT_JDK_OPT_JAR
+#    srtata      03/11/11 - use ojdbc6.jar
+#    swkannan    02/02/07 - Changing ojdbc14 to ojdbc5
+#    srtata      02/07/06 - use ojdbc14
+#    cchui       08/03/04 - set LD_LIBRARY_PATH 
+#    shwong      12/05/02 - shwong_bug-2681695
+#    shwong      12/04/02 - Created
+
+# Unset any existing JAVA_HOME variable to ensure that only
+# the JRE we want to use is used.
+unset JAVA_HOME
+
+# External Directory Variables set by the Installer
+JRE_HOME=/u01/app/oracle/product/19.0.0/dbhome_1/jdk/jre/
+JLIBDIR=/u01/app/oracle/product/19.0.0/dbhome_1/jlib
+LIBDIR=/u01/app/oracle/product/19.0.0/dbhome_1/jdbc/lib
+OJDBC=ojdbc8.jar
+LD_LIBRARY_PATH=$ORACLE_HOME/lib32:$LD_LIBRARY_PATH
+export LD_LIBRARY_PATH
+
+$JRE_HOME/bin/java -classpath $JLIBDIR/opm.jar:$LIBDIR/$OJDBC:$ORACLE_HOME/jlib/oraclepki.jar:$ORACLE_HOME/jlib/osdt_cert.jar:$ORACLE_HOME/jlib/osdt_core.jar oracle.security.ols.policy.Bootstrap $@

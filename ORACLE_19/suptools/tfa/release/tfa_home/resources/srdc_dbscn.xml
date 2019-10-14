@@ -1,0 +1,68 @@
+<?xml version="1.0"?>
+
+<!--  $Header: tfa/src/v2/tfa_home/resources/srdc_dbscn.xml /main/1 2018/05/28 15:06:26 bburton Exp $ -->
+
+<!-- 
+ Copyright (c) 2017, 2018, Oracle and/or its affiliates. All rights reserved.
+
+   NAME
+     srdc_scn.xml - <one-line expansion of the name>
+
+   DESCRIPTION
+     <short description of component this file declares/defines>
+
+   NOTES
+     <other useful comments, qualifications, etc.>
+
+   MODIFIED   (MM/DD/YY)
+   bburton     03/05/18 - XbranchMerge bburton_tfa_122131_fixes_txn from
+                          st_tfa_12.2.1.3.1
+   bburton     12/14/17 - make dbscn
+   recornej    12/05/17 - Remove baseline_inputs
+   recornej    11/27/17 - Creation
+
+-->
+<collections>
+  <collection id="dbscn">
+    <description>SRDC for database SCN problems.</description>
+    <onevents>
+      <event></event>
+    </onevents>
+    <user_inputs>
+      <user_input cmdline="" default="" showprompt="1" setenv="NO" validate="" prompt="Enter the Database Name">USERINPUT-DATABASE_NAME</user_input>
+      <user_input cmdline="" default="" showprompt="1" setenv="NO" validate="" prompt="Do you have an AWR license? &#40;Refer to Doc 1490798.1 for more information &#41;">USERINPUT-LICENSE</user_input>
+      <user_input cmdline="" default="" showprompt="1" setenv="NO" validate="" prompt="Do you have an SCN issue now">USERINPUT-ISSUE_NOW</user_input>
+      <user_input cmdline="" default="" showprompt="1" setenv="NO" validate="" msg="Start time when the SCN was bad" prompt="Enter start time when the SCN was bad">USERINPUT-EVENT_START_TIME</user_input>
+      <user_input cmdline="" default="" showprompt="1" setenv="NO" validate="" msg="Stop time when the SCN was bad" prompt="Enter stop time when the SCN was bad">USERINPUT-EVENT_END_TIME</user_input>
+    </user_inputs>
+    <duration>12h</duration>
+    <awrduration>1h</awrduration>
+    <clusterwide>yes</clusterwide>
+    <filter_files>
+      <types>
+      </types>
+      <filter_file_patterns>
+        <filter_file_pattern>alert_.*\.log</filter_file_pattern>
+        <filter_file_pattern>trc</filter_file_pattern>
+        <filter_file_pattern>log</filter_file_pattern>
+        <filter_file_pattern>\.xml</filter_file_pattern>
+        <filter_file_pattern>archive\/osw</filter_file_pattern>
+        <filter_file_pattern>ExaWatcher\/archive</filter_file_pattern>
+      </filter_file_patterns>
+    </filter_files>
+    <components>
+      <component>OS</component>
+      <component>CRS</component>
+      <component>CHMOS</component>
+      <component>DATABASE</component>
+    </components>
+    <commands>
+      <script type="TFADBPERF" name="runawr" timeout="120" validfor="" platform="" version="">
+      </script>
+      <script type="SQLSCRIPT" name="srdc_scn.sql" timeout="300" validfor="" platform="" version=""></script>
+      <script type="SQLSCRIPT" name="scn_healthcheck.sql" timeout="300" validfor="" platform="" version=""></script>
+    </commands>
+    <runtime_flags>
+    </runtime_flags>
+  </collection>
+</collections>

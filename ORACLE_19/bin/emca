@@ -1,0 +1,136 @@
+#!/bin/sh -f
+# $Header: assistants/bin/emca.sh.pp /st_assistants_19/1 2019/02/21 15:50:47 dizamora Exp $
+#
+# emca.sh
+#
+# Copyright (c) 1997, 2019, Oracle and/or its affiliates. All rights reserved.
+#
+#    NAME
+#      emca - Shell script to run Enterprise Manager Configuration Assistant
+#
+#
+#    DESCRIPTION
+#      Runs Enterprise Manager Creation Configuration java application from GI install/upgrade
+#
+#   MODIFIED   (MM/DD/YY)
+#    dizamora 02/14/19 - updating common compress jars
+#    obriseno 05/15/18 - use LIBMAJORVSN in place of DB_VERSION_FIRST_DIGIT
+#    ssanklec 02/05/14 - bug 18178750: adding JRE options
+#    ssanklec   08/25/2013 - Created
+#
+
+#######################################################################
+# Variables set by Oracle Universal Installer for dependent components.
+#######################################################################
+
+# Define ORACLE_HOME -> OH
+OH=/u01/app/oracle/product/19.0.0/dbhome_1
+PLATFORM=Linux
+ORACLE_HOME=$OH 
+export ORACLE_HOME;
+ 
+
+# Version specific JAR files
+EWT_FILE=ewt3.jar
+JEWT_FILE=jewt4.jar
+EWT_COMP_FILE=ewtcompat.jar
+SHARE_FILE=share.jar
+HELP_FILE=help4.jar
+#ICE_BROWSER_FILE=oracle_ice.jar
+ICE_BROWSER5_FILE=oracle_ice.jar
+KODIAK_FILE=kodiak.jar
+XMLPARSER_FILE=xmlparserv2.jar
+JDBC_FILE=ojdbc6.jar
+GDK_FILE1=orai18n.jar
+GDK_FILE2=orai18n-mapping.jar
+GDK_FILE3=orai18n-utility.jar
+GDK_FILE4=orai18n-collation.jar
+NETCFG_FILE=netcfg.jar
+OJMISC_FILE=ojmisc.jar
+CVU_JAR=cvu.jar
+PKI_FILE=oraclepki.jar
+LDAP_FILE=ldapjclnt19.jar
+OPM_FILE=opm.jar
+SRVM_FILE=srvm.jar
+SRVMHAS_FILE=srvmhas.jar
+SRVMASM_FILE=srvmasm.jar
+GNS_FILE=gns.jar
+ASSISTANTS_COMMON_FILE=assistantsCommon.jar
+RCONFIG_COMMON_FILE=rconfig.jar
+DBCA_FILE=dbca.jar
+INSTALLER_FILE=OraInstaller.jar
+PREREQ_JAR_FILE=OraPrereq.jar
+DVCA_JAR=dvca.jar
+PREREQ_CHECKS_JAR_FILE=OraPrereqChecks.jar
+CHECKPOINT_JAR=OraCheckPoint.jar
+
+# Directory Variables
+SRVM_JLIB_DIR=$ORACLE_HOME/jlib
+JRE_DIR=$ORACLE_HOME/jdk/jre
+JLIB_DIR=$OH/jlib
+DBCA_JLIB_DIR=$OH/assistants/dbca/jlib
+DBCA_HELP_DIR=$OH/assistants/dbca/doc
+INSTALLER_JLIB_DIR=$ORACLE_HOME/oui/jlib
+ASSISTANTS_JLIB_DIR=$OH/assistants/jlib
+# Classpath
+
+GNS_CLASSPATH=$JLIB_DIR/$GNS_FILE
+SHARE_CLASSPATH=$JLIB_DIR/$SHARE_FILE
+HELP_CLASSPATH=$JLIB_DIR/$HELP_FILE:$INSTALLER_JLIB_DIR/$JEWT_FILE
+ICE_BROWSER_CLASSPATH=$JLIB_DIR/$ICE_BROWSER5_FILE
+EWT_CLASSPATH=$JLIB_DIR/$EWT_FILE:$JLIB_DIR/$EWT_COMP_FILE
+KODIAK_CLASSPATH=$JLIB_DIR/$KODIAK_FILE
+XMLPARSER_CLASSPATH=$ORACLE_HOME/lib/$XMLPARSER_FILE
+JDBC_CLASSPATH=$OH/jdbc/lib/$JDBC_FILE
+GDK_CLASSPATH=$JLIB_DIR/$GDK_FILE1:$JLIB_DIR/$GDK_FILE2:$JLIB_DIR/$GDK_FILE3:$JLIB_DIR/$GDK_FILE4:$JLIB_DIR/supercluster.jar:$JLIB_DIR/supercluster-common.jar
+ASSISTANTS_COMMON_CLASSPATH=$ASSISTANTS_JLIB_DIR/$ASSISTANTS_COMMON_FILE:$ASSISTANTS_JLIB_DIR/$RCONFIG_COMMON_FILE
+NETCFG_CLASSPATH=$JLIB_DIR/$LDAP_FILE:$JLIB_DIR/$NETCFG_FILE:$JLIB_DIR/$OJMISC_FILE:$JLIB_DIR/$PKI_FILE:$JLIB_DIR/osdt_core.jar:$JLIB_DIR/osdt_cert.jar:$JLIB_DIR/$OPM_FILE
+SRVM_CLASSPATH=$SRVM_JLIB_DIR/$SRVM_FILE:$SRVM_JLIB_DIR/$SRVMHAS_FILE:$SRVM_JLIB_DIR/$SRVMASM_FILE
+DBCA_CLASSPATH=$DBCA_JLIB_DIR/$DBCA_FILE
+HELPJAR_CLASSPATH=$DBCA_HELP_DIR/dbcahelp.jar:$DBCA_HELP_DIR/dbcahelp_es.jar:$DBCA_HELP_DIR/dbcahelp_de.jar:$DBCA_HELP_DIR/dbcahelp_fr.jar:$DBCA_HELP_DIR/dbcahelp_it.jar:$DBCA_HELP_DIR/dbcahelp_ja.jar:$DBCA_HELP_DIR/dbcahelp_ko.jar:$DBCA_HELP_DIR/dbcahelp_pt_BR.jar:$DBCA_HELP_DIR/dbcahelp_zh_CN.jar:$DBCA_HELP_DIR/dbcahelp_zh_TW.jar
+INSTALLER_CLASSPATH=$INSTALLER_JLIB_DIR/$INSTALLER_FILE:$INSTALLER_JLIB_DIR/$PREREQ_JAR_FILE:$OH/inventory/prereqs/oui/$PREREQ_CHECKS_JAR_FILE:$INSTALLER_JLIB_DIR/$PREREQ_CHECKS_JAR_FILE:$INSTALLER_JLIB_DIR/$CHECKPOINT_JAR:$JLIB_DIR/$CVU_JAR:$OH/install/jlib/installcommons_1.0.0b.jar:$OH/oui/jlib/jewt4.jar
+DVCA_CLASSPATH=$OH/rdbms/jlib/$DVCA_JAR
+COMMONS_COMPRESS_PATH=$OH/jlib/commons-compress-1.18.jar:$ORACLE_HOME/assistants/dependencies/commons-compress-1.18.jar
+EMCA_PATH=$ORACLE_HOME/assistants/jlib/emca.jar:$ORACLE_HOME/assistants/jlib/adf-share-ca.jar:$ORACLE_HOME/assistants/jlib/entityManager_proxy.jar:$ORACLE_HOME/assistants/jlib/jmxspi.jar:$ORACLE_HOME/assistants/jlib/wsclient_extended.jar:$ORACLE_HOME/assistants/jlib/emCoreConsole.jar:$ORACLE_HOME/assistants/jlib/javax.security.jacc_1.0.0.0_1-1.jar:$ORACLE_HOME/assistants/jlib/oracle.classloader_11.1.1.jar
+
+
+
+#call platform_common script
+. $ORACLE_HOME/bin/platform_common
+
+
+# The environment variable $TWO_TASK cannot be set during the installation
+unset TWO_TASK
+
+# The environment variable $JAVA_HOME cannot be set during the installation
+unset JAVA_HOME
+
+# Basic error checking
+case $OH in
+    "") echo "*** ORACLE_HOME Not Set!"
+        echo "    Set and export ORACLE_HOME, then re-run"
+        echo "    ORACLE_HOME points to the main directory that"
+        echo "    contains all Oracle products."
+        exit 1;;
+esac
+
+
+
+
+
+
+
+# Set Classpath for Database Creation Assistant
+CLASSPATH=$DBCA_CLASSPATH:$ASSISTANTS_COMMON_CLASSPATH:$INSTALLER_CLASSPATH:$HELPJAR_CLASSPATH:$EMCA_PATH:$XMLPARSER_CLASSPATH:$NETCFG_CLASSPATH:$JDBC_CLASSPATH:$SRVM_CLASSPATH
+
+ARGUMENTS=""
+NUMBER_OF_ARGUMENTS=$#
+if [ $NUMBER_OF_ARGUMENTS -gt 0 ]; then
+        ARGUMENTS=$*
+fi
+
+
+JRE_OPTIONS="${JRE_OPTIONS} -DSET_LAF=${SET_LAF} -Dsun.java2d.font.DisableAlgorithmicStyles=true -Dice.pilots.html4.ignoreNonGenericFonts=true  -DDISPLAY=${DISPLAY} -DJDBC_PROTOCOL=thin -mx256m -XX:MaxPermSize=128M"
+
+# Run EMCA
+exec $JRE_DIR/bin/java  $JRE_OPTIONS  $DEBUG_STRING -classpath $CLASSPATH oracle.sysman.assistants.emca.sdkimpl.EMConfigAssistant $ARGUMENTS

@@ -1,0 +1,246 @@
+<?xml version="1.0"?>
+
+<!--  $Header: tfa/src/v2/tfa_home/resources/srdc_emmetricalert.xml /main/4 2018/05/28 15:06:26 bburton Exp $ -->
+
+<!-- 
+ Copyright (c) 2016, 2018, Oracle and/or its affiliates. All rights reserved.
+
+   NAME
+     srdc_emmetricalert.xml - <one-line expansion of the name>
+
+   DESCRIPTION
+     <short description of component this file declares/defines>
+
+   NOTES
+     <other useful comments, qualifications, etc.>
+
+   MODIFIED   (MM/DD/YY)
+   recornej   11/29/17 - Migrate opt in default attribute to required attribute
+   manuegar   07/28/17 - manuegar-srdc_xmlparser.
+   manuegar   04/26/17 - manuegar_srdcwin01.
+   bburton    03/10/17 - New Format
+   manuegar   01/20/17 - Creation
+
+-->
+<collections>
+<collection id="emmetricalert">
+        <description>SRDC for EM Metric Events not Raised and General Metric Alert Related Issues.</description>
+        <user_inputs>
+            <user_input cmdline="" default="" showprompt="1" setenv="NO" validate="" prompt="Enter the value for the EM Target name">USERINPUT-TARGET_DBNAME</user_input>
+            <user_input cmdline="" default="" showprompt="1" setenv="REPLACE" validate="" prompt="Enter the value for the EM Target type">USERINPUT-TARGET_TYPE</user_input>
+            <user_input cmdline="" required="OPT" showprompt="1" setenv="NO" validate="" prompt="Enter the value for the Problem ASM instance name">USERINPUT-TARGET_ASMINSTANCE</user_input>
+            <user_input cmdline="" default="" showprompt="1" setenv="NO" validate="" prompt="Is the EM Repository Database running locally?">USERINPUT-REPODB_LOCAL</user_input>
+            <user_input cmdline="" default="" showprompt="1" setenv="NO" validate="" prompt="Enter the EM Repository Database Name. You can get the repository connect details from EM using the following navigation: Setup -&gt; Manage Cloud Control -&gt; Health Overview -&gt; Repository Details.">USERINPUT-REPOSITORY_DBNAME</user_input>
+            <user_input cmdline="" default="" showprompt="1" setenv="REPLACE" validate="" prompt="Enter the sysman credential for Repository DB">USERINPUT-SYSMAN_PWD</user_input>
+        </user_inputs>
+        <onevents>
+                <event>
+                </event>
+        </onevents>
+        <duration>12h</duration>
+        <clusterwide>no</clusterwide>
+        <filter_files>
+                <types>
+                </types>
+                <filter_file_patterns>
+                    <filter_file_pattern>alert_.*\.log</filter_file_pattern>
+                    <filter_file_pattern>trc</filter_file_pattern>
+                    <filter_file_pattern>log</filter_file_pattern>
+                    <filter_file_pattern>archive\/osw</filter_file_pattern>
+                    <filter_file_pattern>ExaWatcher\/archive</filter_file_pattern>
+                </filter_file_patterns>
+        </filter_files>
+        <components>
+            <component>OS</component>
+            <component>DATABASE</component>
+        </components>
+        <commands>
+
+                <script type="OS" name="os_AgentEventStatus" timeout="300" validfor="EMAGENT" platform="allux" version="">
+                export ORACLE_HOME=%EMAGENTOHOME%
+                export PATH=$ORACLE_HOME/bin:$PATH
+                emctl status agent scheduler | grep alert
+                emctl listplugins agent
+                emctl status agent
+                emctl status agent target %EMTARGETDBNAME%,%TARGET_TYPE%
+                </script>
+                <script type="OS" name="os_AgentEventStatusWin" timeout="300" validfor="EMAGENT" platform="MSWin32" version="">
+                set ORACLE_HOME=%EMAGENTOHOME%
+                set PATH=%ORACLE_HOME%\bin;%PATH%
+                emctl status agent scheduler | findstr alert
+                emctl listplugins agent
+                emctl status agent
+                emctl status agent target %EMTARGETDBNAME%,%TARGET_TYPE%
+                </script>
+
+                <script type="EMSQL" name="sql_Alertlog" timeout="300" validfor="REPOSITORYDB" platform="allux" version="">
+                conn sysman/%SYSMAN_PWD%;
+                set mark html on
+                set termout off;
+                set echo off;
+                spool AlertLog.html
+                set pagesize 54
+                TTITLE CENTRE 'DATABASE DETAILS'
+                select database_name, instance_name, global_name, dbversion, release, edition from sysman.mgmt_db_dbNInstanceInfo_ecm where upper(database_name) like upper ('%EMTARGETDBNAME%');
+                TTITLE CENTER 'CURRENT EVENTS FOR THE TARGET - open warnings and criticals'
+                select em_current_violation.target_guid, mgmt_targets.target_name, mgmt_targets.target_type,violation_guid, collection_timestamp, violation_level, string_value,
+                cfg_coll_name,message, MESSAGE_NLSID
+                from sysman.em_current_violation,sysman.mgmt_targets
+                where sysman.em_current_violation.target_guid=sysman.mgmt_targets.target_guid
+                and sysman.mgmt_targets.target_guid=(select target_guid from sysman.mgmt_targets where target_name='%EMTARGETDBNAME%');
+                TTITLE CENTER 'THRESHOLDS SET FOR ALERT LOG METRICS - both enabled and disabled'
+                select mt.target_name, mt.target_type, mmt.coll_name, mmt.metric_guid,
+                case mmt.warning_operator when 0 then 'GT'
+                when 1 then 'EQ'
+                when 2 then 'LT'
+                when 3 then 'LE'
+                when 4 then 'GE'
+                when 5 then 'contains'
+                when 6 then 'ne'
+                when 7 then 'matchRegExp'
+                end waringOperator,
+                mmt.warning_threshold,
+                case mmt.critical_operator when 0 then 'GT'
+                when 1 then 'EQ'
+                when 2 then 'LT'
+                when 3 then 'LE'
+                when 4 then 'GE'
+                when 5 then 'contains'
+                when 6 then 'ne'
+                when 7 then 'matchRegExp'
+                end CriticalOperator,
+                mmt.critical_threshold ,
+                case mc.is_enabled when 0 then 'notEnabled' when 1 then 'enabled' end MetricEnabled,
+                schedule_ex,message,MESSAGE_NLSID
+                from sysman.mgmt_targets mt, sysman.mgmt_metric_thresholds mmt, SYSMAN.MGMT_COLLECTIONS mc
+                where mt.target_guid = mmt.target_guid
+                and mt.target_guid=mc.object_guid
+                and mmt.coll_name=mc.coll_name
+                and mmt.coll_name in ('db_alertlog_coll_12','alert_log_rollup_11g','db_alertlog_coll_pre11','alert_log_rollup','adr_alert_log_rollup')
+                and mt.target_name='%EMTARGETDBNAME%'
+                order by coll_name,message;
+                spool off;
+                set mark html off;
+                exit;
+                </script>
+                <script type="EMSQL" name="sql_ASMAlertlog" timeout="300" validfor="REPOSITORYDB" platform="" version="">
+                conn sysman/%SYSMAN_PWD%;
+                set termout off;
+                set echo off;
+                set mark html on
+                spool ASMAlertLog.html
+                set pagesize 54
+                TTITLE CENTRE 'ASM DETAILS'
+                select instance_name, banner, host_name from sysman.MGMT_ASM_INSTANCE_ECM where upper (instance_name) like upper ('%EMTARGETASMINSTANCE%');
+                TTITLE CENTER 'CURRENT EVENTS FOR THE TARGET - open warnings and criticals'
+                select em_current_violation.target_guid, mgmt_targets.target_name, mgmt_targets.target_type,violation_guid, collection_timestamp, violation_level, string_value,
+                cfg_coll_name,message, MESSAGE_NLSID
+                from sysman.em_current_violation,sysman.mgmt_targets
+                where sysman.em_current_violation.target_guid=sysman.mgmt_targets.target_guid
+                and sysman.mgmt_targets.target_guid=(select target_guid from sysman.mgmt_targets where target_name='%EMTARGETASMINSTANCE%');
+                TTITLE CENTER 'THRESHOLDS SET FOR ALERT LOG METRICS - both enabled and disabled'
+                select mt.target_name, mt.target_type, mmt.coll_name, mmt.metric_guid,
+                case mmt.warning_operator when 0 then 'GT'
+                when 1 then 'EQ'
+                when 2 then 'LT'
+                when 3 then 'LE'
+                when 4 then 'GE'
+                when 5 then 'contains'
+                when 6 then 'ne'
+                when 7 then 'matchRegExp'
+                end waringOperator,
+                mmt.warning_threshold,
+                case mmt.critical_operator when 0 then 'GT'
+                when 1 then 'EQ'
+                when 2 then 'LT'
+                when 3 then 'LE'
+                when 4 then 'GE'
+                when 5 then 'contains'
+                when 6 then 'ne'
+                when 7 then 'matchRegExp'
+                end CriticalOperator,
+                mmt.critical_threshold ,
+                case mc.is_enabled when 0 then 'notEnabled' when 1 then 'enabled' end MetricEnabled,
+                schedule_ex,message,MESSAGE_NLSID
+                from sysman.mgmt_targets mt, sysman.mgmt_metric_thresholds mmt, SYSMAN.MGMT_COLLECTIONS mc
+                where mt.target_guid = mmt.target_guid
+                and mt.target_guid=mc.object_guid
+                and mmt.coll_name=mc.coll_name
+                and mmt.coll_name in ('asm_alert_log_rollup_11g','asm_alert_log_rollup','adr_alert_log_rollup')
+                and mt.target_name='%EMTARGETASMINSTANCE%'
+                order by coll_name,message;
+                spool off;
+                set mark html off;
+                exit;
+                </script>
+                <script type="EMSQL" name="sql_CurrentReposAlerts" timeout="300" validfor="REPOSITORYDB" platform="" version="">
+                conn sysman/%SYSMAN_PWD%;
+                set termout off;
+                set echo off;
+                set mark html on
+                spool CurrentReposAlerts.html
+                alter session set nls_date_format='dd-mon-yyyy hh24:mi:ss';
+                TTITLE CENTER 'CURRENT EVENTS FOR THE TARGET'
+                select violation_guid, violation_level, message from mgmt_current_violation where target_guid=(select target_guid from mgmt_targets where target_name='%EMTARGETDBNAME%' and target_type='%TARGET_TYPE%')
+                and violation_type in ('0','1','2');
+                spool off;
+                set mark html off;
+                exit;
+                </script>
+                <script type="EMSQL" name="sql_ReposAlerts" timeout="300" validfor="REPOSITORYDB" platform="" version="">
+                conn sysman/%SYSMAN_PWD%;
+                set mark html on
+                set termout off;
+                set echo off;
+                spool ReposAlerts.html
+                alter session set nls_date_format='dd-mon-yyyy hh24:mi:ss';
+                TTITLE CENTER 'CURRENT EVENTS FOR THE TARGET'
+                select em_current_violation.target_guid, mgmt_targets.target_name, mgmt_targets.target_type,violation_guid, collection_timestamp, violation_level, string_value,
+                message, MESSAGE_NLSID
+                from em_current_violation,mgmt_targets
+                where em_current_violation.target_guid=mgmt_targets.target_guid
+                and mgmt_targets.target_guid=(select target_guid from mgmt_targets where target_name='%EMTARGETDBNAME%' and target_type='%TARGET_TYPE%');
+                spool off;
+                set mark html off;
+                exit;
+                </script>
+                <script type="EMSQL" name="sql_ServerGenAlerts" timeout="300" validfor="REPOSITORYDB" platform="" version="">
+                conn sysman/%SYSMAN_PWD%;
+                set mark html on
+                set termout off;
+                set echo off;
+                spool ServerGenAlerts.html
+                TTITLE CENTER 'DATABASE INSTANCE NAME'
+                show parameter name;
+                alter session set nls_date_format='dd-mon-yyyy hh24:mi:ss';
+                TTITLE CENTER 'CURRENT DATE'
+                select sysdate from dual;
+                TTITLE CENTER 'OUTPUT FROM DBA_THRESHOLDS'
+                Select * from sys.dba_thresholds;
+                TTITLE CENTER 'OUTPUT FROM DBA_OUTSTANDING_ALERTS'
+                Select * from SYS.DBA_OUTSTANDING_ALERTS;
+                TTITLE CENTER 'CURRENT TABLESPACE USAGE'
+                Select * from sys.dba_tablespace_usage_metrics;
+                TTITLE CENTER 'AGENT NAME FROM AQ$_INTERNET_AGENTS'
+                Select agent_name from SYSTEM.AQ$_INTERNET_AGENTS;
+                TTITLE CENTER 'SUBSCRIPTION NAME'
+                Select SUBSCRIPTION_NAME, LOCATION_NAME from dba_subscr_registrations;
+                TTITLE CENTER 'GRANTED ROLES'
+                Select granted_role, grantee, default_role from dba_role_privs where granted_role = 'OEM_MONITOR';
+                TTITLE CENTER 'GRANTS ON QUEUE_PRIVS'
+                Select owner, grantee, name, dequeue_privilege from sys.queue_privileges where owner = 'SYS' and name = 'ALERT_QUE';
+                TTITLE CENTER 'COUNT FORM ALERT QUEUE'
+                Select count(*) from SYS.ALERT_QT;
+                TTITLE CENTER 'OUTPUT OF DBA_ALERT_HISTORY'
+                Select reason, resolution, to_char(CREATION_TIME,'dd-mon-yyy hh24:mi:ss'), to_char(TIME_SUGGESTED,'dd-mon-yyy hh24:mi:ss') from sys.dba_alert_history;
+                TTITLE CENTER 'ACCOUNT STATUS FOR DBSNMP'
+                select account_status, lock_date, expiry_date, profile from dba_users where username='DBSNMP';
+                set mark html off;
+                spool off;
+                exit;
+                </script>
+        </commands>
+        <runtime_flags>
+        </runtime_flags>
+</collection>
+</collections>

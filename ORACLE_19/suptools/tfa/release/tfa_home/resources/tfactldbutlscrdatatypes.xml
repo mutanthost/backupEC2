@@ -1,0 +1,32 @@
+<?xml version="1.0"?>
+
+<!--  $Header: tfa/src/v2/tfa_home/resources/tfactldbutlscrdatatypes.xml /main/1 2018/08/20 12:42:31 manuegar Exp $ -->
+
+<!-- 
+ Copyright (c) 2018, Oracle and/or its affiliates. All rights reserved.
+
+   NAME
+     tfactldbutlscrdatatypes.xml - <one-line expansion of the name>
+
+   DESCRIPTION
+     TFA ISA Score datatypes
+
+   NOTES
+     <other useful comments, qualifications, etc.>
+
+   MODIFIED   (MM/DD/YY)
+   manuegar    07/31/18 - Creation
+
+-->
+<datatypes>
+  <datatype name="availability_currscore"/>
+  <datatype name="hardware_currscore"/>
+  <datatype name="asm_currscore"/>
+  <datatype name="database_currscore"/>
+  <datatype name="server_disk_currscore"/>
+  <datatype name="server_network_currscore"/>
+  <datatype name="db_instance_currscore"/>
+  <datatype name="asm_instance_currscore"/>
+  <datatype name="server_resource"/>
+  <datatype name="server_unavailable_resource"/>
+</datatypes>

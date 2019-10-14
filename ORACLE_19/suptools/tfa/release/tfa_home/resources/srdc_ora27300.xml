@@ -1,0 +1,82 @@
+<?xml version="1.0"?>
+
+<!--  $Header: tfa/src/v2/tfa_home/resources/srdc_ora27300.xml /main/4 2018/04/20 10:07:17 migmoren Exp $ -->
+
+<!-- 
+ Copyright (c) 2016, 2018, Oracle and/or its affiliates. All rights reserved.
+
+   NAME
+     srdc_ora27300.xml - <one-line expansion of the name>
+
+   DESCRIPTION
+     <short description of component this file declares/defines>
+
+   NOTES
+     <other useful comments, qualifications, etc.>
+
+   MODIFIED   (MM/DD/YY)
+   migmoren    04/17/18 - Bug 27624530 - TFAT: HCVE FILE IS NOT GENERATED IN
+                          12.2.0.1.0 DATABASE VERSION
+   bburton     02/27/17 - new format
+   bburton     01/16/17 - fix id
+   bburton     10/31/16 - Collection for ORA-27300 errors
+   bburton     10/31/16 - Creation
+
+-->
+<collections>
+<collection id="ORA-27300">
+   <description>SRDC for ORA-27300.  OS system dependent operation:open failed with status: (status).</description>
+   <alias>o27300</alias>
+   <onevents>
+       <event>
+          <onerror>ORA-27300</onerror>
+          <infile>
+             <name_patterns>
+                 <pattern>alert_.*\.log</pattern>
+             </name_patterns>
+          </infile>
+       </event>
+   </onevents>
+   <user_inputs>
+       <user_input cmdline="" default="" showprompt="1" setenv="NO" validate="" prompt="Enter the time of the ORA-27300">USERINPUT-EVENT_TIME</user_input>
+       <user_input cmdline="" default="" showprompt="1" setenv="NO" validate="" prompt="Enter the Database Name">USERINPUT-DATABASE_NAME</user_input>
+   </user_inputs>
+   <duration>12h</duration>
+   <clusterwide>no</clusterwide>
+   <filter_files>
+       <types>
+       </types>
+       <filter_file_patterns>
+           <filter_file_pattern>alert_.*\.log</filter_file_pattern>
+           <filter_file_pattern>trc</filter_file_pattern>
+           <filter_file_pattern>log</filter_file_pattern>
+           <filter_file_pattern>archive\/osw</filter_file_pattern>
+           <filter_file_pattern>ExaWatcher\/archive</filter_file_pattern>
+       </filter_file_patterns>
+       <filter_file_exclude_patterns>
+           <filter_file_exclude_pattern>cdmp_.*_bucket\.tr[cm]</filter_file_exclude_pattern>
+       </filter_file_exclude_patterns>
+   </filter_files>
+   <components>
+       <component>OS</component>
+       <component>CRS</component>
+       <component>DATABASE</component>
+       <component>NOCHMOS</component>
+   </components>
+   <commands>
+       <script type="IPSPACK" name="ipspack" timeout="120" validfor="" platform="" version="">
+       </script>
+       <script type="TFACTL" name="rdahcve1210" timeout="120" validfor="" platform="" version="12.1,12.2">
+           tfactl run darda run rda_HCVE_12_1_0 menu menus/oracle_database.xml
+       </script>
+       <script type="TFACTL" name="rdahcve1120" timeout="120" validfor="" platform="" version="11.2">
+           tfactl run darda run rda_HCVE_11_2 menu menus/oracle_database.xml
+       </script>
+       <script type="TFACTL" name="rdahcve1110" timeout="120" validfor="" platform="" version="11.1">
+           tfactl run darda run rda_HCVE_11_1 menu menus/oracle_database.xml
+       </script>
+   </commands>
+   <runtime_flags>
+   </runtime_flags>
+</collection>
+</collections>

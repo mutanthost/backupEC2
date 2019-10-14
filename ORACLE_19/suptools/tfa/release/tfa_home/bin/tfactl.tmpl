@@ -1,0 +1,103 @@
+#!/bin/sh
+#
+# Copyright (c) 2011, 2018, Oracle and/or its affiliates. All rights reserved.
+#
+#  tfactl(.tmpl) 
+#  wrapper for tfactl.pl
+#  delivered as tfactl.tmpl - renamed and TFA_HOME set at install time
+#
+#TFA_DEBUG=1
+#export TFA_DEBUG
+
+#Function to get the location of commands
+getCommandLocation() {
+
+        COMMAND=$1;
+
+        if [ -f "/bin/$COMMAND" ]
+        then
+                CMDLOC="/bin/$COMMAND";
+        elif [ -f "/usr/bin/$COMMAND" ]
+        then
+                CMDLOC="/usr/bin/$COMMAND";
+        elif [ -f "/usr/local/bin/$COMMAND" ]
+        then
+                CMDLOC="/usr/local/bin/$COMMAND";
+        else
+                CMDLOC="$COMMAND";
+        fi
+
+        echo "$CMDLOC";
+}
+
+UNAME=`getCommandLocation "uname"`;
+PLATFORM=`$UNAME`
+AWK=`getCommandLocation "awk"`;
+ECHO=`getCommandLocation "echo"`;
+GREP=`getCommandLocation "grep"`;
+SED=`getCommandLocation "sed"`;
+ID=`getCommandLocation "id"`;
+CD=`getCommandLocation "cd"`;
+case $PLATFORM in
+SunOS)
+	GREP=/usr/xpg4/bin/grep;
+	ID=/usr/xpg4/bin/id;
+        AWK=`getCommandLocation "gawk"`;
+
+        # if not able to find gawk then use nawk
+        if [ `$ECHO $AWK | $GREP -c "^gawk$"` -eq 1 ]
+        then
+                AWK=`getCommandLocation "nawk"`;
+        fi
+        ;;
+esac
+
+TFA_HOME=
+export TFA_HOME
+
+if [ ! -r "$TFA_HOME/bin/tfactl.pl" ]
+then
+	RUSER=`$ID | $AWK '{print $1}'| $AWK -F\( '{print $2}' | $AWK -F\) '{print $1}'`
+	$ECHO "User '$RUSER' does not have permissions to run tfactl. Please check with TFA Admin(root).";
+	exit 1;
+fi
+
+# Get PERL to use from tfa_setup.txt
+PERL=`$GREP 'PERL=' $TFA_HOME/tfa_setup.txt | $SED 's/PERL=//' | $SED 's/ -I.*//'`
+
+# Check PERL Libraries for non-root users
+RID=`$ID -u`;
+
+if [ $RID -ne 0 ]
+then
+	GIHOME=`$GREP 'CRS_HOME=' $TFA_HOME/tfa_setup.txt | $SED 's/CRS_HOME=//'`;
+
+	if [ -d "$GIHOME" ]
+	then
+		PERL_LIB=`find $GIHOME/perl/lib -type f -name "strict.pm" 2>/dev/null`;
+
+		if [ ! -r "$PERL_LIB" ]
+		then
+			PERL=`getCommandLocation "perl"`;
+		fi
+	fi
+fi
+
+if [ ! -f "$PERL" ]
+then
+	PERL="/usr/bin/perl";
+	if [ ! -f "$PERL" ]
+	then
+       	     PERL="/usr/local/bin/perl";
+             if [ ! -f "$PERL" ]
+             then
+                PERL="perl";
+             fi
+        fi
+fi
+
+# When user does "su crsusr" the current directory will be /root which is not accessible
+# to non root user. All commands will fail. Need to cd twice to come out of /root
+if [ ! -r "." ] ; then $CD /; cd /; fi
+
+$PERL $TFA_HOME/bin/tfactl.pl "$@"

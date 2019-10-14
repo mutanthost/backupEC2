@@ -1,0 +1,94 @@
+printf("==========START_OF_REPORT_chkDNSConfiguration.aksh==========\n");
+//
+//
+// Check that DNS Configuration is set up properly
+//
+
+// ----------------------------------------------------------------------------
+// VARS
+
+	var founderrors = false; // Track error findings
+	var auditcheck = 0;
+	var report = 1;
+        var runonetime = 1;
+	var nslookup_error=0;
+
+
+// ----------------------------------------------------------------------------
+// MAIN STARTS HERE	
+if(runonetime==1)
+{
+getHostname();
+
+var report_output;
+// Get the nfs mapid domain
+try { 
+	run('configuration services dns');
+	status=get('<status>');
+    report_output="<status> = " + status + "\n";
+    domain=get('domain');
+    report_output = report_output + "Domain = " + domain + "\n";
+	servers = get('servers');
+    report_output = report_output + "Servers = " + servers + "\n";
+
+    run('cd /');
+
+    if ( status != "online" || domain == "undefined" || servers == "127.0.0.1" || servers == "0.0.0.0" || servers == "000.000.000.000" || servers == ""){
+		founderrors=true;
+    } else { // if the above pass, do nslookup on the dns server 
+	first_server = (servers instanceof Array) ? servers[0] : servers; 
+        nslookup_out=run("nslookup " + first_server);
+        if ( nslookup_out == "" ) {
+          founderrors=true;
+	  nslookup_error=1;
+        }
+        report_output = report_output + "\n# nslookup " + first_server;
+	report_output = report_output + "\n" + nslookup_out + "\n";
+	//
+	// Do more extenstive DNS nslookup test
+	//
+	errcount=0;
+	lookup_timeout=5;
+	for (i=0; i<3; i++) {
+		r=parseInt(shell('nslookup ' + host_name +' -timeout='+lookup_timeout+ ' 2>&1 >/dev/null; echo $?;')) 
+		if (r == 1) {
+			lookup_timeout *= 2;
+			errcount++;
+		}
+	}
+	if (errcount >= 2) {
+          	founderrors=true;
+		report_output = report_output + "\n nslookup failures.";
+	}
+    }
+
+} catch(err) { 
+	// do nothing
+}
+runonetime=0;
+}
+
+// Report Command
+
+if ( report == 1 ) {
+    if ( founderrors == false ) {
+        printf("OK: %s DNS Configuration Check Completed: DNS Configuration is set up properly\n",host_name);
+    }
+    else {
+	    printf("WARNING: %s DNS Configuration Check Completed: DNS Configuration is not set up properly\n",host_name);
+    }
+    printf("\n%s",report_output);
+}
+
+//END
+
+printf("==========END_OF_REPORT_chkDNSConfiguration.aksh==========\n");
+printf("==========START_OF_AUDIT_CHECK_chkDNSConfiguration.aksh==========\n");
+if ( founderrors == false ) {
+	printf("dns_configuration_status = 0\n");
+}
+else {
+	printf("dns_configuration_status = 1\n");
+}
+
+printf("==========END_OF_AUDIT_CHECK_chkDNSConfiguration.aksh==========\n");

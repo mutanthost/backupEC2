@@ -1,0 +1,93 @@
+<?xml version="1.0"?>
+
+<!--  $Header: tfa/src/v2/tfa_home/resources/srdc_dbrmanperf.xml /main/2 2018/08/15 16:55:52 bburton Exp $ -->
+
+<!-- 
+ Copyright (c) 2018, Oracle and/or its affiliates. All rights reserved.
+
+   NAME
+     srdc_dbrmanperf.xml - <one-line expansion of the name>
+
+   DESCRIPTION
+     <short description of component this file declares/defines>
+
+   NOTES
+     <other useful comments, qualifications, etc.>
+
+   MODIFIED   (MM/DD/YY)
+   xiaodowu    08/01/18 - Resolve Bug 28439844 - ADD PARENTHESIS FOR VALIDATE
+   xiaodowu    01/19/18 - Add standard syntax for user prompts
+   xiaodowu    01/18/18 - Creation
+
+-->
+
+
+<collections>
+<collection id="dbrmanperf">
+    <description>SRDC - Required diagnostic data collection for RMAN Performance(1671509.1).</description>
+    <alias>dbrmanperf</alias>
+    <onevents>
+        <event>
+            <infile>
+                <name_patterns>
+                    <pattern>alert_.*\.log</pattern>
+                </name_patterns>
+            </infile>
+        </event>
+    </onevents>
+    <user_inputs>
+        <user_input cmdline="" default="" showprompt="1" setenv="NO" validate="" prompt="Enter the Target Database Name">USERINPUT-DATABASE_NAME</user_input>
+     <user_input cmdline="" default="" showprompt="1" setenv="REPLACE" validate="(y|Y|n|N)" prompt="Have you executed your rman command in debug mode? [Y|N] ">USERINPUT-DEBUG</user_input>
+	<user_input cmdline="" default="" showprompt="1" setenv="REPLACE" validate="file" prompt="Provide the full path and name of your rman script file: (the my_rman.rcv file in rman debug trace=my_rman.trc target / cmdfile=my_rman.rcv log=my_rman.log)">USERINPUT-RMAN_FILE</user_input>
+	<user_input cmdline="" default="" showprompt="1" setenv="REPLACE" validate="file" prompt="Provide the full path and name of your rman output file: (the my_rman.log file in the above command line)">USERINPUT-LOG_FILE</user_input>
+	<user_input cmdline="" default="" showprompt="1" setenv="REPLACE" validate="file" depinput="DEBUG" deppattern="y|Y" prompt="Provide the full path and name of your rman debug trace file: (the my_rman.trc file in the above command line)">USERINPUT-TRACE_FILE</user_input>
+     <user_input cmdline="OPT" default="" showprompt="1" setenv="REPLACE" validate="(y|Y|n|N)" depinput="DEBUG" deppattern="n|N" prompt="Oracle Support often asks for running RMAN command in debug mode. Please consider doing so and come back to load the trace file. LBREAKRemember to include:LBREAKset echo on; LBREAKand LBREAKexport NLS_DATE_FORMAT='YYYY-MM-DD HH24:MI:SS' LBREAKAcknowledged? [Y|N] ">USERINPUT-SUGGESTION</user_input>
+      <user_input cmdline="" default="" showprompt="1" setenv="NO" validate="" prompt="Do you have an AWR license? &#40;Refer to Doc 1490798.1 for more information &#41;">USERINPUT-LICENSE</user_input>
+      <user_input cmdline="" default="" showprompt="1" setenv="NO" validate="" prompt="Do you have a performance issue now">USERINPUT-ISSUE_NOW</user_input>
+      <user_input cmdline="" default="" showprompt="1" setenv="NO" validate="" prompt="AWR duration">USERINPUT-AWR_DURATION</user_input>
+      <user_input cmdline="" default="" showprompt="1" setenv="NO" validate="" prompt="Enter start time when the performance was bad">USERINPUT-EVENT_START_TIME</user_input>
+      <user_input cmdline="" default="" showprompt="1" setenv="NO" validate="" prompt="Enter stop time when the performance was bad">USERINPUT-EVENT_END_TIME</user_input>
+      <user_input cmdline="" default="" showprompt="1" setenv="NO" validate="" prompt="For comparison, it is useful to gather data from another period with similar load where problems are not seen. Typically this is likely to be the same time period on a previous day. To compare to the same time period on a previous day enter the number of days ago you wish to use.">USERINPUT-PERFORM_OK</user_input>
+      <user_input cmdline="" default="" showprompt="1" setenv="NO" validate="" prompt="Enter start time when the performance was good">USERINPUT-EVENT_BASELINE_START_TIME</user_input>
+      <user_input cmdline="" default="" showprompt="1" setenv="NO" validate="" prompt="Enter stop time when the performance was good">USERINPUT-EVENT_BASELINE_END_TIME</user_input>
+    </user_inputs>    
+	<duration>12h</duration>
+	<awrduration>1h</awrduration>
+    <clusterwide>no</clusterwide>
+    <filter_files>
+        <types>
+        </types>
+        <filter_file_patterns>
+            <filter_file_pattern>alert_.*\.log</filter_file_pattern>
+            <filter_file_pattern>trc</filter_file_pattern>
+            <filter_file_pattern>log</filter_file_pattern>
+            <filter_file_pattern>archive\/osw</filter_file_pattern>
+            <filter_file_pattern>ExaWatcher\/archive</filter_file_pattern>
+        </filter_file_patterns>
+        <filter_file_exclude_patterns>
+            <filter_file_exclude_pattern>cdmp_.*_bucket\.tr[cm]</filter_file_exclude_pattern>
+        </filter_file_exclude_patterns>
+    </filter_files>
+    <components>
+        <component>OS</component>
+        <component>CRS</component>
+        <component>DATABASE</component>
+        <component>NOCHMOS</component>
+    </components>
+    <commands>
+	<script type="TFADBPERF" name="runawr" timeout="120" validfor="" platform="" version=""> </script>
+      <script type="OS" name="cp_rman_script" timeout="120" validfor="" platform="allux" version="">
+       /bin/cp %RMAN_FILE% srdc_rman_script_`date +%F`.txt
+     </script>
+      <script type="OS" name="cp_rman_log" timeout="120" validfor="" platform="allux" version="">
+       /bin/cp %LOG_FILE% srdc_rman_performance_output_`date +%F`.txt
+     </script>
+      <script type="OS" name="cp_rman_trace" timeout="120" validfor="" platform="allux" version="" depinput="DEBUG" deppattern="Y|y">
+       /bin/cp %TRACE_FILE% srdc_rman_performance_debug_`date +%F`.trc
+     </script>
+	<script type="SQLSCRIPT" name="srdc_rman_performance.sql" timeout="300" validfor="" platform="" version=""></script>
+    </commands>
+    <runtime_flags>
+    </runtime_flags>
+</collection>
+</collections>

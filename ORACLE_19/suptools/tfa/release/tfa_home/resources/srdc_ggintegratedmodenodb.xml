@@ -1,0 +1,138 @@
+<?xml version="1.0"?>
+
+<!--  $Header: tfa/src/v2/tfa_home/resources/srdc_ggintegratedmodenodb.xml /main/2 2018/08/15 16:55:53 bburton Exp $ -->
+
+<!-- 
+ Copyright (c) 2018, Oracle and/or its affiliates. All rights reserved.
+
+   NAME
+     srdc_ggintegratedmodenodb.xml - <one-line expansion of the name>
+
+   DESCRIPTION
+     <short description of component this file declares/defines>
+
+   NOTES
+     <other useful comments, qualifications, etc.>
+
+   MODIFIED   (MM/DD/YY)
+   xiaodowu    08/01/18 - Resolve Bug 28439844 - ADD PARENTHESIS FOR VALIDATE
+   xiaodowu    04/27/18 - Correct Win32 path
+   xiaodowu    04/19/18 - fix line breaks
+   xiaodowu    04/19/18 - Enable the collection on OGG server which does not
+                          host Oracle database
+   xiaodowu    04/19/18 - mplement for the following three SRDC Docs: SRDC -
+                          Information to Collect When GoldenGate
+                          Extract/Replicat Abends without Error (Doc ID:
+                          1906071.1) SRDC - Information to Collect When
+                          GoldenGate Components Abend with Generic Error (Doc
+                          ID: 1909388.1) SRDC - Data to Collect when GoldenGate
+                          Process Does Not Start per Trail Issues (Doc ID:
+                          1913402.1)
+   xiaodowu    04/19/18 - Creation
+
+-->
+<collections>
+<collection id="ggintegratedmodenodb">
+    <description>SRDC for GoldenGate extract/replicat abends problems.</description>
+	<srdc_docs>Doc IDs: 1906071.1,1909388.1,1913402.1</srdc_docs>
+    <onevents>
+        <event>
+        </event>
+    </onevents>
+    <user_inputs>
+      <user_input cmdline="" default="" showprompt="1" setenv="REPLACE" validate="" prompt="Enter the GoldenGate Home">USERINPUT-OGG_HOME</user_input>
+      <user_input cmdline="" default="" showprompt="1" setenv="REPLACE" validate="" prompt="Enter the failed GoldenGate component name">USERINPUT-COMP_NAME</user_input>
+      <user_input cmdline="" default="" showprompt="1" setenv="REPLACE" validate="(y|Y|n|N)" prompt="Does the process start? [Y|N] ">USERINPUT-STARTFLAG</user_input>
+      <user_input cmdline="" default="" showprompt="1" setenv="" validate="(y|Y|n|N)" depinput="STARTFLAG" deppattern="y|Y" prompt="Is the component failing with a generic error? [Y|N] ">USERINPUT-ERRFLAG</user_input>
+    </user_inputs>
+    <duration>12h</duration>
+    <awrduration>1h</awrduration>
+    <clusterwide>yes</clusterwide>
+    <filter_files>
+      <types>
+      </types>
+      <filter_file_patterns>
+        <filter_file_pattern>alert_.*\.log</filter_file_pattern>
+        <filter_file_pattern>trc</filter_file_pattern>
+        <filter_file_pattern>log</filter_file_pattern>
+        <filter_file_pattern>\.xml</filter_file_pattern>
+        <filter_file_pattern>archive\/osw</filter_file_pattern>
+        <filter_file_pattern>ExaWatcher\/archive</filter_file_pattern>
+      </filter_file_patterns>
+    </filter_files>
+    <components>
+      <component>OS</component>
+    </components>
+    <commands>
+      <script type="OS" name="cp_files" timeout="120" validfor="" platform="allux" version="">
+        lc_comp=`/bin/echo %COMP_NAME% |tr '[A-Z]' '[a-z]'`
+        uc_comp=`/bin/echo %COMP_NAME% |tr '[a-z]' '[A-Z]'`
+       /bin/cp -rp %OGG_HOME%/dirprm/* .
+       /bin/cp -rp %OGG_HOME%/dirrpt/* .
+       /bin/cp -rp %OGG_HOME%/dirdef/* .
+       /bin/cp -rp %OGG_HOME%/ggserr.log .
+       /bin/cp -rp %OGG_HOME%/GLOBALS .
+     </script>
+     <script type="OS" name="extract_OGG_env" timeout="120" validfor="" platform="allux" version="">
+        start_flag=%STARTFLAG%
+        if [[ $start_flag = "Y" ]] || [[ $start_flag = "y" ]]
+        then
+                /bin/echo 'info %COMP_NAME% showch' |%OGG_HOME%/ggsci >SRDC_GG_CHKPINFO.txt
+                /bin/echo 'info %COMP_NAME% detail' |%OGG_HOME%/ggsci >>SRDC_GG_CHKPINFO.txt
+        else
+                /bin/echo 'info %COMP_NAME% showch' |%OGG_HOME%/ggsci >SRDC_GG_EXTINFO.txt
+                /bin/echo 'info %COMP_NAME% detail' |%OGG_HOME%/ggsci >>SRDC_GG_EXTINFO.txt
+        fi
+     </script>
+     <script type="OS" name="extract_OGG_env_Win32" timeout="500" validfor="" platform="MSWin32" version="">
+        start_flag=%STARTFLAG%
+        if [[ $start_flag = "Y" ]] || [[ $start_flag = "y" ]]
+        then
+                echo 'info %COMP_NAME% showch' |%OGG_HOME%/ggsci >SRDC_GG_EXTINFO.txt
+                echo 'info %COMP_NAME% detail' |%OGG_HOME%/ggsci >>SRDC_GG_EXTINFO.txt
+        else
+                echo 'info %COMP_NAME% showch' |%OGG_HOME%/ggsci >SRDC_GG_CHKPINFO.txt
+                echo 'info %COMP_NAME% detail' |%OGG_HOME%/ggsci >>SRDC_GG_CHKPINFO.txt
+        fi
+     </script>
+     <script type="OS" name="extract_OGG_env_Linux" timeout="120" validfor="" platform="Linux" version="">
+       OGG_OWNER=`/bin/ls -ld $OGG_HOME | /bin/awk '{print $3}'`
+        start_flag=%STARTFLAG%
+        if [[ $start_flag = "N" ]] || [[ $start_flag = "n" ]]
+        then
+                MANAGER_PID=`ps -u $OGG_OWNER -f | /bin/grep -i mgr | /bin/grep -v grep|/bin/awk '{print $2}'`
+                /usr/bin/strings -a /proc/$MANAGER_PID/environ > SRDC_GG_MGRENVINFO.txt
+        else
+                EXTRACT_PID=`/bin/ps -u $OGG_OWNER -f | /bin/grep -i extract| /bin/grep -v grep|/bin/awk '{print $2}'`
+                /usr/bin/strings -a /proc/$EXTRACT_PID/environ > SRDC_GG_PROCENVINFO.txt
+        fi
+     </script>
+     <script type="OS" name="extract_OGG_env_AIX" timeout="120" validfor="" platform="AIX" version="">
+       OGG_OWNER=`/bin/ls -ld $OGG_HOME | /bin/awk '{print $3}'`
+        start_flag=%STARTFLAG%
+        if [[ $start_flag = "N" ]] || [[ $start_flag = "n" ]]
+        then
+                MANAGER_PID=`/bin/ps -u $OGG_OWNER -f | /bin/grep -i mgr | /bin/grep -v grep|/bin/awk '{print $2}'`
+                /bin/ps eww $MANAGER_PID > SRDC_GG_MGRENVINFO.txt
+        else
+                EXTRACT_PID=`/bin/ps -u $OGG_OWNER -f | /bin/grep -i extract| /bin/grep -v grep|/bin/awk '{print $2}'`
+                /bin/ps eww $EXTRACT_PID > SRDC_GG_PROCENVINFO.txt
+        fi
+     </script>
+     <script type="OS" name="extract_OGG_env_Solaris" timeout="120" validfor="" platform="SunOS" version="">
+       OGG_OWNER=`/bin/ls -ld $OGG_HOME | /bin/awk '{print $3}'`
+        start_flag=%STARTFLAG%
+        if [[ $start_flag = "N" ]] || [[ $start_flag = "n" ]]
+        then
+                MANAGER_PID=`/bin/ps -u $OGG_OWNER -f | /bin/grep -i mgr | /bin/grep -v grep|/bin/awk '{print $2}'`
+                /bin/pargs -e $MANAGER_PID > SRDC_GG_MGRENVINFO.txt
+        else
+                EXTRACT_PID=`/bin/ps -u $OGG_OWNER -f | /bin/grep -i extract| /bin/grep -v grep|/bin/awk '{print $2}'`
+                /bin/pargs -e $EXTRACT_PID > SRDC_GG_PROCENVINFO.txt
+        fi
+     </script>
+  </commands>
+  <runtime_flags>
+  </runtime_flags>
+</collection>
+</collections>

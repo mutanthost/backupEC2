@@ -1,0 +1,45 @@
+#! /bin/sh
+#
+# %W% %E%
+#
+JA_HOME=$ORACLE_HOME/javavm/jahome
+export JA_HOME
+check_dir_and_cd () {
+  if [ ! -d $1 ]; then
+    echo "Fatal error: project directory $1 does not exist"
+    exit 1
+  else 
+    cd $1; echo "cd $1";
+  fi
+}
+redirect_to_log="ncomp.log"
+args=""
+while test $# -gt 0
+do
+  case $1 in
+    -verbose) redirect_to_log=""; args="$args $1";;
+    -d|-projectDir) shift; check_dir_and_cd $1;;
+    *) args="$args $1"
+  esac
+  shift
+done
+JAVA_HOME_CLASSPATH="$JAVA_HOME/jre/lib/rt.jar:$JAVA_HOME/lib/tools.jar:$JAVA_HOME/lib/classes.zip:${CLASSPATH}"
+export JAVA_HOME_CLASSPATH
+JACLASSPATH=$JA_HOME:$ORACLE_HOME/javavm/lib/jaccelerator.zip:$ORACLE_HOME/javavm/lib/ncomp.zip:$JAVA_HOME_CLASSPATH
+export JACLASSPATH
+LD_LIBRARY_PATH=$ORACLE_HOME/lib32:$ORACLE_HOME/lib:$JAVA_HOME/lib:$JA_HOME/lib
+export LD_LIBRARY_PATH
+JAVA_RUN=$JAVA_HOME/bin/java
+JA_DOIT="$JAVA_RUN -DJA_HOME=$JA_HOME -DORACLE_HOME=$ORACLE_HOME -DJA_LIBS_HOME=$ORACLE_HOME -DJAVA_HOME=$JAVA_HOME -DJAVA_HOME_CLASSPATH=$JAVA_HOME_CLASSPATH -classpath $JACLASSPATH oracle.jaccelerator.Status $args"
+execute_make () {
+  echo "-------------------------------------------------" 
+  date
+  echo "-------------------------------------------------"
+  #echo $JA_DOIT  
+  exec $JA_DOIT
+}
+if [ "m$redirect_to_log" = "m" ]; then
+  execute_make
+else
+  execute_make   >> $redirect_to_log
+fi

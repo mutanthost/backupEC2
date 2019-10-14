@@ -1,0 +1,97 @@
+<?xml version="1.0"?>
+
+<!--  $Header: tfa/src/v2/tfa_home/resources/srdc_dbpartition.xml /main/2 2018/08/15 16:55:52 bburton Exp $ -->
+
+<!-- 
+ Copyright (c) 2018, Oracle and/or its affiliates. All rights reserved.
+
+   NAME
+     srdc_dbpartition.xml 
+
+   DESCRIPTION
+     SRDC - Data to Supply for Create/Maintain Partitioned/Subpartitioned Table/Index Issues
+
+   MODIFIED   (MM/DD/YY)
+   xiaodowu    08/01/18 - Resolve Bug 28439844 - ADD PARENTHESIS FOR VALIDATE
+   xiaodowu    03/28/18 - SRDC - Data to Supply for Create/Maintain
+                          Partitioned/Subpartitioned Table/Index Issues (Doc ID
+                          1670402.1)
+   xiaodowu    03/28/18 - Creation
+
+-->
+
+<collections>
+<collection id="dbpartition">
+    <description>SRDC - Data to Supply for Create/Maintain Partitioned/Subpartitioned Table/Index Issues</description>
+    <srdc_docs>Doc ID 1670402.1: SRDC - Data to Supply for Create/Maintain Partitioned/Subpartitioned Table/Index Issues</srdc_docs>
+    <alias>dbpartition</alias>
+    <onevents>
+        <event>
+            <infile>
+                <name_patterns>
+                    <pattern>alert_.*\.log</pattern>
+                </name_patterns>
+            </infile>
+        </event>
+    </onevents>
+    <user_inputs>
+        <user_input cmdline="" default="" showprompt="1" setenv="NO" validate="" prompt="Enter the Database Name">USERINPUT-DATABASE_NAME</user_input>
+	<user_input cmdline="" default="" showprompt="1" setenv="REPLACE" validate="file" prompt="Provide the full path and name of your operation script file: ">USERINPUT-COMMANDFILE</user_input>
+	<user_input cmdline="" default="" showprompt="1" setenv="REPLACE" validate="file" prompt="Provide the full path and name of your operation log file: ">USERINPUT-LOGFILE</user_input>
+     <user_input cmdline="" default="" showprompt="1" setenv="" validate="(y|Y|n|N)" prompt="Is the issue related to a particular table? [Y|N] ">USERINPUT-TABLEFLAG</user_input>
+     <user_input cmdline="" default="" showprompt="1" setenv="REPLACE" validate="" depinput="TABLEFLAG" deppattern="y|Y" prompt="Enter the table owner: ">USERINPUT-TABLE_OWNER</user_input>
+     <user_input cmdline="" default="" showprompt="1" setenv="REPLACE" validate="" depinput="TABLEFLAG" deppattern="y|Y" prompt="Enter the table name: ">USERINPUT-TABLE_NAME</user_input>
+     <user_input cmdline="" default="" showprompt="1" setenv="" validate="(y|Y|n|N)" prompt="Is the issue related to a particular index? [Y|N] ">USERINPUT-INDEXFLAG</user_input>
+     <user_input cmdline="" default="" showprompt="1" setenv="REPLACE" validate="" depinput="INDEXFLAG" deppattern="y|Y" prompt="Enter the index owner: ">USERINPUT-INDEX_OWNER</user_input>
+     <user_input cmdline="" default="" showprompt="1" setenv="REPLACE" validate="" depinput="INDEXFLAG" deppattern="y|Y" prompt="Enter the index name: ">USERINPUT-INDEX_NAME</user_input>
+    </user_inputs>    
+    <duration>12h</duration>
+      <clusterwide>yes</clusterwide>
+    <filter_files>
+        <types>
+        </types>
+        <filter_file_patterns>
+            <filter_file_pattern>alert_.*\.log</filter_file_pattern>
+            <filter_file_pattern>trc</filter_file_pattern>
+            <filter_file_pattern>log</filter_file_pattern>
+            <filter_file_pattern>archive\/osw</filter_file_pattern>
+            <filter_file_pattern>ExaWatcher\/archive</filter_file_pattern>
+        </filter_file_patterns>
+        <filter_file_exclude_patterns>
+            <filter_file_exclude_pattern>cdmp_.*_bucket\.tr[cm]</filter_file_exclude_pattern>
+        </filter_file_exclude_patterns>
+    </filter_files>
+    <components>
+        <component>OS</component>
+        <component>CRS</component>
+        <component>DATABASE</component>
+        <component>CHMOS</component>
+    </components>
+    <commands>
+     <script type="DB" name="srdc_table_ddl.sql" depinput="TABLEFLAG" deppattern="y|Y" timeout="120" validfor="" platform="" version="">
+	spool table_ddl.log 
+set echo on
+SET LONG 10000000 LINESIZE 1000 PAGESIZE 0
+col DDL format a1000
+select DBMS_METADATA.GET_DDL('TABLE', upper('%TABLE_NAME%'),upper('%TABLE_OWNER%')) DDL from dual;
+	spool off
+  </script>
+     <script type="DB" name="srdc_index_ddl.sql" depinput="INDEXFLAG" deppattern="y|Y" timeout="120" validfor="" platform="" version="">
+	spool index_ddl.log 
+set echo on
+SET LONG 10000000 LINESIZE 1000 PAGESIZE 0
+col DDL format a1000
+select DBMS_METADATA.GET_DDL('INDEX', upper('%INDEX_NAME%'),upper('%INDEX_OWNER%')) DDL from dual;
+	spool off
+  </script>
+      <script type="OS" name="srdc_operation_script" timeout="120" validfor="" platform="allux" version="">
+       /bin/cp %COMMANDFILE% srdc_dbpartition_operation_script_`date +%F`.txt
+     </script>
+      <script type="OS" name="srdc_operation_log" timeout="120" validfor="" platform="allux" version="">
+       /bin/cp %LOGFILE% srdc_dbpartition_operation_output_`date +%F`.txt
+     </script>
+    </commands>
+    <runtime_flags>
+    </runtime_flags>
+</collection>
+</collections>

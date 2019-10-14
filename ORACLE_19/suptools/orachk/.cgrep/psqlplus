@@ -1,0 +1,4807 @@
+# $Header: tfa/src/orachk_py/scripts/psqlplus /main/25 2018/11/29 09:23:47 apriyada Exp $
+#
+# psqlplus
+#
+# Copyright (c) 2013, 2018, Oracle and/or its affiliates. All rights reserved.
+#
+#    NAME
+#      psqlplus - Run SQL queries parallelly.
+#
+#    DESCRIPTION
+#      <short description of component this file declares/defines>
+#
+#    NOTES
+#      <other useful comments, qualifications, etc.>
+#
+#		MODIFIED	(MM/DD/YY)
+#		rojuyal		31/01/18	- Changes for repair as well as fixes few bugs related to bug, cmd args etc
+#		rojuyal		10/11/17	- Changes to make script platform independent
+#		rojuyal		01/01/17	- Changes to make script platform independent
+#		apriyada	08/24/15	- Bug 20872968
+#		rojuyal		01/09/14	- Running as 'ROOT'
+#		rojuyal		30/06/14	- Running as 'ROOT'
+#		rojuyal		02/04/14	- Creation
+
+#Section:MODULES----------
+#use strict;
+use warnings;
+
+use Getopt::Long;
+use Sys::Hostname;
+use Config;
+use POSIX;
+use File::Spec;
+use File::Basename;
+use File::Copy;
+use Cwd;
+use Time::Local;
+use Data::Dumper;
+
+#Section:VARIABLES--------
+umask 0000;
+my ($PYDIR)                 = $ENV{RAT_PYDIRNAME} || 'Python37';
+my ($PERL_EXE)              = $^X;
+my ($OSNAME)                = $Config{'osname'};
+my ($SHOW_HELP)             = 0;
+my ($BASENAME)              = basename $0;
+my ($LIMIT)                 = 0;
+my ($LIMIT_COMPUTE_AT_TOOL) = 0;
+my ($APPTYPE)               = "GENERIC";
+my (@PIDS);
+my ($PID);
+
+my ($LOCALNODE) = ( split '\.', hostname )[0] || '';
+my ($SYS_TEMP_DIR) = $ENV{TMPDIR} || "/tmp" || getcwd() || getdcwd();
+
+my ($CHKMETAFILE) = File::Spec->catfile( $SYS_TEMP_DIR, $BASENAME . '.meta' );
+my ($DBFILE)  = File::Spec->catfile( $SYS_TEMP_DIR, $BASENAME . '_db.data' );
+my ($STATFIL) = File::Spec->catfile( $SYS_TEMP_DIR, $BASENAME . '_stat.data' );
+my ($OUTPUTDIR)     = $SYS_TEMP_DIR;
+my ($OUTPUTDIR_NEW) = $SYS_TEMP_DIR;
+my ($INPUTDIR)      = $SYS_TEMP_DIR;
+my ($RTEMPDIR)      = $SYS_TEMP_DIR;
+my ($SKIPFIL) =
+  File::Spec->catfile( $SYS_TEMP_DIR, $BASENAME . '_skipped_checks.log' );
+my ($ENVFIL) = File::Spec->catfile( $SYS_TEMP_DIR, $BASENAME . '_env.out' );
+my ($CHECK_TIMINGS) =
+  File::Spec->catfile( $SYS_TEMP_DIR, $BASENAME . '_timings.out' );
+my ($CHK_TIMINGS) =
+  File::Spec->catfile( $SYS_TEMP_DIR, $BASENAME . '_epoch_timings.out' );
+my ($ORCLENVFIL) =
+  File::Spec->catfile( $SYS_TEMP_DIR, $BASENAME . '_orcl_env.out' );
+my ($ERRFIL) = File::Spec->catfile( $SYS_TEMP_DIR, $BASENAME . '_error.log' );
+
+my ($RUNLOG) = File::Spec->catfile( $SYS_TEMP_DIR,
+	$BASENAME . '_' . $LOCALNODE . '_run' . '.log' );
+
+my ($RGLOG);
+my ($HOUSEKEEPING) = 0;
+
+my ($RAT_DB_APP_USER) = "apps";
+
+my ($CHECKID) = "DUMMY";
+my ($COMTYPE) = "GENERIC";
+my ($COM_REPORT);
+my ($COMMAND);
+my ($AU_CHK_NAME)          = "CHECK";
+my ($RAT_RUNMODE_INTERNAL) = "master";
+my ($OUTFILNAM);
+my ($NEEDS_RUNNING) = "RDBMS";
+my ($COLLECTION_NAME);
+my ($STACK_ASM_SID);
+my ($STACK_ASM_HOME);
+my ($PARAM_PATH);
+my ($ROW);
+my ($TAG);
+my ($EXECUTABLE);
+
+my ($DEBUG) = $ENV{RAT_SCRIPT_DEBUG} || 0;
+if ( defined $ENV{RAT_INTERNAL_GLOBAL_OFF_DEBUG}
+	and $ENV{RAT_INTERNAL_GLOBAL_OFF_DEBUG} == 1 )
+{
+	$DEBUG = 0;
+}
+my ($PDEBUG) = $ENV{RAT_PDEBUG} || 0;
+my ($TMP_OUTPUT) = $ENV{TMPDIR} || "/tmp" || getcwd() || getdcwd();
+my ($OLD_TMP_OUTPUT) = $ENV{RAT_TMP_OUTPUT};
+
+my ($DEBUG_FLG)     = "";
+my ($MERGE)         = 0;
+my ($MODE)          = 0;
+my ($CHG_USER)      = 0;
+my ($KEEP_LCMD)     = 0;
+my ($NO_OF_SEL_DBS) = 1;
+
+my ($rHOST);
+
+my ($ORIG_O_CHK_FIL);
+my ($FUNC_TOCALL);
+my ($is_copy_sql_files_to_usrdir) = 0;
+my ($is_windows)                  = 0;
+$is_windows = 1 if ( $OSNAME =~ m/MSWin/ );
+
+my ($BAKUP_FIL) = '';
+my ($DNUL)      = '/dev/null';
+if ( $is_windows == 1 ) {
+	$DNUL      = 'NUL';
+	$BAKUP_FIL = ".bak";
+}
+my $SSH_IDENTITY = $ENV{RAT_SSH_IDENTITY};
+my ($SCOPY) =
+  "/usr/bin/scp -o UserKnownHostsFile=$DNUL -o StrictHostKeyChecking=no -q";
+my ($SSHELL) =
+  "/usr/bin/ssh -o UserKnownHostsFile=$DNUL -o StrictHostKeyChecking=no -q";
+
+my ($IS_FIXUP_RUN) = 0;
+my (%USR_DIRS);
+
+#Section:FUNCTIONS--------
+sub write_del_rolbk_tmpoutput {
+	if ( defined $OLD_TMP_OUTPUT ) { $TMP_OUTPUT = $OLD_TMP_OUTPUT; }
+	undef $OLD_TMP_OUTPUT;
+}
+
+sub split_files {
+	my $FULL_SQL_RES_FIL = shift;
+	my $SQL_SMALL_FILES  = shift;
+	my $SQL_SPLITTER     = '_SQL_SPLITTER';
+
+	my @SQL_SMALL_FILES = split( " ", $SQL_SMALL_FILES );
+
+	open( FSQL, '<', $FULL_SQL_RES_FIL )
+	  || die "Cannot open $FULL_SQL_RES_FIL: $!";
+	my $sfile_cntr = 0;
+	open( SSQLFIL, '>>', $SQL_SMALL_FILES[$sfile_cntr] )
+	  || die "Cannot open $SQL_SMALL_FILES[$sfile_cntr]: $!";
+	while (<FSQL>) {
+		if ( $_ =~ m/$SQL_SPLITTER/ ) {
+			close(SSQLFIL);
+			$sfile_cntr++;
+			open( SSQLFIL, '>>', $SQL_SMALL_FILES[$sfile_cntr] )
+			  || die "Cannot open $SQL_SMALL_FILES[$sfile_cntr]: $!";
+			next;
+		}
+		print SSQLFIL $_;
+	}
+	print SSQLFIL "\n";
+	close(SSQLFIL);
+	close(FSQL);
+
+	unlink($FULL_SQL_RES_FIL);
+}
+
+sub get_dbOwner {
+	my $OHOME = shift;
+	my $RHOST = shift;
+	my $FILENAME;
+	my $OH_OWNER_UID;
+	my %USER;
+
+	if ( defined $OHOME ) {
+		$FILENAME = File::Spec->catfile( $OHOME, 'bin', 'oracle' );
+		if ( $RHOST ne $LOCALNODE ) {
+			my ( $t_CURRENT_OH_OWNER, $t_CURRENT_OH_GROUP, $t_HOME_DIR );
+
+			my $SSH_STATUS;
+			if ( $is_windows == 1 ) {
+
+				#Not required
+			}
+			else {
+				$SSH_STATUS =
+`$SSHELL -o NumberOfPasswordPrompts=0 $RHOST ls >$DNUL 2>&1;echo \$?`;
+			}
+			chomp($SSH_STATUS);
+			if ( defined $SSH_STATUS && $SSH_STATUS == 0 ) {
+				if ( $is_windows == 1 ) {
+
+					#Not required
+				}
+				else {
+					$t_CURRENT_OH_OWNER =
+`$SSHELL -T $RHOST "ls -l $OHOME/bin/oracle 2>$DNUL >&1|awk '{print \\\$3}'"`;
+					chomp($t_CURRENT_OH_OWNER);
+					$t_CURRENT_OH_GROUP =
+`$SSHELL -T $RHOST "groups $t_CURRENT_OH_OWNER|cut -d: -f2|awk '{print \\\$1}'|sed 's/ //g'"`;
+					chomp($t_CURRENT_OH_GROUP);
+					$t_HOME_DIR =
+`$SSHELL -T $RHOST "cat /etc/passwd|grep -w "$t_CURRENT_OH_OWNER"|grep "$t_CURRENT_OH_OWNER:"|cut -d":" -f6"`;
+					chomp($t_HOME_DIR);
+				}
+
+				$USER{CURRENT_OH_OWNER} = $t_CURRENT_OH_OWNER;
+				$USER{CURRENT_OH_GROUP} = $t_CURRENT_OH_GROUP;
+				$USER{HOME_DIR}         = $t_HOME_DIR;
+			}
+			else {
+				if ( -e $FILENAME ) {
+					$OH_OWNER_UID = ( stat "$FILENAME" )[4];
+
+					$USER{CURRENT_OH_OWNER} = ( getpwuid $OH_OWNER_UID )[0];
+					$USER{CURRENT_OH_GROUP} = ( getpwuid $OH_OWNER_UID )[3];
+					$USER{HOME_DIR}         = ( getpwuid $OH_OWNER_UID )[7];
+				}
+				else {
+					$USER{CURRENT_OH_OWNER} = getpwuid($<);
+					$USER{CURRENT_OH_GROUP} = getpwuid($();
+					$USER{HOME_DIR}         = ( getpwuid $> )[7];
+				}
+			}
+		}
+		else {
+			if ( -e $FILENAME ) {
+				$OH_OWNER_UID = ( stat "$FILENAME" )[4];
+
+				$USER{CURRENT_OH_OWNER} = ( getpwuid $OH_OWNER_UID )[0];
+				$USER{CURRENT_OH_GROUP} = ( getpwuid $OH_OWNER_UID )[3];
+				$USER{HOME_DIR}         = ( getpwuid $OH_OWNER_UID )[7];
+			}
+			else {
+				$USER{CURRENT_OH_OWNER} = getpwuid($<);
+				$USER{CURRENT_OH_GROUP} = getpwuid($();
+				$USER{HOME_DIR}         = ( getpwuid $> )[7];
+			}
+		}
+	}
+	else {
+		$USER{CURRENT_OH_OWNER} = getpwuid($<);
+		$USER{CURRENT_OH_GROUP} = getpwuid($();
+		$USER{HOME_DIR}         = ( getpwuid $> )[7];
+	}
+
+	if ( defined $USER{CURRENT_OH_OWNER} ) {
+		if (
+			!-d File::Spec->catfile( "$OUTPUTDIR", "$USER{CURRENT_OH_OWNER}" ) )
+		{
+			mkdir(
+				File::Spec->catfile( "$OUTPUTDIR", "$USER{CURRENT_OH_OWNER}" )
+			);
+		}
+		if ( !-d File::Spec->catfile( "$INPUTDIR", "$USER{CURRENT_OH_OWNER}" ) )
+		{
+			mkdir(
+				File::Spec->catfile( "$INPUTDIR", "$USER{CURRENT_OH_OWNER}" ) );
+		}
+
+		if ( $TMP_OUTPUT =~ m/USR_HOMEDIR/ ) {
+			$OLD_TMP_OUTPUT = $TMP_OUTPUT;
+			$TMP_OUTPUT =~ s|USR_HOMEDIR|$USER{HOME_DIR}|g;
+		} else {
+			$OLD_TMP_OUTPUT = $ENV{RAT_TMP_OUTPUT};
+		}
+		if ( !-d File::Spec->catfile( "$TMP_OUTPUT", "$USER{CURRENT_OH_OWNER}" )
+		  )
+		{
+			mkdir(
+				File::Spec->catfile( "$TMP_OUTPUT", "$USER{CURRENT_OH_OWNER}" )
+			);
+		}
+		if ( !-d File::Spec->catfile( "$RTEMPDIR", "$USER{CURRENT_OH_OWNER}" ) )
+		{
+			mkdir(
+				File::Spec->catfile( "$RTEMPDIR", "$USER{CURRENT_OH_OWNER}" ) );
+		}
+
+		my ($uid) = ( getpwnam $USER{CURRENT_OH_OWNER} )[2];
+		my ($gid) = ( getpwnam $USER{CURRENT_OH_OWNER} )[3];
+		my (@fobjects);
+		push(
+			@fobjects,
+			(
+				File::Spec->catfile( "$OUTPUTDIR", "$USER{CURRENT_OH_OWNER}" ),
+				File::Spec->catfile( "$INPUTDIR",  "$USER{CURRENT_OH_OWNER}" ),
+
+				#$TMP_OUTPUT,
+				File::Spec->catfile( "$TMP_OUTPUT", "$USER{CURRENT_OH_OWNER}" ),
+				File::Spec->catfile( "$RTEMPDIR",   "$USER{CURRENT_OH_OWNER}" )
+			)
+		);
+
+		chown $uid, $gid, @fobjects;
+	}
+
+	$USR_DIRS{$TMP_OUTPUT} = 1;
+	return \%USER;
+}
+
+sub no_of_cpus {
+	my ($PROCESSORS) = 2;
+
+	my $PYTHON = set_python();
+
+	my ($P_CMD) =
+"$PYTHON -c \'import multiprocessing; print (multiprocessing.cpu_count())\'";
+
+	$PROCESSORS = `$P_CMD`;
+	if ( $PROCESSORS !~ m/^\d+$/ ) { $PROCESSORS = 2; }
+
+	reset_python();
+	return $PROCESSORS;
+}
+
+sub no_of_child_proc {
+	my ($PROCESSORS)   = 2;
+	my ($DEF_CHLD_CNT) = 1;
+
+	$PROCESSORS = no_of_cpus();
+
+	$DEF_CHLD_CNT = ceil( 25 / 100 * $PROCESSORS );
+
+	if ( !defined $FUNC_TOCALL ) {
+		set_run_log( $RGLOG, "Number of Processors: $PROCESSORS" );
+	}
+
+	return $DEF_CHLD_CNT;
+}
+
+sub housekeeping {
+	unlink glob( File::Spec->catfile( $OUTPUTDIR, "*_$CHECKID*.log" ) );
+	unlink glob( File::Spec->catfile( $INPUTDIR,  "*_$CHECKID*.log" ) );
+
+	unlink glob( File::Spec->catfile( $OUTPUTDIR, "*_$CHECKID*.out" ) );
+	unlink glob( File::Spec->catfile( $INPUTDIR,  "*_$CHECKID*.out" ) );
+
+	unlink glob( File::Spec->catfile( $OUTPUTDIR, "*_$CHECKID*.prt" ) );
+	unlink glob( File::Spec->catfile( $INPUTDIR,  "*_$CHECKID*.prt" ) );
+
+	unlink glob( File::Spec->catfile( $INPUTDIR, "*$CHECKID*_stat.data" ) );
+
+	unlink glob( File::Spec->catfile( $INPUTDIR, "tmp_env_file*$CHECKID*" ) );
+	unlink glob( File::Spec->catfile( $RTEMPDIR, "tmp_env_file*$CHECKID*" ) );
+	if ( $CHG_USER == 1 ) {
+		foreach my $iTMP_OUTPUT ( keys %USR_DIRS ) {
+			unlink glob(
+				File::Spec->catfile( $iTMP_OUTPUT, "tmp_env_file*$CHECKID*" ) );
+		}
+	}
+
+	if ( $KEEP_LCMD == 0 ) {
+		unlink glob( File::Spec->catfile( $INPUTDIR, "localcmd*$CHECKID*" ) );
+		unlink glob( File::Spec->catfile( $RTEMPDIR, "localcmd*$CHECKID*" ) );
+		if ( $CHG_USER == 1 ) {
+			foreach my $iTMP_OUTPUT ( keys %USR_DIRS ) {
+				unlink glob(
+					File::Spec->catfile( $iTMP_OUTPUT, "localcmd*$CHECKID*" ) );
+			}
+		}
+	}
+	unlink glob( File::Spec->catfile( $OUTPUTDIR, "*_-*" ) );
+}
+
+sub current_user {
+	my ($USERNAME) = $ENV{LOGNAME} || $ENV{USER} || getlogin() || getpwuid($<);
+	return $USERNAME;
+}
+
+sub set_run_log {
+	my ($FH)   = shift;
+	my ($STMT) = shift;
+
+	my ($TIMESTAMP) = strftime "%a %b %d %H:%M:%S %Y", localtime(time);
+
+	print $FH "[ $TIMESTAMP ] $STMT\n";
+
+}
+
+sub get_current_epoch {
+	my ($EPOCH_TIME) = 0;
+
+	my $PYTHON = set_python();
+
+	$EPOCH_TIME = `$PYTHON -c \"import time; print (time.time())\"`;
+	reset_python();
+
+	chomp($EPOCH_TIME);
+	return $EPOCH_TIME;
+}
+
+sub move_failed_to_skipped {
+	my ($ICODE)   = shift;
+	my ($IMSG)    = shift;
+	my ($IDETAIL) = shift;
+	my ($SKIPFIL) = shift;
+	my ($STATFIL) = shift;
+	my ($RSTYPE)  = shift;
+	my ($ALVL)    = shift;
+
+	my ($CALL_GET_LOG_RESULT) = 0;
+	my ($SKIP_THIS_VERSION)   = 0;
+
+	my (%RET_HASH);
+
+	my ($REASON_FAILED);
+	if ( $ICODE > 100 ) {
+		$REASON_FAILED = "was killed.";
+	}
+	else {
+		$REASON_FAILED = "failed with exit code $ICODE.";
+	}
+
+	open( my $SKF,   ">>", "$SKIPFIL" ) or die "Cannot open $SKIPFIL: $!";
+	open( my $STATF, ">>", "$STATFIL" ) or die "Cannot open $STATFIL: $!";
+
+	if ( $ICODE != 0 ) {
+		$CALL_GET_LOG_RESULT = 0;
+		$SKIP_THIS_VERSION   = 1;
+
+		if ( !defined $IDETAIL ) {
+			if ( !defined $IMSG ) {
+				print $SKF
+"skipping $AU_CHK_NAME(checkid:-$CHECKID) because audit check execution $REASON_FAILED\n";
+			}
+			else {
+				print $SKF
+"skipping $IMSG because audit check execution $REASON_FAILED\n";
+			}
+		}
+		else {
+			print $SKF
+"[$IDETAIL]skipping $AU_CHK_NAME(checkid:-$CHECKID) because audit check execution $REASON_FAILED\n";
+		}
+	}
+	if ( defined $ALVL ) {
+		print $STATF "$CHECKID:$IDETAIL:$ICODE:$ALVL\n";
+	}
+	else {
+		print $STATF "$CHECKID:$IDETAIL:$ICODE\n";
+	}
+
+	close($STATF);
+	close($SKF);
+
+	$RET_HASH{SKIP_THIS_VERSION}   = $SKIP_THIS_VERSION;
+	$RET_HASH{CALL_GET_LOG_RESULT} = $CALL_GET_LOG_RESULT;
+
+	return \%RET_HASH;
+}
+
+sub sql_formatter {
+	my ($MOVE_FIL) = 0;
+	foreach
+	  my $SQLFIL ( glob( File::Spec->catfile( $RTEMPDIR, "*/*_con.sql" ) ) )
+	{
+		$MOVE_FIL = 0;
+		my $nSQLFIL = $SQLFIL;
+		if ( $nSQLFIL =~ m/-/ ) { $MOVE_FIL = 1; }
+		$nSQLFIL =~ s/-//g;
+		move( $SQLFIL, $nSQLFIL );
+
+		my ($NLOCALSQL) = File::Spec->catfile( $OUTPUTDIR, basename($nSQLFIL) );
+		if ( $IS_FIXUP_RUN == 1 && $MOVE_FIL == 1 ) {
+			$NLOCALSQL =~ s/\.sql/_repair.sql/g;
+		}
+		copy( $nSQLFIL, $NLOCALSQL );
+	}
+	foreach my $SQLFIL ( glob( File::Spec->catfile( $RTEMPDIR, "*_con.sql" ) ) )
+	{
+		$MOVE_FIL = 0;
+		my $nSQLFIL = $SQLFIL;
+		if ( $nSQLFIL =~ m/-/ ) { $MOVE_FIL = 1; }
+		$nSQLFIL =~ s/-//g;
+		move( $SQLFIL, $nSQLFIL );
+
+		my ($NLOCALSQL) = File::Spec->catfile( $OUTPUTDIR, basename($nSQLFIL) );
+		if ( $IS_FIXUP_RUN == 1 && $MOVE_FIL == 1 ) {
+			$NLOCALSQL =~ s/\.sql/_repair.sql/g;
+		}
+		copy( $nSQLFIL, $NLOCALSQL );
+	}
+	if ( $CHG_USER == 1 ) {
+		foreach my $iTMP_OUTPUT ( keys %USR_DIRS ) {
+			foreach my $SQLFIL (
+				glob( File::Spec->catfile( $iTMP_OUTPUT, "*/*_con.sql" ) ) )
+			{
+				$MOVE_FIL = 0;
+				my $nSQLFIL = $SQLFIL;
+				if ( $nSQLFIL =~ m/-/ ) { $MOVE_FIL = 1; }
+				$nSQLFIL =~ s/-//g;
+				move( $SQLFIL, $nSQLFIL );
+
+				my ($NLOCALSQL) =
+				  File::Spec->catfile( $OUTPUTDIR, basename($nSQLFIL) );
+				if ( $IS_FIXUP_RUN == 1 && $MOVE_FIL == 1 ) {
+					$NLOCALSQL =~ s/\.sql/_repair.sql/g;
+				}
+				copy( $nSQLFIL, $NLOCALSQL );
+			}
+			foreach my $SQLFIL (
+				glob( File::Spec->catfile( $iTMP_OUTPUT, "*_con.sql" ) ) )
+			{
+				$MOVE_FIL = 0;
+				my $nSQLFIL = $SQLFIL;
+				if ( $nSQLFIL =~ m/-/ ) { $MOVE_FIL = 1; }
+				$nSQLFIL =~ s/-//g;
+				move( $SQLFIL, $nSQLFIL );
+
+				my ($NLOCALSQL) =
+				  File::Spec->catfile( $OUTPUTDIR, basename($nSQLFIL) );
+				if ( $IS_FIXUP_RUN == 1 && $MOVE_FIL == 1 ) {
+					$NLOCALSQL =~ s/\.sql/_repair.sql/g;
+				}
+				copy( $nSQLFIL, $NLOCALSQL );
+			}
+		}
+		if ( $COMTYPE eq 'SQL_COLLECT' ) {
+			foreach my $iTMP_OUTPUT ( keys %USR_DIRS ) {
+				foreach my $SQLFIL (
+					glob( File::Spec->catfile( $iTMP_OUTPUT, "*/*_-*.sql" ) ) )
+				{
+					$MOVE_FIL = 0;
+					my $nSQLFIL = $SQLFIL;
+					if ( $nSQLFIL =~ m/-/ ) { $MOVE_FIL = 1; }
+					$nSQLFIL =~ s/-//g;
+					move( $SQLFIL, $nSQLFIL );
+
+					my ($NLOCALSQL) =
+					  File::Spec->catfile( $OUTPUTDIR, basename($nSQLFIL) );
+					if ( $IS_FIXUP_RUN == 1 && $MOVE_FIL == 1 ) {
+						$NLOCALSQL =~ s/\.sql/_repair.sql/g;
+					}
+					$NLOCALSQL =~ s/\.sql/_sqlcollect.sql/g;
+					copy( $nSQLFIL, $NLOCALSQL );
+				}
+				foreach my $SQLFIL (
+					glob( File::Spec->catfile( $iTMP_OUTPUT, "*_-*.sql" ) ) )
+				{
+					$MOVE_FIL = 0;
+					my $nSQLFIL = $SQLFIL;
+					if ( $nSQLFIL =~ m/-/ ) { $MOVE_FIL = 1; }
+					$nSQLFIL =~ s/-//g;
+					move( $SQLFIL, $nSQLFIL );
+
+					my ($NLOCALSQL) =
+					  File::Spec->catfile( $OUTPUTDIR, basename($nSQLFIL) );
+					if ( $IS_FIXUP_RUN == 1 && $MOVE_FIL == 1 ) {
+						$NLOCALSQL =~ s/\.sql/_repair.sql/g;
+					}
+					$NLOCALSQL =~ s/\.sql/_sqlcollect.sql/g;
+					copy( $nSQLFIL, $NLOCALSQL );
+				}
+			}
+		}
+	}
+}
+
+sub merge {
+	my ($MFILE)   = shift;
+	my ($PATTERN) = shift;
+	my ($DIR)     = shift;
+
+	if ( $IS_FIXUP_RUN == 1 ) { return; }
+	set_run_log( $RGLOG, "Below Files merged into '$MFILE':" );
+
+	open( my $GFH, ">>", "$MFILE" ) or die "Cannot open $MFILE: $!";
+	foreach my $file ( glob( File::Spec->catfile( $DIR, "$PATTERN" ) ) ) {
+		if ( $PATTERN eq "*.log" ) {
+			next
+			  if ( $file =~ m/_error\.log/
+				or $file =~ m/_exc\.log/
+				or $file =~ m/_skipped_checks\.log/
+				or $file =~ m/_env\.out/ );
+		}
+		elsif ( $PATTERN eq "*.out" ) {
+			next
+			  if ( $file =~ m/_exc\.out/
+				or $file =~ m/_timings\.out/
+				or $file =~ m/_report\.out/ );
+		}
+
+		next if ( $file !~ m/$CHECKID/ );
+
+		set_run_log( $RGLOG, $file );
+
+		open( my $FH, "<", "$file" ) or die "Cannot open $file: $!";
+		while (<$FH>) {
+			if ( $MERGE == 1 )           { print $GFH $_; }
+			if ( $PATTERN =~ m/\.prt$/ ) { print $_; }
+		}
+		close($FH);
+	}
+	close($GFH);
+	if ( $MERGE == 0 ) { unlink($MFILE); }
+}
+
+sub store_localcmd {
+	my ($FILE1)     = shift;
+	my ($FILE2)     = shift;
+	my ($NLOCALCMD) = File::Spec->catfile( $OUTPUTDIR, basename($FILE2) );
+
+	if ( $IS_FIXUP_RUN == 1 ) {
+		$NLOCALCMD =~ s/\.py/_repair.py/g;
+	}
+
+	open( my $NLCMD, ">>", $NLOCALCMD ) or die "Cannot open $NLOCALCMD: $!";
+
+	# No need to add as content is already available..
+	#open( my $F1, "<", $FILE1 ) or die "Cannot open $FILE1: $!";
+	#while (<$F1>) {
+	#    print $NLCMD $_;
+	#}
+	#close($F1);
+
+	print $NLCMD "\n";
+
+	open( my $F2, "<", $FILE2 ) or die "Cannot open $FILE2: $!";
+	my ($debug_code_added) = 0;
+	while (<$F2>) {
+		print $NLCMD $_;
+		if ( $debug_code_added == 0 and $_ =~ /_secure.sync_subprocess/ ) {
+			print $NLCMD <<'EOF';
+#------------------------------------------------------    		
+try:    	
+    # Debug code	
+    print (proc_out, proc_err, rat_exitcode)
+except Exception as err:
+    print (err)
+#------------------------------------------------------    
+EOF
+			$debug_code_added = 1;
+		}
+	}
+	close($F2);
+
+	close($NLCMD);
+}
+
+sub update_ld_lib_path {
+	my ($LD_LIBRARY_PATH) = shift;
+	my ($REPLACE_HOME)    = shift;
+	my ($TMP_ENVFIL)      = shift;
+
+	open( my $TOEF, ">>", "$TMP_ENVFIL" ) or die "Cannot open $TMP_ENVFIL: $!";
+	print $TOEF
+"if re.search(r\'unset\', os.environ.get(\'LD_LIBRARY_PATH\', \'\')): os.environ[\'LD_LIBRARY_PATH\'] = \"\"\n";
+
+	if ( $LD_LIBRARY_PATH !~ m/^${REPLACE_HOME}\/lib:/ ) {
+		my $ldpath = "'"
+		  . File::Spec->catfile( $REPLACE_HOME, 'lib' ) . "'"
+		  . "+ \':\' + "
+		  . $LD_LIBRARY_PATH;
+		print $TOEF "LD_LIBRARY_PATH = $ldpath\n";
+		print $TOEF
+		  "os.environ['LD_LIBRARY_PATH'] = $ldpath + ':' + LD_LIBRARY_PATH\n";
+	}
+	else {
+		print $TOEF "LD_LIBRARY_PATH = $LD_LIBRARY_PATH\n";
+		print $TOEF "os.environ['LD_LIBRARY_PATH'] = $LD_LIBRARY_PATH\n";
+	}
+	close($TOEF);
+}
+
+sub copy_env_files_to_tmp {
+	my ($TMP_ENVFIL)   = shift;
+	my ($RUNNING_HOST) = shift;
+
+	my ($b_ENVFIL)     = basename $ENVFIL;
+	my ($OLD_RTEMPDIR) = $RTEMPDIR;
+
+	if ( $CHG_USER == 1 ) { $RTEMPDIR = $TMP_OUTPUT; }
+
+	my ($TRGTORCLENV) = basename $TMP_ENVFIL;
+	$TRGTORCLENV = File::Spec->catfile( $RTEMPDIR, $TRGTORCLENV );
+
+	if ( $CHG_USER == 1 ) {
+		if ( "$TMP_ENVFIL" ne "$TRGTORCLENV" ) { `rm -f $TRGTORCLENV`; }
+	}
+
+	if ( $MODE == 0 ) {
+		if ( $RUNNING_HOST eq $LOCALNODE ) {
+
+			#if ( !-e $TRGTORCLENV ) { copy( $TMP_ENVFIL, $TRGTORCLENV ); }
+			if ( !-e $TRGTORCLENV ) {
+				copy( $TMP_ENVFIL, $TRGTORCLENV );
+				if ( $CHG_USER == 1 ) {
+					subs_files_to_usr_files( "$TRGTORCLENV",
+						"$OLD_TMP_OUTPUT" );
+				}
+			}
+			if ( !-e File::Spec->catfile( $RTEMPDIR, $b_ENVFIL ) ) {
+				copy( $ENVFIL, File::Spec->catfile( $RTEMPDIR, $b_ENVFIL ) );
+			}
+		}
+		else {
+			my ($remote_trgtenvfile);
+			if ( $is_windows == 1 ) {
+
+				#always
+				$remote_trgtenvfile = 0;
+			}
+			else {
+				($remote_trgtenvfile) =
+				  `$SSHELL $RUNNING_HOST  "ls -l $TRGTORCLENV 2>$DNUL|wc -l"`;
+			}
+			if ( $remote_trgtenvfile <= 0 ) {
+				if ( $CHG_USER == 1 ) {
+					copy( $TMP_ENVFIL, $TMP_ENVFIL . '.bak' );
+					subs_files_to_usr_files( "$TMP_ENVFIL.bak",
+						"$OLD_TMP_OUTPUT" );
+					my $shell_out;
+					if ( $is_windows == 1 ) {
+
+						#Not required
+					}
+					else {
+						$shell_out = <<SHELL;
+                        $SCOPY $TMP_ENVFIL.bak $RUNNING_HOST:$RTEMPDIR >$DNUL 2>&1;
+SHELL
+						`$shell_out`;
+						unlink( $TMP_ENVFIL . '.bak' );
+					}
+				}
+				else {
+					my $shell_out;
+					if ( $is_windows == 1 ) {
+						remote_win_copy_without_cred(
+							$LOCALNODE,    $TMP_ENVFIL,
+							$RUNNING_HOST, $RTEMPDIR
+						);
+					}
+					else {
+						$shell_out = <<SHELL;
+                        $SCOPY $TMP_ENVFIL $RUNNING_HOST:$RTEMPDIR >$DNUL 2>&1;
+SHELL
+						`$shell_out`;
+					}
+
+				}
+			}
+
+			my ($t_ENVFIL) = File::Spec->catfile( $RTEMPDIR, $b_ENVFIL );
+			if ( $is_windows == 1 ) {
+
+				#always
+				$remote_trgtenvfile = 0;
+			}
+			else {
+				$remote_trgtenvfile =
+				  `$SSHELL $RUNNING_HOST  "ls -l $t_ENVFIL 2>$DNUL|wc -l"`;
+			}
+			if ( $remote_trgtenvfile <= 0 ) {
+				my $shell_out;
+				if ( $is_windows == 1 ) {
+					remote_win_copy_without_cred( $LOCALNODE, $ENVFIL,
+						$RUNNING_HOST, $RTEMPDIR );
+				}
+				else {
+					$shell_out = <<SHELL;
+                    $SCOPY $ENVFIL $RUNNING_HOST:$RTEMPDIR >$DNUL;
+SHELL
+					`$shell_out`;
+				}
+			}
+		}
+	}
+
+	if ( $CHG_USER == 1 ) { $RTEMPDIR = $OLD_RTEMPDIR; }
+}
+
+sub set_alvl {
+	my $RCODE        = shift;
+	my $ROOT_RUN     = shift;
+	my $RUNNING_HOST = shift;
+	my $LOCALNODE    = shift;
+	my $TMP_OUTPUT   = shift;
+	my $RTEMPDIR     = shift;
+	my $ALVL;
+	my $RETURNCODE = $RCODE;
+	my %RET_HASH;
+
+	if ( $RUNNING_HOST ne $LOCALNODE ) {
+		$SCPDIR = $RTEMPDIR;
+		if ( $ROOT_RUN == 1 ) {
+			$SCPDIR = $TMP_OUTPUT;
+		}
+		if ( $is_windows == 1 ) {
+			remote_win_copy_without_cred( $RUNNING_HOST, $localcmdval,
+				$LOCALNODE, $SCPDIR );
+			win_ssh_without_cred( $RUNNING_HOST, "cmd del /f $localcmdval" );
+			remote_win_copy_without_cred( $RUNNING_HOST, $rat_exit, $LOCALNODE,
+				$SCPDIR );
+			win_ssh_without_cred( $RUNNING_HOST, "cmd del /f $rat_exit" );
+		}
+		else {
+			$shell_out = <<SHELL;
+                $SCOPY $RUNNING_HOST:$localcmdval $SCPDIR >$DNUL 2>&1
+                $SSHELL $RUNNING_HOST "rm -rf $localcmdval >$DNUL 2>&1"
+                $SCOPY $RUNNING_HOST:$rat_exit $SCPDIR >$DNUL 2>&1
+                $SSHELL $RUNNING_HOST "rm -rf $rat_exit >$DNUL 2>&1"
+SHELL
+			`$shell_out`;
+		}
+	}
+
+	if ( -f "$localcmdval" ) {
+		open( OF, '<', "$localcmdval" );
+		while (<OF>) {
+			$ALVL = $_;
+		}
+		close(OF);
+		chomp($ALVL);
+
+		$RET_HASH{ALVL}  = $ALVL;
+		$RET_HASH{RCODE} = 0;
+		unlink $localcmdval;
+		return \%RET_HASH;
+	}
+
+	if ( -f "$rat_exit" ) {
+		open( OF, '<', "$rat_exit" );
+		while (<OF>) {
+			$RCODE = $_;
+		}
+		close(OF);
+		chomp($RCODE);
+		unlink $rat_exit;
+	}
+
+	if ( $RCODE == 10 ) {
+		$ALVL       = "INFO";
+		$RETURNCODE = 0;
+	}
+	elsif ( $RCODE == 11 ) {
+		$ALVL       = "WARNING";
+		$RETURNCODE = 0;
+	}
+	elsif ( $RCODE == 12 ) {
+		$ALVL       = "ERROR";
+		$RETURNCODE = 0;
+	}
+	elsif ( $RCODE == 13 ) {
+		$ALVL       = "FAIL";
+		$RETURNCODE = 0;
+	}
+
+	$RET_HASH{ALVL}  = $ALVL;
+	$RET_HASH{RCODE} = $RETURNCODE;
+
+	return \%RET_HASH;
+}
+
+sub subs_files_to_usr_files {
+	my ($FILES)    = shift;
+	my ($FPATTERN) = shift;
+	my ($USR_TAG)  = shift;
+
+	my (@allfiles)    = split( ',', $FILES );
+	my (@allpatterns) = split( ',', $FPATTERN );
+
+	foreach my $file (@allfiles) {
+		foreach my $pattern (@allpatterns) {
+			if ( $pattern =~ m/USR_HOMEDIR/ ) {
+				my ($new_absname) = "$TMP_OUTPUT";
+
+`$PERL_EXE -i$BAKUP_FIL -pe 's|$pattern|$new_absname|g' "$file"`;
+			}
+		}
+	}
+}
+
+sub chg_files_for_usr {
+	my ($VARS_TO_CHG) = shift;
+	my ($CURR_VALUES) = shift;
+	my ($USR_TAG)     = shift;
+
+	my ($fdir)  = dirname($CURR_VALUES);
+	my ($fbase) = basename($CURR_VALUES);
+
+	my ($new_absname);
+	if ( $CURR_VALUES =~ m/USR_HOMEDIR/ ) {
+		$new_absname =
+		  File::Spec->catfile( "$TMP_OUTPUT", "$USR_TAG", "$fbase" );
+	}
+	else {
+		$new_absname = File::Spec->catfile( "$fdir", "$USR_TAG", "$fbase" );
+	}
+	if ( $VARS_TO_CHG eq 't_ERRFIL' ) {
+		return File::Spec->catfile( "$TMP_OUTPUT", "$USR_TAG", "$fbase" );
+	}
+	else {
+		return "$new_absname";
+	}
+}
+
+sub get_header {
+	my ($USR)      = shift || current_user();
+	my ($USR_HOME) = shift || undef;
+	my ($FILE2)    = shift;
+
+	my ($ORIG_HEADER) = <<'EOF';
+        To run this script, follow below steps:
+        1) mkdir -p DYNPATH/USERNAME
+        2) cp -r SCRIPTPATH/lib DYNPATH; cp -r SCRIPTPATH/build/PYDIR DYNPATH; cp -r SCRIPTPATH/.cgrep/* DYNPATH
+        3) cp collndir/scripts/SCRIPTNAME DYNPATH
+        4) chown -R USERNAME DYNPATH; chmod -R 755 DYNPATH;
+        5) Change to 'USERNAME' and run 'DYNPATH/PYDIR/bin/python DYNPATH/SCRIPTNAME'
+           OR
+           su USERNAME -c "DYNPATH/PYDIR/bin/python DYNPATH/SCRIPTNAME"
+        
+        To rollback above changes, follow below step as 'USERNAME' user or superuser:
+        1) rm -rf DYNPATH      
+EOF
+	$ORIG_HEADER =~ s/PYDIR/$PYDIR/g;
+	if ( !defined $USR_HOME ) {
+		$ORIG_HEADER =~ s/DYNPATH/$RTEMPDIR/g;
+	}
+	else {
+		my ($NR_RTEMPDIR) = File::Spec->catfile( $USR_HOME, $TAG );
+		if ( defined $ENV{'RAT_TMP_OUTPUT'}
+			and $ENV{'RAT_TMP_OUTPUT'} !~ m/USR_HOMEDIR/ )
+		{
+			my $t_USER_HOME = $ENV{'RAT_TMP_OUTPUT'};
+			$t_USER_HOME =~ s/$TAG//g;
+			$USR_HOME = $t_USER_HOME;
+			($NR_RTEMPDIR) = File::Spec->catfile( $USR_HOME, $TAG );
+		}
+		$ORIG_HEADER =~ s/DYNPATH/$NR_RTEMPDIR/g;
+	}
+	$FILE2 = basename($FILE2);
+	$FILE2 =~ s/-//g;
+	$ORIG_HEADER =~ s/SCRIPTNAME/$FILE2/g;
+	$ORIG_HEADER =~ s/USERNAME/$USR/g;
+	return $ORIG_HEADER;
+}
+
+sub set_python {
+	my ($USR_HOME) = shift || undef;
+	$ORIG_PYTHON = $PYTHON;
+	if ( !defined $USR_HOME ) {
+		if ( $is_windows == 1 ) {
+			$PYTHON = File::Spec->catfile( $RTEMPDIR, $PYDIR, 'python.exe' );
+		}
+		else {
+			$PYTHON = File::Spec->catfile( $RTEMPDIR, $PYDIR, 'bin', 'python' );
+		}
+	}
+	else {
+		if ( defined $ENV{'RAT_TMP_OUTPUT'}
+			and $ENV{'RAT_TMP_OUTPUT'} !~ m/USR_HOMEDIR/ )
+		{
+			my $t_USER_HOME = $ENV{'RAT_TMP_OUTPUT'};
+			$t_USER_HOME =~ s/$TAG//g;
+			$USR_HOME = $t_USER_HOME;
+		}
+		if ( $is_windows == 1 ) {
+			$PYTHON =
+			  File::Spec->catfile( $USR_HOME, $TAG, $PYDIR, 'python.exe' );
+		}
+		else {
+			$PYTHON =
+			  File::Spec->catfile( $USR_HOME, $TAG, $PYDIR, 'bin', 'python' );
+		}
+	}
+	return $PYTHON;
+}
+
+sub reset_python {
+	if ( defined $ORIG_PYTHON ) {
+		$PYTHON = $ORIG_PYTHON;
+	}
+	$ORIG_PYTHON = undef;
+}
+
+sub pass { return ''; }
+
+#Conversion for shell command 'cat <filename>' and returns the contents in an array
+sub win_readFileToArray {
+	my $filename = shift;
+	my @arr;
+	open FILE, "$filename" or die "Could not open $filename!\n";
+	while (<FILE>) {
+		push @arr, $_;
+	}
+	close FILE;
+	return @arr;
+}
+
+sub remote_win_copy_without_cred {
+	my $SrcHost       = shift;    # Source Host Name
+	my $SrcDir        = shift;    # Source Directory Path
+	my $DstHost       = shift;    # Destination Host Name
+	my $DstDir        = shift;    # Destination Directory Path
+	my $extra_params  = shift;    # Extra parmeters if any - Optional
+	                              # Parameters (robocopy keys)
+	                              # my $Params = "/XD * /Z /MIR";
+	my $files_to_copy = '*.*';
+	my $Params = "/S /E /NFL /NDL /NJH /NJS ";
+
+	if ( -f $SrcDir ) {
+		$files_to_copy = basename($SrcDir);
+		$SrcDir        = dirname($SrcDir);
+	}
+
+	my @SrcDirPath = split( /:/, $SrcDir );
+	my $derivedSrcDir = substr( $SrcDir, 0, 1 ) . "\$" . $SrcDirPath[1];
+
+	my @DstDirPath = split( /:/, $DstDir );
+	my $derivedDesDir = substr( $DstDir, 0, 1 ) . "\$" . $DstDirPath[1];
+
+	my $cmd;
+	$cmd =
+"robocopy.exe \"\\\\$SrcHost\\$derivedSrcDir\" *.* \"\\\\$DstHost\\$derivedDesDir\" $files_to_copy $Params $extra_params";
+
+	#print "\n$cmd\n";
+	# /NFL /NDL /NJH /NJS /nc /ns /np
+	#print "CMD: $cmd\n";
+	print `$cmd`;
+}
+
+# Copies file/Directory as per robocopy in windows.
+# Should be used to read very small files like (.pidfile etc.)
+# Parameters : $source - source path, $destination - destination path
+sub win_robocopy {
+	my $source      = shift;
+	my $destination = shift;
+
+	my $file;
+	my $folderName;
+	my $newFile;
+
+	if ( ( -f $source ) && ( -d $destination ) ) {
+		$file        = basename($source);
+		$source      = dirname($source);
+		$destination = $destination;
+
+#print "COPY CMD: robocopy $source $destination $file /NFL /NDL /NJH /NJS /nc /ns /np\n";
+		system(
+"robocopy $source $destination $file /NFL /NDL /NJH /NJS /nc /ns /np"
+		);
+	}
+	elsif ( ( -d $source ) && ( -d $destination ) ) {
+		$folderName = basename($source);
+		$destination = catdir( $destination, $folderName );
+
+#print "COPY CMD: robocopy $source $destination /MIR /S /E /NFL /NDL /NJH /NJS /nc /ns /np\n";
+		system(
+"robocopy $source $destination /MIR /S /E /NFL /NDL /NJH /NJS /nc /ns /np"
+		);
+	}
+	else {
+		$file        = basename($source);
+		$newFile     = basename($destination);
+		$source      = dirname($source);
+		$destination = dirname($destination);
+
+#print "COPY CMD: robocopy $source $destination $file /NFL /NDL /NJH /NJS /nc /ns /np\n";
+		system(
+"robocopy $source $destination $file /NFL /NDL /NJH /NJS /nc /ns /np"
+		);
+		system( "move "
+			  . catfile( $destination, $file ) . " "
+			  . catfile( $destination, $newFile )
+			  . " > nul" );
+	}
+}
+
+#copy files between the nodes
+sub win_remote_win_copy {
+
+	# Authentication
+	my $IPCUser = shift;
+
+	#for IPC$ share
+	my $IPCPwd = shift;
+
+	# Source Host Name
+	my $SrcHost = shift;
+
+	# Source Directory Path
+	my $SrcDir = shift;
+
+	# Destination Host Name
+	my $DstHost = shift;
+
+	# Destination Directory Path
+	my $DstDir = shift;
+
+	# Parameters (robocopy keys)
+	# my $Params = "/XD * /Z /MIR";
+	my $Params = "/S /E /NFL /NDL /NJH /NJS ";
+
+	my @SrcDirPath = split( /:/, $SrcDir );
+	my $derivedSrcDir = substr( $SrcDir, 0, 1 ) . "\$" . $SrcDirPath[1];
+
+	my @DstDirPath = split( /:/, $DstDir );
+	my $derivedDesDir = substr( $DstDir, 0, 1 ) . "\$" . $DstDirPath[1];
+
+	my $cmd;
+	$cmd = "NET USE \\\\$DstHost\\IPC\$ /u:$IPCUser $IPCPwd";
+	print `$cmd`;
+	$cmd =
+"robocopy.exe \\\\$SrcHost\\$derivedSrcDir\\ *.* \\\\$DstHost\\$derivedDesDir\\ $Params ";
+
+	# /NFL /NDL /NJH /NJS /nc /ns /np
+	print `$cmd`;
+	$cmd = "NET USE \\\\$DstHost\\IPC\$ /D";
+	print `$cmd`;
+}
+
+sub win_ssh_without_cred {
+	my $host          = shift;
+	my $remoteCommand = shift;
+	my $localhost     = shift;
+	my $output_type   = shift;
+
+	my $output;
+	my @command_output;
+	my $returnValue = "1";    # 0 means proper execution else improper execution
+	my $cmd;
+	my $ignore_output;
+
+	if ( $output_type eq 'OUTPUT_REDIRECT' ) {
+		my $tmploc = $ENV{'TMPLOC'};
+		my $remote_cmd_temp_dir = catfile( $tmploc, 'remote_cmd_dir' );
+		my $remote_cmd_temp_log =
+		  catfile( $remote_cmd_temp_dir, "remote_command.log" );
+		my $remote_cmd_temp_log_local =
+		  catfile( $tmploc, "remote_command.log" );
+
+		my $create_remote_dir_cmd =
+		  "cmd /c mkdir $remote_cmd_temp_dir";    # Create Remote Temp dir
+		my $create_remote_dir_command =
+		  "WMIC /node:$host PROCESS call create \"$create_remote_dir_cmd\"";
+		`$create_remote_dir_command`;
+
+		my $remote_command = "$remoteCommand > $remote_cmd_temp_log 2>&1";
+		$cmd    = "WMIC /node:$host PROCESS call create \"$remote_command\"";
+		$output = `$cmd`;
+
+		remote_win_copy_without_cred( $host, $remote_cmd_temp_dir, $localhost,
+			$tmploc );
+
+		my $remove_remote_dir_cmd =
+		  "cmd /c rmdir /S /Q $remote_cmd_temp_dir";    # Remove Remote Temp dir
+		my $remove_remote_dir_command =
+		  "WMIC /node:$host PROCESS call create \"$remove_remote_dir_cmd\"";
+		`$remove_remote_dir_command`;
+
+		@command_output = win_readFileToArray($remote_cmd_temp_log_local);
+
+		my $remove_remote_temp_log_local_cmd =
+		  "cmd /c del /F /Q $remote_cmd_temp_log_local";
+		my $remove_remote_temp_log_local_command =
+"WMIC /node:$localhost PROCESS call create \"$remove_remote_temp_log_local_cmd\""
+		  if ( -f $remote_cmd_temp_log_local );
+		`$remove_remote_temp_log_local_command`;
+	}
+	else {
+		$cmd    = "WMIC /node:$host PROCESS call create \"$remoteCommand\"";
+		$output = `$cmd`;
+
+		# print "SSH CMD: $cmd\n";
+	}
+	my @lines = split( /\n/, $output );
+	foreach my $line (@lines) {
+		if ( index( $line, "ReturnValue" ) != -1 ) {
+			$returnValue = $line;
+			$returnValue =~ s/\D//g;
+		}
+	}
+	return $returnValue if ( $output_type ne 'OUTPUT_REDIRECT' );
+	return \@command_output, $returnValue
+	  if ( $output_type eq 'OUTPUT_REDIRECT' );
+}
+
+#check if ssh eqivalence is present b/w the nodes of a cluster
+sub win_check_ssh_equivalence {
+	my $REMOTE_HOST = shift;
+	my $SSH_STATUS  = "1";
+
+	if ( $is_windows == 1 ) {
+		my $returnValue = win_ssh_without_cred( $REMOTE_HOST, "cmd /c dir" );
+		if ( "$returnValue" eq "0" ) {
+			$SSH_STATUS = "0";
+		}
+	}
+	else {
+
+# $SSH -o NumberOfPasswordPrompts=0 -o StrictHostKeyChecking=no -l $SSH_USER $REMOTE_HOST ls > $DNUL 2>&1
+# SSH_STATUS=$?
+	}
+	return $SSH_STATUS;
+}
+
+#ssh equivalents in perl for windows
+sub win_ssh {
+	my $host          = shift;
+	my $user          = shift;
+	my $pass          = shift;
+	my $remoteCommand = shift;
+	my $returnValue   = "1";  # 0 means proper execution else improper execution
+	my $cmd =
+"WMIC /user:$user /Password:$pass /node:$host PROCESS call create \"$remoteCommand\"";
+	my $output = `$cmd`;
+	my @lines = split( /\n/, $output );
+
+	foreach my $line (@lines) {
+		if ( index( $line, "ReturnValue" ) != -1 ) {
+			$returnValue = $line;
+			$returnValue =~ s/\D//g;
+		}
+	}
+	return $returnValue;
+}
+
+sub usage {
+	print "Usage: $0 
+	   -c CHECK METAFILE 
+	   -d DBFILE 
+	   -g STATFILE
+	   -o OUTPUTDIR 
+	   -w OUTPUTDIR_NEW 
+	   -i INPUTDIR 
+	   -t RTEMPDIR 
+	   -e ERRFIL
+	   -p ENVFILE
+	   -u LIMIT					   
+	   -m (MERGE(1) or SEPARATE(0)) 
+	   -v CHECK_TIMINGS
+	   -f CHK_TIMINGS
+	   -a ORCLENVFIL
+	   -s (OFFLINE(1) or ONLINE(0) 
+	   -n LOCALNODE 
+	   -r rHOST
+	   -b HOUSEKEEPING(1) or (0)
+	   -kl KEEP localcmd.py (1) or (0)
+	   -z SKIPPED_CHECKS
+	   -j TMP OUTPUT DIR (for root run)
+	   -k APP TYPE
+	   -y NO OF DATABASES
+	   -l LIMIT_COMPUTE_AT_TOOL (Limit computed at main program)
+	   -q FUNC_TOCALL
+	   -x EXECUTABLE
+	   -isrepairmode REPAIR_MODE(1) or (0)
+	   -h HELP
+	\n\n";
+	exit;
+}
+
+#Main Script--------------
+if ( @ARGV == 0 ) {
+	usage();
+}
+
+GetOptions(
+	"c=s"            => \$CHKMETAFILE,
+	"d=s"            => \$DBFILE,
+	"g=s"            => \$STATFIL,
+	"o=s"            => \$OUTPUTDIR,
+	"w=s"            => \$OUTPUTDIR_NEW,
+	"i=s"            => \$INPUTDIR,
+	"t=s"            => \$RTEMPDIR,
+	"e=s"            => \$ERRFIL,
+	"p=s"            => \$ENVFIL,
+	"u=s"            => \$LIMIT,
+	"m=n"            => \$MERGE,
+	"v=s"            => \$CHECK_TIMINGS,
+	"f=s"            => \$CHK_TIMINGS,
+	"a=s"            => \$ORCLENVFIL,
+	"s=n"            => \$MODE,
+	"n=s"            => \$LOCALNODE,
+	"r=s"            => \$rHOST,
+	"b=n"            => \$HOUSEKEEPING,
+	"kl=n"           => \$KEEP_LCMD,
+	"z=s"            => \$SKIPFIL,
+	"j=s"            => \$TMP_OUTPUT,
+	"k=s"            => \$APPTYPE,
+	"y=n"            => \$NO_OF_SEL_DBS,
+	"l=n"            => \$LIMIT_COMPUTE_AT_TOOL,
+	"q=s"            => \$FUNC_TOCALL,
+	"x=s"            => \$EXECUTABLE,
+	"isrepairmode=n" => \$IS_FIXUP_RUN,
+	"h"              => \$SHOW_HELP,
+) or usage();
+
+my ($PYTHON) = File::Spec->catfile( $RTEMPDIR, $PYDIR, 'bin', 'python' );
+if ( $is_windows == 1 ) {
+	$PYTHON = File::Spec->catfile( $RTEMPDIR, $PYDIR, 'python.exe' );
+}
+
+my ($ORIG_PYTHON) = undef;
+
+if ( defined $FUNC_TOCALL && $FUNC_TOCALL =~ m/^function:/i ) {
+	$FUNC_TOCALL =~ s/^function://gi;
+	$FUNC_TOCALL =~ s/\s//g;
+
+	print &$FUNC_TOCALL;
+	exit 0;
+}
+
+if ( defined $TMP_OUTPUT && $TMP_OUTPUT =~ m/USR_HOMEDIR/ ) {
+	$is_copy_sql_files_to_usrdir = 1;
+}
+
+if ( defined $OUTPUTDIR ) {
+	$RUNLOG = File::Spec->catfile( $OUTPUTDIR,
+		$BASENAME . '_' . $LOCALNODE . '_run' . '.log' );
+}
+my ($STFIL) = File::Spec->catfile( $RTEMPDIR, $BASENAME . '_sql_collect.prt' );
+
+open( $RGLOG, ">>", "$RUNLOG" ) or die "Cannot open $RUNLOG: $!";
+
+if ( defined $LIMIT_COMPUTE_AT_TOOL && $LIMIT_COMPUTE_AT_TOOL != 0 ) {
+	$LIMIT = $LIMIT_COMPUTE_AT_TOOL;
+}
+else {
+	if ( !defined $LIMIT ) { $LIMIT = 0; }
+	if ( $LIMIT !~ m/max/i ) {
+		$LIMIT = no_of_child_proc() if ( $LIMIT == 0 || !defined $LIMIT );
+	}
+
+	my ($PROCESSORS) = no_of_cpus();
+	if ( $LIMIT eq "max" ) {
+		if ( $PROCESSORS > $NO_OF_SEL_DBS ) {
+			$LIMIT = $NO_OF_SEL_DBS;
+		}
+		else {
+			$LIMIT = $PROCESSORS;
+		}
+	}
+	else {
+		if ( $LIMIT > $NO_OF_SEL_DBS ) { $LIMIT = $NO_OF_SEL_DBS; }
+	}
+}
+
+set_run_log( $RGLOG, "Processes Generated : $LIMIT" );
+
+if ( $SHOW_HELP == 1 ) {
+	usage();
+	exit;
+}
+
+my ($CUR_USERN) = current_user();
+my ($CUR_USERI) = $<;
+
+set_run_log( $RGLOG, "User: $CUR_USERN\n" );
+
+#Switch off change user for windows - align logic with Framework
+if ( $CUR_USERN eq 'root' or $CUR_USERI == 0 ) {
+	my ($ROOT_RUN) = $ENV{RAT_ROOT_RUN} || 0;
+	if ( $ROOT_RUN == 1 and $is_windows != 1 ) { $CHG_USER = 1; }
+}
+
+$TAG = basename($RTEMPDIR);
+
+if ( defined $CHKMETAFILE ) {
+	set_run_log( $RGLOG, "CHECK META FILE CONTENT:" );
+
+	open( my $FH, "<", "$CHKMETAFILE" ) or die "Cannot open $CHKMETAFILE: $!";
+	while ( my $line = <$FH> ) {
+		next if ( $line =~ m/^\s*#/ );
+		my ($rawline) = $line;
+		chomp($line);
+
+		set_run_log( $RGLOG, $line );
+
+		if ( $line =~ m/^CHECKID=/ ) {
+			$line =~ s/^CHECKID=//g;
+			$CHECKID = $line;
+		}
+		elsif ( $line =~ m/^COMTYPE=/ ) {
+			$line =~ s/^COMTYPE=//g;
+			$COMTYPE = $line;
+		}
+		elsif ( $line =~ m/^COM_REPORT_START=/ ) {
+			$rawline =~ s/^COM_REPORT_START=//g;
+			$COM_REPORT = $rawline;
+			while ( my $line = <$FH> ) {
+				if ( $line =~ m/^\s*COM_REPORT_END\s*$/ ) {
+					last;
+				}
+				$COM_REPORT .= $line;
+			}
+			chomp($COM_REPORT);
+		}
+		elsif ( $line =~ m/^COM_START=/ ) {
+			$rawline =~ s/^COM_START=//g;
+			$COMMAND = $rawline;
+			while ( my $line = <$FH> ) {
+				if ( $line =~ m/^\s*COM_END\s*$/ ) {
+					last;
+				}
+				$COMMAND .= $line;
+			}
+			chomp($COMMAND);
+		}
+		elsif ( $line =~ m/^AUDIT_CHECK_NAME=/ ) {
+			$line =~ s/^AUDIT_CHECK_NAME=//g;
+			$AU_CHK_NAME = $line;
+		}
+		elsif ( $line =~ m/^RAT_RUNMODE_INTERNAL=/ ) {
+			$line =~ s/^RAT_RUNMODE_INTERNAL=//g;
+			$RAT_RUNMODE_INTERNAL = $line;
+		}
+		elsif ( $line =~ m/^NEEDS_RUNNING=/ ) {
+			$line =~ s/^NEEDS_RUNNING=//g;
+			$NEEDS_RUNNING = $line;
+		}
+		elsif ( $line =~ m/^COLLECTION_NAME=/ ) {
+			$line =~ s/^COLLECTION_NAME=//g;
+			$COLLECTION_NAME = $line;
+		}
+		elsif ( $line =~ m/^OUTFILNAM=/ ) {
+			$line =~ s/^OUTFILNAM=//g;
+			$OUTFILNAM = $line;
+		}
+		elsif ( $line =~ m/^STACK_ASM_SID=/ ) {
+			$line =~ s/^STACK_ASM_SID=//g;
+			$STACK_ASM_SID = $line;
+		}
+		elsif ( $line =~ m/^STACK_ASM_HOME=/ ) {
+			$line =~ s/^STACK_ASM_HOME=//g;
+			$STACK_ASM_HOME = $line;
+		}
+		elsif ( $line =~ m/^PARAM_PATH=/ ) {
+			$line =~ s/^PARAM_PATH=//g;
+			$PARAM_PATH = $line;
+		}
+		elsif ( $line =~ m/^ROW=/ ) {
+			$line =~ s/^ROW=//g;
+			$ROW = $line;
+		}
+	}
+}
+
+my ($CHILDREN) = 0;
+
+open( my $DFH, "<", "$DBFILE" ) or die "Cannot open $DBFILE: $!";
+while (<$DFH>) {
+
+#Format: DBNAME,ORACLE_SID,ORACLE_HOME,DBROLE,DBROLEMCNT,DBTYPE,DBTYPEMCNT,DBUSR,DBPWD,PDB_USER,SYSPWD,CONSTR,CHKSYSDBA,RUNNING_HOST
+	if ( $CHILDREN == $LIMIT ) {
+		$PID = wait();
+		$CHILDREN--;
+	}
+
+	next if ( $_ =~ /^\s*$/ || $_ =~ /^\s*#/ );
+	my (
+		$DBNAME,     $ORACLE_SID,   $ORACLE_HOME, $DBROLE,
+		$DBROLEMCNT, $DBTYPE,       $DBTYPEMCNT,  $DBUSR,
+		$DBPWD,      $PDB_USER,     $SYSPWD,      $CONSTR,
+		$CHKSYSDBA,  $RUNNING_HOST, $DBAPPUSR
+	) = split( ",", $_ );
+	chomp($DBAPPUSR);
+	chomp($RUNNING_HOST);
+
+	my ($t_RUNLOG) = File::Spec->catfile( $INPUTDIR,
+		$RUNNING_HOST . '_-' . $CHECKID . '_-' . $DBNAME . '_-' . 'run.log' );
+	open( my $RLOG, ">>", "$t_RUNLOG" )
+	  or die "Cannot open $t_RUNLOG: $!";
+
+	set_run_log( $RLOG,
+"[RUNNING_HOST: $RUNNING_HOST] [DBNAME: $DBNAME] [ORACLE_SID: $ORACLE_SID] [ORACLE_HOME: $ORACLE_HOME]"
+	);
+
+	$ENV{ORACLE_HOME} = "$ORACLE_HOME";
+	$ENV{ORACLE_SID}  = "$ORACLE_SID";
+
+	my ($SQLPLUS);
+	if ( $is_windows == 1 ) {
+		$SQLPLUS =
+		  File::Spec->catfile( $ENV{ORACLE_HOME}, 'BIN', 'sqlplus.exe' );
+	}
+	else {
+		$SQLPLUS = File::Spec->catfile( $ENV{ORACLE_HOME}, 'bin', 'sqlplus' );
+	}
+
+	if ( $CHG_USER == 1 ) {
+		get_dbOwner( $ORACLE_HOME, $RUNNING_HOST );
+		write_del_rolbk_tmpoutput();
+	}
+
+	$PID = fork();
+	if ($PID) {
+		$CHILDREN++;
+		push @PIDS, $PID;
+	}
+	elsif ( $PID == 0 ) {
+		$ENV{RAT_CHECK_DB} = "$DBNAME";
+		if ( defined $SSH_IDENTITY ) {
+			my ($presentdir) = $ENV{RAT_SCRIPTPATH};
+			my ($python_exe) = set_python()
+			  || File::Spec->catfile( $presentdir, 'build', $PYDIR, 'bin',
+				'python' );
+			if ( $is_windows == 1 ) {
+				$python_exe = $ENV{RAT_PYTHONEXE}
+				  || File::Spec->catfile( $presentdir, 'build', $PYDIR,
+					'python.exe' );
+			}
+			my ($constants) =
+			  File::Spec->catfile( $presentdir, "lib", "constant.py" );
+			if ( -e $constants ) {
+				;
+			}
+			else {
+				$constants =
+				  File::Spec->catfile( $presentdir, "lib", "constant.pyc" );
+			}
+			my $return_raw_str =
+`$python_exe -m lib.constant 'Constants:get_identity_file' '$CUR_USERN,$RUNNING_HOST'`;
+			$return_raw_str =~ s/[\[\]]+//g;
+			@status_arr    = split( ',', $return_raw_str );
+			$IDENTITY_FILE = $status_arr[0];
+			$return_code   = $status_arr[1];
+			$return_code =~
+			  s/^\s+|\s+$//g;    #Remove extra spaces if any from return code
+
+			if ( $return_code eq "True" ) {
+				$SCOPY =
+"/usr/bin/scp -i $IDENTITY_FILE -o UserKnownHostsFile=$DNUL -o StrictHostKeyChecking=no -q";
+				$SSHELL =
+"/usr/bin/ssh -i $IDENTITY_FILE -o UserKnownHostsFile=$DNUL -o StrictHostKeyChecking=no -q";
+			}
+		}
+
+        my ($dbConnectString);
+        if ( $is_windows == 1 ) {
+            if ( $DBTYPE eq "PDB" ) {
+            	if (defined $ENV{RAT_CONNECT_WO_DBNAME}) {
+            		$dbConnectString = "$PDB_USER/$SYSPWD as sysdba";
+            	} else {
+                	$dbConnectString = "$PDB_USER/$SYSPWD\@$SYSPWD as sysdba";
+            	}
+            }
+            else {
+            	if (defined $ENV{RAT_CONNECT_WO_DBNAME}) {
+            		$dbConnectString = "$DBUSR/$DBPWD as sysdba";
+            	}else {
+                	$dbConnectString = "$DBUSR/$DBPWD\@$DBNAME as sysdba";
+                }
+            }
+        }
+        else {
+            if ( $DBTYPE eq "PDB" ) {
+                $dbConnectString = "$PDB_USER/$SYSPWD\@$SYSPWD as sysdba";
+            }
+            else {
+                $dbConnectString = "$DBUSR/$DBPWD as sysdba";
+            }
+        }
+        if ( defined $DEBUG && $DEBUG == 1 ) {
+            $DEBUG_FLG = "set -x";
+        }
+
+		my ($FILENAME);
+		my ($OH_OWNER_UID);
+		my ($RETURNCODE);
+
+		my ($USER_HASH);
+		my ( $CURRENT_OH_OWNER, $CURRENT_OH_GROUP, $HOME_DIR );
+
+		my ($MVS_HASH);
+		my ($ALVL_HASH);
+
+		my ( $t_SKIPFIL,    $t_CHK_TIMINGS, $t_STATFIL );
+		my ( $PROCESS_IDIR, $PROCESS_ODIR,  $PROCESS_RDIR );
+		if ( $CHG_USER == 0 ) {
+			$PROCESS_IDIR = $INPUTDIR;
+			$PROCESS_ODIR = $OUTPUTDIR;
+			$PROCESS_RDIR = $RTEMPDIR;
+		}
+		else {
+			$PROCESS_IDIR = $TMP_OUTPUT;
+			$PROCESS_ODIR = $TMP_OUTPUT;
+			$PROCESS_RDIR = $TMP_OUTPUT;
+		}
+		($t_SKIPFIL) = File::Spec->catfile( $PROCESS_IDIR,
+			    $RUNNING_HOST . '_-'
+			  . $CHECKID . '_-'
+			  . $DBNAME . '_-'
+			  . 'skipped_checks.log' );
+		($t_CHK_TIMINGS) = File::Spec->catfile( $PROCESS_IDIR,
+			    $RUNNING_HOST . '_-'
+			  . $CHECKID . '_-'
+			  . $DBNAME . '_-'
+			  . 'epoch_timings.out' );
+		($t_STATFIL) = File::Spec->catfile( $PROCESS_IDIR,
+			    $RUNNING_HOST . '_-'
+			  . $CHECKID . '_-'
+			  . $DBNAME . '_-'
+			  . 'stat.data' );
+
+		my ($EPOCH_TIME) = 0;
+
+		if ( $COMTYPE eq 'GENERIC' ) {
+			my ($INFIL) = File::Spec->catfile( $PROCESS_IDIR,
+				$CHECKID . '_-' . $DBNAME . '.sql' );
+			my ($OUTFIL) = File::Spec->catfile( $PROCESS_ODIR,
+				$CHECKID . '_-' . $DBNAME . '.out' );
+
+			if ( $CHG_USER == 1 ) {
+				$USER_HASH = get_dbOwner( $ORACLE_HOME, $RUNNING_HOST );
+				( $CURRENT_OH_OWNER, $CURRENT_OH_GROUP, $HOME_DIR ) = (
+					$USER_HASH->{CURRENT_OH_OWNER},
+					$USER_HASH->{CURRENT_OH_GROUP},
+					$USER_HASH->{HOME_DIR}
+				);
+				$INFIL =
+				  chg_files_for_usr( "INFIL", "$INFIL", "$CURRENT_OH_OWNER" );
+				$t_SKIPFIL = chg_files_for_usr( "t_SKIPFIL", "$t_SKIPFIL",
+					"$CURRENT_OH_OWNER" );
+				$t_CHK_TIMINGS =
+				  chg_files_for_usr( "t_CHK_TIMINGS", "$t_CHK_TIMINGS",
+					"$CURRENT_OH_OWNER" );
+				$t_STATFIL = chg_files_for_usr( "t_STATFIL", "$t_STATFIL",
+					"$CURRENT_OH_OWNER" );
+			}
+			open( my $CHKT, ">", "$t_CHK_TIMINGS" )
+			  or die "Cannot open $t_CHK_TIMINGS: $!";
+
+			open( my $INH, ">", "$INFIL" ) or die "Cannot open $INFIL: $!";
+			print $INH "$COMMAND\n";
+			close($INH);
+
+			if ( $RUNNING_HOST eq $LOCALNODE ) {
+				my $shell_out;
+				if ( $is_windows == 1 ) {
+
+				  # Triple carrot(^) to stop interpolation of special characters
+					$shell_out =
+"(echo set head off; & echo set lines 80; & echo set feedback off; & echo set serveroutput on; & echo spool $OUTFIL; & echo \@\@$INFIL; & echo spool off; & echo exit;)| $SQLPLUS -s \"$dbConnectString\" 2>$DNUL 2>&1";
+				}
+				else {
+					$shell_out = <<SHELL;
+                                $SQLPLUS -s $dbConnectString 2>$DNUL 2>&1 <<EOF
+                                set head off
+                                set lines 80
+                                set feedback off
+                                set serveroutput on
+                                spool $OUTFIL;
+                                \@\@$INFIL;
+                                spool off
+                                exit
+EOF
+SHELL
+				}
+				$EPOCH_TIME = get_current_epoch();
+				print $CHKT
+"[CHECK:$CHECKID][HOST: $RUNNING_HOST][TAG1: $DBNAME] Execution Start Time: $EPOCH_TIME\n";
+
+				if ( $CHG_USER == 0 ) {
+					`$shell_out`;
+					$RETURNCODE = `echo $?`;
+				}
+				else {
+					$OUTFIL = chg_files_for_usr( "OUTFIL", "$OUTFIL",
+						"$CURRENT_OH_OWNER" );
+
+					my ($uid) = ( getpwnam $CURRENT_OH_OWNER )[2];
+					my ($gid) = ( getpwnam $CURRENT_OH_OWNER )[3];
+					chown $uid, $gid, $INFIL;
+					if ( -e $HOME_DIR ) { `cd $HOME_DIR`; }
+					`su $CURRENT_OH_OWNER -c "$shell_out"`;
+					$RETURNCODE = `echo $?`;
+
+					if ( "$OUTFIL" ne "$OUTPUTDIR" ) {
+						`cp $OUTFIL $OUTPUTDIR`;
+					}
+					write_del_rolbk_tmpoutput();
+				}
+
+				$EPOCH_TIME = get_current_epoch();
+				print $CHKT
+"[CHECK:$CHECKID][HOST: $RUNNING_HOST][TAG1: $DBNAME] Execution End Time: $EPOCH_TIME\n";
+			}
+			else {
+				my ($SQLTORUN) = File::Spec->catfile( $PROCESS_RDIR,
+					    'sqltorun_'
+					  . $CHECKID . '_-'
+					  . $DBNAME . '_-'
+					  . $RUNNING_HOST
+					  . '.sql' );
+				my ($SPOOLFILE) = File::Spec->catfile( $PROCESS_RDIR,
+					    'sqltorun_'
+					  . $CHECKID . '_-'
+					  . $DBNAME . '_-'
+					  . $RUNNING_HOST
+					  . '.out' );
+
+				if ( $CHG_USER == 1 ) {
+					$SQLTORUN = chg_files_for_usr( "SQLTORUN", "$SQLTORUN",
+						"$CURRENT_OH_OWNER" );
+					$SPOOLFILE = chg_files_for_usr( "SPOOLFILE", "$SPOOLFILE",
+						"$CURRENT_OH_OWNER" );
+				}
+
+				$EPOCH_TIME = get_current_epoch();
+				print $CHKT
+"[CHECK:$CHECKID][HOST: $RUNNING_HOST][TAG1: $DBNAME] Execution Start Time: $EPOCH_TIME\n";
+
+				my $shell_out;
+				if ( $CHG_USER == 0 ) {
+					if ( $is_windows == 1 ) {
+						my $rfile =
+						  File::Spec->catfile( "$PROCESS_RDIR",
+							basename($INFIL) );
+
+						remote_win_copy_without_cred(
+							$LOCALNODE,    $INFIL,
+							$RUNNING_HOST, $PROCESS_RDIR
+						);
+						win_ssh_without_cred( $RUNNING_HOST,
+							"cmd rename $rfile $SQLTORUN" );
+
+				#..may be we need to export ORACLE_SID and ORACLE_HOME variable.
+						$shell_out =
+"(echo set head off; & echo set lines 80; & echo set feedback off; & echo set serveroutput on; & echo spool $SPOOLFILE; & echo \@\@$SQLTORUN; & echo spool off; & echo exit;)| $SQLPLUS -s \"$dbConnectString\" 2>$DNUL 2>&1";
+
+#						$shell_out = <<WINSHELL;
+#                                set ORACLE_HOME=$ORACLE_HOME;
+#                                set ORACLE_SID=$ORACLE_SID;
+#                                $SQLPLUS -s $dbConnectString 2>$DNUL 2>&1 <<EOF
+#                                set head off
+#                                set lines 80
+#                                set feedback off
+#                                set serveroutput on
+#                                spool $SPOOLFILE;
+#                                \@\@$SQLTORUN;
+#                                spool off
+#                                exit
+#EOF
+#WINSHELL
+						$RETURNCODE = win_ssh_without_cred( $RUNNING_HOST,
+							"cmd $shell_out" );
+					}
+					else {
+						$shell_out = <<SHELL;
+                                $SCOPY $INFIL $LOCALNODE:$SQLTORUN
+                                $SSHELL $RUNNING_HOST bash <<EOF2
+                                export ORACLE_HOME=$ORACLE_HOME;
+                                export ORACLE_SID=$ORACLE_SID;
+                                $SQLPLUS -s $dbConnectString 2>$DNUL 2>&1 <<EOF
+                                set head off
+                                set lines 80
+                                set feedback off
+                                set serveroutput on
+                                spool $SPOOLFILE;
+                                \@\@$SQLTORUN;
+                                spool off
+                                exit
+EOF
+EOF2
+SHELL
+						`$shell_out`;
+						$RETURNCODE = `echo $?`;
+					}
+				}
+				else {
+					#$SPOOLFILE = chg_files_for_usr( "SPOOLFILE", "$SPOOLFILE",
+					#    "$CURRENT_OH_OWNER" );
+
+					if ( $is_windows == 1 ) {
+
+						#Not required
+					}
+					else {
+						$shell_out = <<SHELL;
+                                $SCOPY $INFIL $RUNNING_HOST:$SQLTORUN
+								$SSHELL $RUNNING_HOST "chown $CURRENT_OH_OWNER:$CURRENT_OH_GROUP $SQLTORUN"
+                                $SSHELL $RUNNING_HOST bash <<EOF2
+                                if [[ -e $HOME_DIR ]]; then cd $HOME_DIR; fi;
+                                export ORACLE_HOME=$ORACLE_HOME;
+                                export ORACLE_SID=$ORACLE_SID;
+                                su $CURRENT_OH_OWNER -c "$SQLPLUS -s $dbConnectString 2>$DNUL 2>&1 <<EOF
+                                set head off
+                                set lines 80
+                                set feedback off
+                                set serveroutput on
+                                spool $SPOOLFILE;
+                                \@\@$SQLTORUN;
+                                spool off
+                                exit
+EOF
+"
+EOF2
+SHELL
+						`$shell_out`;
+						$RETURNCODE = `echo $?`;
+					}
+					write_del_rolbk_tmpoutput();
+				}
+
+				$EPOCH_TIME = get_current_epoch();
+				print $CHKT
+"[CHECK:$CHECKID][HOST: $RUNNING_HOST][TAG1: $DBNAME] Execution End Time: $EPOCH_TIME\n";
+
+				if ( $is_windows == 1 ) {
+					remote_win_copy_without_cred( $RUNNING_HOST, $SPOOLFILE,
+						$LOCALNODE, $RTEMPDIR );
+					win_ssh_without_cred( $RUNNING_HOST,
+						"cmd del /f $SPOOLFILE" );
+				}
+				else {
+					$shell_out = <<SHELL;
+                        $SCOPY $RUNNING_HOST:$SPOOLFILE $RTEMPDIR >$DNUL 2>&1
+                        $SSHELL $RUNNING_HOST "rm -rf $SPOOLFILE  >$DNUL 2>&1"
+SHELL
+					`$shell_out`;
+				}
+			}
+			$MVS_HASH =
+			  move_failed_to_skipped( $RETURNCODE, "", "$RUNNING_HOST:$DBNAME",
+				$t_SKIPFIL, $t_STATFIL, "Execute" );
+			close($CHKT);
+		}
+		elsif ( $COMTYPE eq 'SQL' ) {
+			if ( $DBROLEMCNT >= 1 && $DBTYPEMCNT >= 1 ) {
+
+				#my ($DBACTUAL) = File::Spec->catfile( $PROCESS_ODIR,
+				#    'd_actual' . '_-' . $CHECKID . '_-' . $DBNAME . '.out' );
+
+				if (   $MODE == 0
+					&& $rHOST eq $LOCALNODE
+					&& $RAT_RUNMODE_INTERNAL eq 'master' )
+				{
+					my ($INFIL) = File::Spec->catfile( $INPUTDIR,
+						$CHECKID . '_-' . $DBNAME . '.sql' );
+					my ($OUTFIL) = File::Spec->catfile( $OUTPUTDIR,
+						'd_check' . '_-' . $CHECKID . '_-' . $DBNAME . '.out' );
+					my ($FULLOUTFIL) = File::Spec->catfile( $OUTPUTDIR,
+						    'd_check' . '_-'
+						  . $CHECKID . '_-'
+						  . $DBNAME
+						  . '_full.out' );
+					my ($SQL_CON_SCRPT) = File::Spec->catfile( $INPUTDIR,
+						$CHECKID . '_-' . $DBNAME . '_con.sql' );
+
+					open( my $INH, ">", "$INFIL" )
+					  or die "Cannot open $INFIL: $!";
+					if ( $DBTYPE eq "PDB" ) {
+						print $INH "alter session set container=$DBNAME;\n";
+					}
+					$RAT_DB_APP_USER = $DBAPPUSR;
+
+					print $INH "$COMMAND\n";
+					close($INH);
+
+					my ($anonymous_plsql) = 0;
+					my ($sql_output_splitter);
+					if (   ( $COMMAND && $COMMAND =~ m/\bBEGIN\b/i )
+						&& ( $COM_REPORT && $COM_REPORT =~ m/\bEND\b/i ) )
+					{
+						$anonymous_plsql = 1;
+						$sql_output_splitter =
+						  "DBMS_OUTPUT.PUT_LINE('_SQL_SPLITTER_');";
+					}
+					else {
+						$sql_output_splitter =
+						  "select '_SQL_SPLITTER_' from dual;";
+					}
+
+					my ( $INFIL_REPORT, $SOURCEFIL_REPORT );
+					$INFIL_REPORT = File::Spec->catfile( $INPUTDIR,
+						$CHECKID . '_-' . $DBNAME . '_-' . 'report.sql' );
+					$SOURCEFIL_REPORT = File::Spec->catfile( $OUTPUTDIR,
+						$CHECKID . '_-' . $DBNAME . '_-' . 'report.out' );
+
+					if ($COM_REPORT) {
+						open( my $INHR, ">", "$INFIL_REPORT" )
+						  or die "Cannot open $INFIL_REPORT: $!";
+						print $INHR "$COM_REPORT\n";
+						close($INHR);
+
+						open( my $SOR, ">", "$SOURCEFIL_REPORT" )
+						  or die "Cannot open $SOURCEFIL_REPORT: $!";
+						print $SOR "TO REVIEW COLLECTED DATA FOR "
+						  . uc($DBNAME) . " FOR "
+						  . uc($AU_CHK_NAME)
+						  . "\n\n\n";
+						close($SOR);
+					}
+
+					if ( $CHG_USER == 1 ) {
+						$USER_HASH = get_dbOwner( $ORACLE_HOME, $RUNNING_HOST );
+						( $CURRENT_OH_OWNER, $CURRENT_OH_GROUP, $HOME_DIR ) = (
+							$USER_HASH->{CURRENT_OH_OWNER},
+							$USER_HASH->{CURRENT_OH_GROUP},
+							$USER_HASH->{HOME_DIR}
+						);
+						$t_SKIPFIL =
+						  chg_files_for_usr( "t_SKIPFIL", "$t_SKIPFIL",
+							"$CURRENT_OH_OWNER" );
+						$t_CHK_TIMINGS =
+						  chg_files_for_usr( "t_CHK_TIMINGS", "$t_CHK_TIMINGS",
+							"$CURRENT_OH_OWNER" );
+						$t_STATFIL =
+						  chg_files_for_usr( "t_STATFIL", "$t_STATFIL",
+							"$CURRENT_OH_OWNER" );
+					}
+					open( my $CHKT, ">", "$t_CHK_TIMINGS" )
+					  or die "Cannot open $t_CHK_TIMINGS: $!";
+
+					if (   defined $CHKSYSDBA
+						&& $CHKSYSDBA =~ m/\d+/
+						&& $CHKSYSDBA == 0 )
+					{
+						if ( $RUNNING_HOST eq $LOCALNODE ) {
+							$EPOCH_TIME = get_current_epoch();
+							print $CHKT
+"[CHECK:$CHECKID][HOST: $RUNNING_HOST][TAG1: $DBNAME] Execution Start Time: $EPOCH_TIME\n";
+
+`$PERL_EXE -p -i$BAKUP_FIL -e "s/#APP_USER#/$RAT_DB_APP_USER/g" $INFIL`;
+
+							my $shell_out;
+							if ( $CHG_USER == 0 ) {
+								open( my $CFIL, ">", "$SQL_CON_SCRPT" )
+								  or die "Cannot open $SQL_CON_SCRPT: $!";
+								if ($COM_REPORT) {
+`$PERL_EXE -p -i$BAKUP_FIL -e "s/#APP_USER#/$RAT_DB_APP_USER/g" $INFIL_REPORT`;
+
+									print $CFIL "spool $FULLOUTFIL\n";
+									open( my $IFIL, "<", "$INFIL" )
+									  or die "Cannot open $INFIL: $!";
+									while (<$IFIL>) { print $CFIL $_; }
+									close($IFIL);
+									print $CFIL "$sql_output_splitter\n";
+									if ( $anonymous_plsql == 0 ) {
+										print $CFIL
+"set head on;\nset pagesize 25;\nset linesize 80;\n";
+									}
+									open( my $IRFIL, "<", "$INFIL_REPORT" )
+									  or die "Cannot open $INFIL_REPORT: $!";
+									while (<$IRFIL>) { print $CFIL $_; }
+									close($IRFIL);
+
+									if ( $anonymous_plsql > 0 ) {
+										print $CFIL "/\n";
+									}
+									print $CFIL "spool off\n";
+								}
+								else {
+									print $CFIL "spool $FULLOUTFIL\n";
+									open( my $IFIL, "<", "$INFIL" )
+									  or die "Cannot open $INFIL: $!";
+									while (<$IFIL>) { print $CFIL $_; }
+									close($IFIL);
+									print $CFIL "$sql_output_splitter\n";
+									if ( $anonymous_plsql > 0 ) {
+										print $CFIL "/\n";
+									}
+									print $CFIL "spool off\n";
+								}
+								close($CFIL);
+
+								if ( $is_windows == 1 ) {
+									$shell_out =
+"(echo set head off; & echo set lines 80; & echo set feedback off; & echo set serveroutput on; & echo \@\@$SQL_CON_SCRPT; & echo exit;)| $SQLPLUS -s \"$dbConnectString\" 2>$DNUL 2>&1";
+								}
+								else {
+									$shell_out = <<SHELL;
+                                            $SQLPLUS -s $dbConnectString 2>$DNUL 2>&1 <<EOF
+                                            set head off
+                                            set lines 80
+                                            set feedback off
+                                            set serveroutput on
+                                            \@\@$SQL_CON_SCRPT;
+                                            exit
+EOF
+SHELL
+								}
+								`$shell_out`;
+								$RETURNCODE = `echo $?`;
+
+								split_files( "$FULLOUTFIL",
+									"$OUTFIL $SOURCEFIL_REPORT" );
+							}
+							else {
+								my ($NEW_FULLOUTFIL) = File::Spec->catfile(
+									$PROCESS_ODIR,
+									'd_check' . '_-'
+									  . $CHECKID . '_-'
+									  . $DBNAME
+									  . '_full.out'
+								);
+								$SQL_CON_SCRPT =
+								  File::Spec->catfile( $PROCESS_RDIR,
+									$CHECKID . '_-' . $DBNAME . '_con.sql' );
+
+								$NEW_FULLOUTFIL =
+								  chg_files_for_usr( "NEW_FULLOUTFIL",
+									"$NEW_FULLOUTFIL", "$CURRENT_OH_OWNER" );
+								$SQL_CON_SCRPT =
+								  chg_files_for_usr( "SQL_CON_SCRPT",
+									"$SQL_CON_SCRPT", "$CURRENT_OH_OWNER" );
+
+`$PERL_EXE -p -i$BAKUP_FIL -e "s/#APP_USER#/$RAT_DB_APP_USER/g" $INFIL`;
+
+								open( my $CFIL, ">", "$SQL_CON_SCRPT" )
+								  or die "Cannot open $SQL_CON_SCRPT: $!";
+								if ($COM_REPORT) {
+`$PERL_EXE -p -i$BAKUP_FIL -e "s/#APP_USER#/$RAT_DB_APP_USER/g" $INFIL_REPORT`;
+
+									print $CFIL "spool $NEW_FULLOUTFIL\n";
+									open( my $IFIL, "<", "$INFIL" )
+									  or die "Cannot open $INFIL: $!";
+									while (<$IFIL>) { print $CFIL $_; }
+									close($IFIL);
+									print $CFIL "$sql_output_splitter\n";
+									if ( $anonymous_plsql == 0 ) {
+										print $CFIL
+"set head on;\nset pagesize 25;\nset linesize 80;\n";
+									}
+									open( my $IRFIL, "<", "$INFIL_REPORT" )
+									  or die "Cannot open $INFIL_REPORT: $!";
+									while (<$IRFIL>) { print $CFIL $_; }
+									close($IRFIL);
+
+									if ( $anonymous_plsql > 0 ) {
+										print $CFIL "/\n";
+									}
+									print $CFIL "spool off\n";
+								}
+								else {
+									print $CFIL "spool $NEW_FULLOUTFIL\n";
+									open( my $IFIL, "<", "$INFIL" )
+									  or die "Cannot open $INFIL: $!";
+									while (<$IFIL>) { print $CFIL $_; }
+									close($IFIL);
+									print $CFIL "$sql_output_splitter\n";
+									if ( $anonymous_plsql > 0 ) {
+										print $CFIL "/\n";
+									}
+									print $CFIL "spool off\n";
+								}
+								close($CFIL);
+
+								$shell_out = <<SHELL;
+                                            su $CURRENT_OH_OWNER -c "$SQLPLUS -s $dbConnectString 2>$DNUL 2>&1 <<EOF
+                                            set head off
+                                            set lines 80
+                                            set feedback off
+                                            set serveroutput on
+                                            \@\@$SQL_CON_SCRPT;
+                                            exit
+EOF
+"
+SHELL
+
+								`$shell_out`;
+								$RETURNCODE = `echo $?`;
+
+								split_files( "$NEW_FULLOUTFIL",
+									"$OUTFIL $SOURCEFIL_REPORT" );
+
+								write_del_rolbk_tmpoutput();
+							}
+
+							$EPOCH_TIME = get_current_epoch();
+							print $CHKT
+"[CHECK:$CHECKID][HOST: $RUNNING_HOST][TAG1: $DBNAME] Execution End Time: $EPOCH_TIME\n";
+						}
+						else {
+							my ($SPOOLFILE) = File::Spec->catfile(
+								$PROCESS_RDIR,
+								'sqltorun_'
+								  . $CHECKID . '_-'
+								  . $DBNAME . '_-'
+								  . $RUNNING_HOST . '.out'
+							);
+							my ($RSPOOLFILE) = File::Spec->catfile(
+								$PROCESS_RDIR,
+								'sqltorun_'
+								  . $CHECKID . '_-'
+								  . $DBNAME . '_-'
+								  . $RUNNING_HOST . '_-'
+								  . 'report.out'
+							);
+							my ($FULL_SPOOLFILE) = File::Spec->catfile(
+								$PROCESS_RDIR,
+								'sqltorun_'
+								  . $CHECKID . '_-'
+								  . $DBNAME . '_-'
+								  . $RUNNING_HOST
+								  . '_full.out'
+							);
+
+							$EPOCH_TIME = get_current_epoch();
+							print $CHKT
+"[CHECK:$CHECKID][HOST: $RUNNING_HOST][TAG1: $DBNAME] Execution Start Time: $EPOCH_TIME\n";
+
+							my $shell_out;
+							if ( $CHG_USER == 0 ) {
+`$PERL_EXE -p -i$BAKUP_FIL -e "s/#APP_USER#/$RAT_DB_APP_USER/g" $INFIL`;
+
+								open( my $CFIL, ">", "$SQL_CON_SCRPT" )
+								  or die "Cannot open $SQL_CON_SCRPT: $!";
+								if ($COM_REPORT) {
+`$PERL_EXE -p -i$BAKUP_FIL -e "s/#APP_USER#/$RAT_DB_APP_USER/g" $INFIL_REPORT`;
+
+									print $CFIL "spool $FULL_SPOOLFILE\n";
+									open( my $IFIL, "<", "$INFIL" )
+									  or die "Cannot open $INFIL: $!";
+									while (<$IFIL>) { print $CFIL $_; }
+									close($IFIL);
+									print $CFIL "$sql_output_splitter\n";
+									if ( $anonymous_plsql == 0 ) {
+										print $CFIL
+"set head on;\nset pagesize 25;\nset linesize 80;\n";
+									}
+									open( my $IRFIL, "<", "$INFIL_REPORT" )
+									  or die "Cannot open $INFIL_REPORT: $!";
+									while (<$IRFIL>) { print $CFIL $_; }
+									close($IRFIL);
+
+									if ( $anonymous_plsql > 0 ) {
+										print $CFIL "/\n";
+									}
+									print $CFIL "spool off\n";
+								}
+								else {
+									print $CFIL "spool $FULL_SPOOLFILE\n";
+									open( my $IFIL, "<", "$INFIL" )
+									  or die "Cannot open $INFIL: $!";
+									while (<$IFIL>) { print $CFIL $_; }
+									close($IFIL);
+									print $CFIL "$sql_output_splitter\n";
+									if ( $anonymous_plsql > 0 ) {
+										print $CFIL "/\n";
+									}
+									print $CFIL "spool off\n";
+								}
+								close($CFIL);
+
+								my ($bname_SQL_CON_SCRPT) =
+								  basename $SQL_CON_SCRPT;
+								my ($R_SQL_CON_SCRPT) =
+								  File::Spec->catfile( $PROCESS_RDIR,
+									$bname_SQL_CON_SCRPT );
+
+								if ( $is_windows == 1 ) {
+									remote_win_copy_without_cred(
+										$LOCALNODE,    $SQL_CON_SCRPT,
+										$RUNNING_HOST, $PROCESS_RDIR
+									);
+									$shell_out =
+"(echo set head off; & echo set lines 80; & echo set feedback off; & echo set serveroutput on; & echo \@\@$R_SQL_CON_SCRPT; & echo exit;)| $SQLPLUS -s \"$dbConnectString\" 2>$DNUL 2>&1";
+
+#									$shell_out = <<WINSHELL;
+#                                            set ORACLE_HOME=$ORACLE_HOME;
+#                                            set ORACLE_SID=$ORACLE_SID;
+#                                            $SQLPLUS -s $dbConnectString 2>$DNUL 2>&1 <<EOF
+#                                            set head off
+#                                            set lines 80
+#                                            set feedback off
+#                                            set serveroutput on
+#                                            \@\@$R_SQL_CON_SCRPT;
+#                                            exit
+#EOF
+#WINSHELL
+									$RETURNCODE =
+									  win_ssh_without_cred( $RUNNING_HOST,
+										"cmd $shell_out" );
+								}
+								else {
+									$shell_out = <<SHELL;
+                                            $SCOPY $SQL_CON_SCRPT $RUNNING_HOST:$PROCESS_RDIR
+                                            $SSHELL $RUNNING_HOST bash <<EOF2
+                                            export ORACLE_HOME=$ORACLE_HOME;
+                                            export ORACLE_SID=$ORACLE_SID;
+                                            $SQLPLUS -s $dbConnectString 2>$DNUL 2>&1 <<EOF
+                                            set head off
+                                            set lines 80
+                                            set feedback off
+                                            set serveroutput on
+                                            \@\@$R_SQL_CON_SCRPT;
+                                            exit
+EOF
+EOF2
+SHELL
+									`$shell_out`;
+									$RETURNCODE = `echo $?`;
+								}
+							}
+							else {
+								$FULL_SPOOLFILE = File::Spec->catfile(
+									$PROCESS_ODIR,
+									'd_check' . '_-'
+									  . $CHECKID . '_-'
+									  . $DBNAME
+									  . '_full.out'
+								);
+								$SQL_CON_SCRPT =
+								  File::Spec->catfile( $PROCESS_RDIR,
+									$CHECKID . '_-' . $DBNAME . '_con.sql' );
+
+								$FULL_SPOOLFILE =
+								  chg_files_for_usr( "FULL_SPOOLFILE",
+									"$FULL_SPOOLFILE", "$CURRENT_OH_OWNER" );
+								$SQL_CON_SCRPT =
+								  chg_files_for_usr( "SQL_CON_SCRPT",
+									"$SQL_CON_SCRPT", "$CURRENT_OH_OWNER" );
+								$SPOOLFILE =
+								  chg_files_for_usr( "SPOOLFILE", "$SPOOLFILE",
+									"$CURRENT_OH_OWNER" );
+								$RSPOOLFILE = chg_files_for_usr( "RSPOOLFILE",
+									"$RSPOOLFILE", "$CURRENT_OH_OWNER" );
+
+`$PERL_EXE -p -i$BAKUP_FIL -e "s/#APP_USER#/$RAT_DB_APP_USER/g" $INFIL`;
+
+								open( my $CFIL, ">", "$SQL_CON_SCRPT" )
+								  or die "Cannot open $SQL_CON_SCRPT: $!";
+								if ($COM_REPORT) {
+`$PERL_EXE -p -i$BAKUP_FIL -e "s/#APP_USER#/$RAT_DB_APP_USER/g" $INFIL_REPORT`;
+
+									print $CFIL "spool $FULL_SPOOLFILE\n";
+									open( my $IFIL, "<", "$INFIL" )
+									  or die "Cannot open $INFIL: $!";
+									while (<$IFIL>) { print $CFIL $_; }
+									close($IFIL);
+									print $CFIL "$sql_output_splitter\n";
+									if ( $anonymous_plsql == 0 ) {
+										print $CFIL
+"set head on;\nset pagesize 25;\nset linesize 80;\n";
+									}
+									open( my $IRFIL, "<", "$INFIL_REPORT" )
+									  or die "Cannot open $INFIL_REPORT: $!";
+									while (<$IRFIL>) { print $CFIL $_; }
+									close($IRFIL);
+
+									if ( $anonymous_plsql > 0 ) {
+										print $CFIL "/\n";
+									}
+									print $CFIL "spool off\n";
+								}
+								else {
+									print $CFIL "spool $FULL_SPOOLFILE\n";
+									open( my $IFIL, "<", "$INFIL" )
+									  or die "Cannot open $INFIL: $!";
+									while (<$IFIL>) { print $CFIL $_; }
+									close($IFIL);
+									print $CFIL "$sql_output_splitter\n";
+									if ( $anonymous_plsql > 0 ) {
+										print $CFIL "/\n";
+									}
+									print $CFIL "spool off\n";
+								}
+								close($CFIL);
+
+								my ($a_rdir) = dirname($SQL_CON_SCRPT);
+								if ( $is_windows == 1 ) {
+
+									#Not required
+								}
+								else {
+									$shell_out = <<SHELL;
+                                            $SSHELL $RUNNING_HOST "mkdir -p $a_rdir >$DNUL 2>&1; chown $CURRENT_OH_OWNER:$CURRENT_OH_GROUP $a_rdir >$DNUL 2>&1"
+                                            $SCOPY $SQL_CON_SCRPT $RUNNING_HOST:$SQL_CON_SCRPT
+                                            $SSHELL $RUNNING_HOST "chown $CURRENT_OH_OWNER:$CURRENT_OH_GROUP $SQL_CON_SCRPT"
+                                            $SSHELL $RUNNING_HOST bash <<EOF2
+                                            if [[ -e $HOME_DIR ]]; then cd $HOME_DIR; fi;
+                                            export ORACLE_HOME=$ORACLE_HOME;
+                                            export ORACLE_SID=$ORACLE_SID;
+                                            su $CURRENT_OH_OWNER -c "$SQLPLUS -s $dbConnectString 2>$DNUL 2>&1 <<EOF
+                                            set head off
+                                            set lines 80
+                                            set feedback off
+                                            set serveroutput on
+                                            \@\@$SQL_CON_SCRPT;
+                                            exit
+EOF
+"
+EOF2
+SHELL
+									`$shell_out`;
+									$RETURNCODE = `echo $?`;
+								}
+							}
+
+							$EPOCH_TIME = get_current_epoch();
+							print $CHKT
+"[CHECK:$CHECKID][HOST: $RUNNING_HOST][TAG1: $DBNAME] Execution End Time: $EPOCH_TIME\n";
+							if ( $is_windows == 1 ) {
+								remote_win_copy_without_cred(
+									$RUNNING_HOST, $FULL_SPOOLFILE,
+									$LOCALNODE,    $RTEMPDIR
+								);
+								win_ssh_without_cred( $RUNNING_HOST,
+									"cmd del /f $FULL_SPOOLFILE" );
+							}
+							else {
+								$shell_out = <<SHELL;
+		    		    $SCOPY $RUNNING_HOST:$FULL_SPOOLFILE $RTEMPDIR >$DNUL 2>&1
+                        $SSHELL $RUNNING_HOST "rm -rf $FULL_SPOOLFILE  >$DNUL 2>&1"
+SHELL
+								`$shell_out`;
+							}
+
+							my $TMP_FULL_SPOOLFILE = File::Spec->catfile(
+								$RTEMPDIR,
+								'd_check' . '_-'
+								  . $CHECKID . '_-'
+								  . $DBNAME
+								  . '_full.out'
+							);
+							if ( $CHG_USER == 0 ) {
+								$TMP_FULL_SPOOLFILE = $FULL_SPOOLFILE;
+							}
+
+							split_files(
+								"$TMP_FULL_SPOOLFILE",
+								"$SPOOLFILE $RSPOOLFILE"
+							);
+
+							if ( $CHG_USER == 1 ) {
+								write_del_rolbk_tmpoutput();
+							}
+						}
+					}
+					else {
+						if ( $RUNNING_HOST eq $LOCALNODE ) {
+							$EPOCH_TIME = get_current_epoch();
+							print $CHKT
+"[CHECK:$CHECKID][HOST: $RUNNING_HOST][TAG1: $DBNAME] Execution Start Time: $EPOCH_TIME\n";
+
+`$PERL_EXE -p -i$BAKUP_FIL -e "s/#APP_USER#/$RAT_DB_APP_USER/g" $INFIL`;
+
+							my $shell_out;
+							if ( $CHG_USER == 0 ) {
+								open( my $CFIL, ">", "$SQL_CON_SCRPT" )
+								  or die "Cannot open $SQL_CON_SCRPT: $!";
+								if ($COM_REPORT) {
+`$PERL_EXE -p -i$BAKUP_FIL -e "s/#APP_USER#/$RAT_DB_APP_USER/g" $INFIL_REPORT`;
+
+									print $CFIL "spool $FULLOUTFIL\n";
+									open( my $IFIL, "<", "$INFIL" )
+									  or die "Cannot open $INFIL: $!";
+									while (<$IFIL>) { print $CFIL $_; }
+									close($IFIL);
+									print $CFIL "$sql_output_splitter\n";
+									if ( $anonymous_plsql == 0 ) {
+										print $CFIL
+"set head on;\nset pagesize 25;\nset linesize 80;\n";
+									}
+									open( my $IRFIL, "<", "$INFIL_REPORT" )
+									  or die "Cannot open $INFIL_REPORT: $!";
+									while (<$IRFIL>) { print $CFIL $_; }
+									close($IRFIL);
+
+									if ( $anonymous_plsql > 0 ) {
+										print $CFIL "/\n";
+									}
+									print $CFIL "spool off\n";
+								}
+								else {
+									print $CFIL "spool $FULLOUTFIL\n";
+									open( my $IFIL, "<", "$INFIL" )
+									  or die "Cannot open $INFIL: $!";
+									while (<$IFIL>) { print $CFIL $_; }
+									close($IFIL);
+									print $CFIL "$sql_output_splitter\n";
+									if ( $anonymous_plsql > 0 ) {
+										print $CFIL "/\n";
+									}
+									print $CFIL "spool off\n";
+								}
+								close($CFIL);
+
+								if ( $is_windows == 1 ) {
+									$shell_out =
+"(echo set head off; & echo set lines 80; & echo set feedback off; & echo set serveroutput on; & echo \@\@$SQL_CON_SCRPT; & echo exit;)| $SQLPLUS -s \"$dbConnectString\" 2>$DNUL 2>&1";
+								}
+								else {
+									$shell_out = <<SHELL;
+                                            $SQLPLUS -s / as sysdba 2>$DNUL 2>&1 <<EOF
+                                            set head off
+                                            set lines 80
+                                            set feedback off
+                                            set serveroutput on
+                                            \@\@$SQL_CON_SCRPT;
+                                            exit
+EOF
+SHELL
+								}
+								`$shell_out`;
+								$RETURNCODE = `echo $?`;
+
+								split_files( "$FULLOUTFIL",
+									"$OUTFIL $SOURCEFIL_REPORT" );
+							}
+							else {
+								my ($NEW_FULLOUTFIL) = File::Spec->catfile(
+									$PROCESS_ODIR,
+									'd_check' . '_-'
+									  . $CHECKID . '_-'
+									  . $DBNAME
+									  . '_full.out'
+								);
+								$SQL_CON_SCRPT =
+								  File::Spec->catfile( $PROCESS_RDIR,
+									$CHECKID . '_-' . $DBNAME . '_con.sql' );
+
+								$NEW_FULLOUTFIL =
+								  chg_files_for_usr( "NEW_FULLOUTFIL",
+									"$NEW_FULLOUTFIL", "$CURRENT_OH_OWNER" );
+								$SQL_CON_SCRPT =
+								  chg_files_for_usr( "SQL_CON_SCRPT",
+									"$SQL_CON_SCRPT", "$CURRENT_OH_OWNER" );
+
+`$PERL_EXE -p -i$BAKUP_FIL -e "s/#APP_USER#/$RAT_DB_APP_USER/g" $INFIL`;
+
+								open( my $CFIL, ">", "$SQL_CON_SCRPT" )
+								  or die "Cannot open $SQL_CON_SCRPT: $!";
+								if ($COM_REPORT) {
+`$PERL_EXE -p -i$BAKUP_FIL -e "s/#APP_USER#/$RAT_DB_APP_USER/g" $INFIL_REPORT`;
+
+									print $CFIL "spool $NEW_FULLOUTFIL\n";
+									open( my $IFIL, "<", "$INFIL" )
+									  or die "Cannot open $INFIL: $!";
+									while (<$IFIL>) { print $CFIL $_; }
+									close($IFIL);
+									print $CFIL "$sql_output_splitter\n";
+									if ( $anonymous_plsql == 0 ) {
+										print $CFIL
+"set head on;\nset pagesize 25;\nset linesize 80;\n";
+									}
+									open( my $IRFIL, "<", "$INFIL_REPORT" )
+									  or die "Cannot open $INFIL_REPORT: $!";
+									while (<$IRFIL>) { print $CFIL $_; }
+									close($IRFIL);
+
+									if ( $anonymous_plsql > 0 ) {
+										print $CFIL "/\n";
+									}
+									print $CFIL "spool off\n";
+								}
+								else {
+									print $CFIL "spool $NEW_FULLOUTFIL\n";
+									open( my $IFIL, "<", "$INFIL" )
+									  or die "Cannot open $INFIL: $!";
+									while (<$IFIL>) { print $CFIL $_; }
+									close($IFIL);
+									print $CFIL "$sql_output_splitter\n";
+									if ( $anonymous_plsql > 0 ) {
+										print $CFIL "/\n";
+									}
+									print $CFIL "spool off\n";
+								}
+								close($CFIL);
+
+								$shell_out = <<SHELL;
+                                            if [ -d $HOME_DIR ]; then cd $HOME_DIR; fi;
+                                            su $CURRENT_OH_OWNER -c "$SQLPLUS -s / as sysdba 2>$DNUL 2>&1 <<EOF
+                                            set head off
+                                            set lines 80
+                                            set feedback off
+                                            set serveroutput on
+                                            \@\@$SQL_CON_SCRPT;
+                                            exit
+EOF
+"
+SHELL
+								`$shell_out`;
+								$RETURNCODE = `echo $?`;
+
+								split_files( "$NEW_FULLOUTFIL",
+									"$OUTFIL $SOURCEFIL_REPORT" );
+
+								write_del_rolbk_tmpoutput();
+							}
+
+							$EPOCH_TIME = get_current_epoch();
+							print $CHKT
+"[CHECK:$CHECKID][HOST: $RUNNING_HOST][TAG1: $DBNAME] Execution End Time: $EPOCH_TIME\n";
+						}
+						else {
+							my ($SPOOLFILE) = File::Spec->catfile(
+								$PROCESS_RDIR,
+								'sqltorun_'
+								  . $CHECKID . '_-'
+								  . $DBNAME . '_-'
+								  . $RUNNING_HOST . '.out'
+							);
+							my ($RSPOOLFILE) = File::Spec->catfile(
+								$PROCESS_RDIR,
+								'sqltorun_'
+								  . $CHECKID . '_-'
+								  . $DBNAME . '_-'
+								  . $RUNNING_HOST . '_-'
+								  . 'report.out'
+							);
+							my ($FULL_SPOOLFILE) = File::Spec->catfile(
+								$PROCESS_RDIR,
+								'sqltorun_'
+								  . $CHECKID . '_-'
+								  . $DBNAME . '_-'
+								  . $RUNNING_HOST
+								  . '_full.out'
+							);
+							$EPOCH_TIME = get_current_epoch();
+							print $CHKT
+"[CHECK:$CHECKID][HOST: $RUNNING_HOST][TAG1: $DBNAME] Execution Start Time: $EPOCH_TIME\n";
+
+							my $shell_out;
+							if ( $CHG_USER == 0 ) {
+`$PERL_EXE -p -i$BAKUP_FIL -e "s/#APP_USER#/$RAT_DB_APP_USER/g" $INFIL`;
+
+								open( my $CFIL, ">", "$SQL_CON_SCRPT" )
+								  or die "Cannot open $SQL_CON_SCRPT: $!";
+								if ($COM_REPORT) {
+`$PERL_EXE -p -i$BAKUP_FIL -e "s/#APP_USER#/$RAT_DB_APP_USER/g" $INFIL_REPORT`;
+
+									print $CFIL "spool $FULL_SPOOLFILE\n";
+									open( my $IFIL, "<", "$INFIL" )
+									  or die "Cannot open $INFIL: $!";
+									while (<$IFIL>) { print $CFIL $_; }
+									close($IFIL);
+									print $CFIL "$sql_output_splitter\n";
+									if ( $anonymous_plsql == 0 ) {
+										print $CFIL
+"set head on;\nset pagesize 25;\nset linesize 80;\n";
+									}
+									open( my $IRFIL, "<", "$INFIL_REPORT" )
+									  or die "Cannot open $INFIL_REPORT: $!";
+									while (<$IRFIL>) { print $CFIL $_; }
+									close($IRFIL);
+
+									if ( $anonymous_plsql > 0 ) {
+										print $CFIL "/\n";
+									}
+									print $CFIL "spool off\n";
+								}
+								else {
+									print $CFIL "spool $FULL_SPOOLFILE\n";
+									open( my $IFIL, "<", "$INFIL" )
+									  or die "Cannot open $INFIL: $!";
+									while (<$IFIL>) { print $CFIL $_; }
+									close($IFIL);
+									print $CFIL "$sql_output_splitter\n";
+									if ( $anonymous_plsql > 0 ) {
+										print $CFIL "/\n";
+									}
+									print $CFIL "spool off\n";
+								}
+								close($CFIL);
+
+								my ($bname_SQL_CON_SCRPT) =
+								  basename $SQL_CON_SCRPT;
+								my ($R_SQL_CON_SCRPT) =
+								  File::Spec->catfile( $PROCESS_RDIR,
+									$bname_SQL_CON_SCRPT );
+
+								if ( $is_windows == 1 ) {
+									remote_win_copy_without_cred(
+										$LOCALNODE,    $SQL_CON_SCRPT,
+										$RUNNING_HOST, $PROCESS_RDIR
+									);
+									$shell_out =
+"(echo set head off; & echo set lines 80; & echo set feedback off; & echo set serveroutput on; & echo \@\@$SQL_CON_SCRPT; & echo exit;)| $SQLPLUS -s \"$dbConnectString\" 2>$DNUL 2>&1";
+
+#									$shell_out = <<WINSHELL;
+#                                            set ORACLE_HOME=$ORACLE_HOME;
+#                                            set ORACLE_SID=$ORACLE_SID;
+#                                            $SQLPLUS -s $dbConnectString 2>$DNUL 2>&1 <<EOF
+#                                            set head off
+#                                            set lines 80
+#                                            set feedback off
+#                                            set serveroutput on
+#                                            \@\@$SQL_CON_SCRPT;
+#                                            exit
+#EOF
+#WINSHELL
+									$RETURNCODE =
+									  win_ssh_without_cred( $RUNNING_HOST,
+										"cmd $shell_out" );
+								}
+								else {
+									$shell_out = <<SHELL;
+                                            $SCOPY $SQL_CON_SCRPT $RUNNING_HOST:$PROCESS_RDIR
+                                            $SSHELL $RUNNING_HOST bash <<EOF2
+                                            export ORACLE_HOME=$ORACLE_HOME;
+                                            export ORACLE_SID=$ORACLE_SID;
+                                            $SQLPLUS -s / as sysdba 2>$DNUL 2>&1 <<EOF
+                                            set head off
+                                            set lines 80
+                                            set feedback off
+                                            set serveroutput on
+                                            \@\@$R_SQL_CON_SCRPT;
+                                            exit
+EOF
+EOF2
+SHELL
+									`$shell_out`;
+									$RETURNCODE = `echo $?`;
+								}
+							}
+							else {
+								$FULL_SPOOLFILE = File::Spec->catfile(
+									$PROCESS_ODIR,
+									'd_check' . '_-'
+									  . $CHECKID . '_-'
+									  . $DBNAME
+									  . '_full.out'
+								);
+								$SQL_CON_SCRPT =
+								  File::Spec->catfile( $PROCESS_RDIR,
+									$CHECKID . '_-' . $DBNAME . '_con.sql' );
+
+								$FULL_SPOOLFILE =
+								  chg_files_for_usr( "FULL_SPOOLFILE",
+									"$FULL_SPOOLFILE", "$CURRENT_OH_OWNER" );
+								$SQL_CON_SCRPT =
+								  chg_files_for_usr( "SQL_CON_SCRPT",
+									"$SQL_CON_SCRPT", "$CURRENT_OH_OWNER" );
+								$SPOOLFILE =
+								  chg_files_for_usr( "SPOOLFILE", "$SPOOLFILE",
+									"$CURRENT_OH_OWNER" );
+								$RSPOOLFILE = chg_files_for_usr( "RSPOOLFILE",
+									"$RSPOOLFILE", "$CURRENT_OH_OWNER" );
+
+`$PERL_EXE -p -i$BAKUP_FIL -e "s/#APP_USER#/$RAT_DB_APP_USER/g" $INFIL`;
+
+								open( my $CFIL, ">", "$SQL_CON_SCRPT" )
+								  or die "Cannot open $SQL_CON_SCRPT: $!";
+								if ($COM_REPORT) {
+`$PERL_EXE -p -i$BAKUP_FIL -e "s/#APP_USER#/$RAT_DB_APP_USER/g" $INFIL_REPORT`;
+
+									print $CFIL "spool $FULL_SPOOLFILE\n";
+									open( my $IFIL, "<", "$INFIL" )
+									  or die "Cannot open $INFIL: $!";
+									while (<$IFIL>) { print $CFIL $_; }
+									close($IFIL);
+									print $CFIL "$sql_output_splitter\n";
+									if ( $anonymous_plsql == 0 ) {
+										print $CFIL
+"set head on;\nset pagesize 25;\nset linesize 80;\n";
+									}
+									open( my $IRFIL, "<", "$INFIL_REPORT" )
+									  or die "Cannot open $INFIL_REPORT: $!";
+									while (<$IRFIL>) { print $CFIL $_; }
+									close($IRFIL);
+
+									if ( $anonymous_plsql > 0 ) {
+										print $CFIL "/\n";
+									}
+									print $CFIL "spool off\n";
+								}
+								else {
+									print $CFIL "spool $FULL_SPOOLFILE\n";
+									open( my $IFIL, "<", "$INFIL" )
+									  or die "Cannot open $INFIL: $!";
+									while (<$IFIL>) { print $CFIL $_; }
+									close($IFIL);
+									print $CFIL "$sql_output_splitter\n";
+									if ( $anonymous_plsql > 0 ) {
+										print $CFIL "/\n";
+									}
+									print $CFIL "spool off\n";
+								}
+								close($CFIL);
+
+								my ($a_rdir) = dirname($SQL_CON_SCRPT);
+								if ( $is_windows == 1 ) {
+
+									#Not required
+								}
+								else {
+									$shell_out = <<SHELL;
+                                            $SSHELL $RUNNING_HOST "mkdir -p $a_rdir >$DNUL 2>&1; chown $CURRENT_OH_OWNER:$CURRENT_OH_GROUP $a_rdir >$DNUL 2>&1"
+                                            $SCOPY $SQL_CON_SCRPT $RUNNING_HOST:$SQL_CON_SCRPT
+                                            $SSHELL $RUNNING_HOST "chown $CURRENT_OH_OWNER:$CURRENT_OH_GROUP $SQL_CON_SCRPT"
+                                            $SSHELL $RUNNING_HOST bash <<EOF2
+                                            if [[ -e $HOME_DIR ]]; then cd $HOME_DIR; fi;
+                                            export ORACLE_HOME=$ORACLE_HOME;
+                                            export ORACLE_SID=$ORACLE_SID;
+                                            su $CURRENT_OH_OWNER -c "$SQLPLUS -s / as sysdba 2>$DNUL 2>&1 <<EOF
+                                            set head off
+                                            set lines 80
+                                            set feedback off
+                                            set serveroutput on
+                                            \@\@$SQL_CON_SCRPT;
+                                            exit
+EOF
+"
+EOF2
+SHELL
+									`$shell_out`;
+									$RETURNCODE = `echo $?`;
+								}
+							}
+
+							$EPOCH_TIME = get_current_epoch();
+							print $CHKT
+"[CHECK:$CHECKID][HOST: $RUNNING_HOST][TAG1: $DBNAME] Execution End Time: $EPOCH_TIME\n";
+							if ( $is_windows == 1 ) {
+								remote_win_copy_without_cred(
+									$RUNNING_HOST, $FULL_SPOOLFILE,
+									$LOCALNODE,    $RTEMPDIR
+								);
+								win_ssh_without_cred( $RUNNING_HOST,
+									"cmd del /f $FULL_SPOOLFILE" );
+							}
+							else {
+								$shell_out = <<SHELL;
+		    		    $SCOPY $RUNNING_HOST:$FULL_SPOOLFILE $RTEMPDIR >$DNUL 2>&1
+                        $SSHELL $RUNNING_HOST "rm -rf $FULL_SPOOLFILE  >$DNUL 2>&1"
+SHELL
+								`$shell_out`;
+							}
+							my $TMP_FULL_SPOOLFILE = File::Spec->catfile(
+								$RTEMPDIR,
+								'd_check' . '_-'
+								  . $CHECKID . '_-'
+								  . $DBNAME
+								  . '_full.out'
+							);
+							if ( $CHG_USER == 0 ) {
+								$TMP_FULL_SPOOLFILE = $FULL_SPOOLFILE;
+							}
+							split_files(
+								"$TMP_FULL_SPOOLFILE",
+								"$SPOOLFILE $RSPOOLFILE"
+							);
+
+							if ( $CHG_USER == 1 ) {
+								write_del_rolbk_tmpoutput();
+							}
+						}
+					}
+					$MVS_HASH =
+					  move_failed_to_skipped( $RETURNCODE, "",
+						"$RUNNING_HOST:$DBNAME", $t_SKIPFIL, $t_STATFIL,
+						"Execute" );
+					close($CHKT);
+				}
+			}
+		}
+		elsif ( $COMTYPE eq 'SQL_COLLECT' ) {
+			my ($t_CHECK_TIMINGS) = File::Spec->catfile( $INPUTDIR,
+				    $RUNNING_HOST . '_-'
+				  . $CHECKID . '_-'
+				  . $DBNAME . '_-'
+				  . 'timings.out' );
+
+			if ( $DBROLEMCNT >= 1 && $DBTYPEMCNT >= 1 ) {
+				my ($INFIL) = File::Spec->catfile( $INPUTDIR,
+					    'd_'
+					  . $OUTFILNAM . '_-'
+					  . $CHECKID . '_-'
+					  . $DBNAME
+					  . '.sql' );
+				my ($OUTFIL) = File::Spec->catfile( $OUTPUTDIR,
+					    'd_'
+					  . $OUTFILNAM . '_-'
+					  . $CHECKID . '_-'
+					  . $DBNAME
+					  . '.out' );
+
+				my ( $NEW_INFIL, $NEW_OUTFIL );
+
+				if ( $CHG_USER == 1 ) {
+					$NEW_INFIL = File::Spec->catfile( $PROCESS_IDIR,
+						    'd_'
+						  . $OUTFILNAM . '_-'
+						  . $CHECKID . '_-'
+						  . $DBNAME
+						  . '.sql' );
+					$NEW_OUTFIL = File::Spec->catfile( $PROCESS_ODIR,
+						    'd_'
+						  . $OUTFILNAM . '_-'
+						  . $CHECKID . '_-'
+						  . $DBNAME
+						  . '.out' );
+				}
+
+				if ( $NEEDS_RUNNING eq 'ASM' ) {
+					($OUTFIL) = File::Spec->catfile( $OUTPUTDIR,
+						    'a_'
+						  . $OUTFILNAM . '_-'
+						  . $CHECKID . '_-'
+						  . $DBNAME
+						  . '.out' );
+					if ( $CHG_USER == 1 ) {
+						($NEW_OUTFIL) = File::Spec->catfile( $PROCESS_ODIR,
+							    'a_'
+							  . $OUTFILNAM . '_-'
+							  . $CHECKID . '_-'
+							  . $DBNAME
+							  . '.out' );
+					}
+				}
+
+				my ($m_OUTFIL) = basename $OUTFIL;
+				$m_OUTFIL =~ s/_$CHECKID//g;
+				$m_OUTFIL = File::Spec->catfile( $OUTPUTDIR, $m_OUTFIL );
+
+				exit if ( -e $m_OUTFIL );
+
+				my ($COMSUBSTR) = substr( $COMMAND, 0, 67 );
+				chomp($COMSUBSTR);
+				open( my $INH, ">", "$INFIL" )
+				  or die "Cannot open $INFIL: $!";
+
+				$RAT_DB_APP_USER = $DBAPPUSR;
+
+				print $INH "$COMMAND\n";
+
+				if ( "$COMMAND" =~ m/begin/i ) {
+					print $INH "/";
+				}
+				close($INH);
+
+				my ($t_STFIL) = File::Spec->catfile( $INPUTDIR,
+					    $RUNNING_HOST . '_-'
+					  . $CHECKID . '_-'
+					  . $DBNAME
+					  . '.sql_collect.prt' );
+
+				if ( $NEEDS_RUNNING eq 'ASM' ) {
+					open( my $STF, ">>", "$t_STFIL" )
+					  or die "Cannot open $t_STFIL: $!";
+					if ( -z "$COLLECTION_NAME" ) {
+						print $STF " Collecting - $COMSUBSTR\n";
+					}
+					else {
+						print $STF " Collecting - $COLLECTION_NAME\n ";
+					}
+					close($STF);
+
+					my ($CRS112) = 0;
+					my ($CRS_HOME);
+					open( my $EF, "<", "$ENVFIL" )
+					  or die "Cannot open $ENVFIL: $!";
+					while ( my $line = <$EF> ) {
+						if (   $line =~ m/CRS_ACTIVE_VERSION/
+							&& $line =~ m/11\.2/ )
+						{
+							$CRS112++;
+						}
+						if ( $line =~ m/CRS_HOME/ ) {
+							$CRS_HOME = $line;
+							$CRS_HOME =~ s/CRS_HOME=//g;
+							$CRS_HOME =~ s/ //g;
+						}
+					}
+					close($EF);
+					if ( defined $CRS112 && $CRS112 > 1 ) {
+						$ENV{ORACLE_SID}  = $STACK_ASM_SID;
+						$ENV{ORACLE_HOME} = $CRS_HOME;
+					}
+					else {
+						$ENV{ORACLE_SID}  = $STACK_ASM_SID;
+						$ENV{ORACLE_HOME} = $STACK_ASM_HOME;
+					}
+
+					if ( $CHG_USER == 1 ) {
+						$USER_HASH = get_dbOwner( $ORACLE_HOME, $RUNNING_HOST );
+						( $CURRENT_OH_OWNER, $CURRENT_OH_GROUP, $HOME_DIR ) = (
+							$USER_HASH->{CURRENT_OH_OWNER},
+							$USER_HASH->{CURRENT_OH_GROUP},
+							$USER_HASH->{HOME_DIR}
+						);
+						$t_SKIPFIL =
+						  chg_files_for_usr( "t_SKIPFIL", "$t_SKIPFIL",
+							"$CURRENT_OH_OWNER" );
+						$t_CHK_TIMINGS =
+						  chg_files_for_usr( "t_CHK_TIMINGS", "$t_CHK_TIMINGS",
+							"$CURRENT_OH_OWNER" );
+						$t_STATFIL =
+						  chg_files_for_usr( "t_STATFIL", "$t_STATFIL",
+							"$CURRENT_OH_OWNER" );
+					}
+					open( my $CHKT, ">", "$t_CHK_TIMINGS" )
+					  or die "Cannot open $t_CHK_TIMINGS: $!";
+
+					if ( -e $t_CHECK_TIMINGS ) {
+						open( my $CT, ">>", "$t_CHECK_TIMINGS" )
+						  or die "Cannot open $t_CHECK_TIMINGS: $!";
+						my ($TIMESTAMP) = strftime "%a %b %d %H:%M:%S %Y",
+						  localtime(time);
+						print $CT "$TIMESTAMP - $COLLECTION_NAME\n\n";
+						close($CT);
+					}
+					if (   defined $CHKSYSDBA
+						&& $CHKSYSDBA =~ m/\d+/
+						&& $CHKSYSDBA == 0
+						&& 1 == 2 )
+					{
+						$EPOCH_TIME = get_current_epoch();
+						print $CHKT
+"[CHECK:$CHECKID][HOST: $RUNNING_HOST][TAG1: $STACK_ASM_SID] Execution Start Time: $EPOCH_TIME\n";
+
+						my $shell_out;
+						if ( $CHG_USER == 0 ) {
+`$PERL_EXE -p -i$BAKUP_FIL -e "s/#APP_USER#/$RAT_DB_APP_USER/g" $INFIL`;
+							if ( $is_windows == 1 ) {
+								$shell_out =
+"(echo set head off; & echo set lines 80; & echo set feedback off; & echo set serveroutput on; & echo spool $OUTFIL; & echo \@\@$INFIL; & echo spool off; & echo exit;)| $SQLPLUS -s \"$dbConnectString\" 2>$DNUL 2>&1";
+							}
+							else {
+								$shell_out = <<SHELL;
+                                         $SQLPLUS -s $dbConnectString 2>$DNUL 2>&1 <<EOF
+                                         set head off
+                                         set lines 80
+                                         set feedback off
+                                         set timing off
+                                         set serveroutput on
+                                         spool $OUTFIL;
+                                         \@\@$INFIL;
+                                         spool off
+                                         exit
+EOF
+SHELL
+							}
+							`$shell_out`;
+						}
+						else {
+							$NEW_INFIL =
+							  chg_files_for_usr( "NEW_INFIL", "$NEW_INFIL",
+								"$CURRENT_OH_OWNER" );
+							$NEW_OUTFIL =
+							  chg_files_for_usr( "NEW_OUTFIL", "$NEW_OUTFIL",
+								"$CURRENT_OH_OWNER" );
+
+							if ( "$INFIL" ne "$NEW_INFIL" ) {
+								copy( $INFIL, $NEW_INFIL );
+							}
+							my ($uid) = ( getpwnam $CURRENT_OH_OWNER )[2];
+							my ($gid) = ( getpwnam $CURRENT_OH_OWNER )[3];
+							chown $uid, $gid, $NEW_INFIL;
+
+`$PERL_EXE -p -i$BAKUP_FIL -e "s/#APP_USER#/$RAT_DB_APP_USER/g" $NEW_INFIL`;
+
+							#Windows not required.
+
+							$shell_out = <<SHELL;
+                                         if [ -d $HOME_DIR ]; then cd $HOME_DIR; fi;
+                                         su $CURRENT_OH_OWNER -c "$SQLPLUS -s $dbConnectString 2>$DNUL 2>&1 <<EOF
+                                         set head off
+                                         set lines 80
+                                         set feedback off
+                                         set timing off
+                                         set serveroutput on
+                                         spool $NEW_OUTFIL;
+                                         \@\@$NEW_INFIL;
+                                         spool off
+                                         exit
+EOF
+"
+SHELL
+							`$shell_out`;
+							$shell_out = <<SHELL;
+                                        if [ "$NEW_OUTFIL" != "$OUTFIL" ]; then cp $NEW_OUTFIL $OUTFIL; fi;
+SHELL
+							`$shell_out`;
+							write_del_rolbk_tmpoutput();
+						}
+
+						$EPOCH_TIME = get_current_epoch();
+						print $CHKT
+"[CHECK:$CHECKID][HOST: $RUNNING_HOST][TAG1: $STACK_ASM_SID] Execution End Time: $EPOCH_TIME\n";
+					}
+					else {
+						$EPOCH_TIME = get_current_epoch();
+						print $CHKT
+"[CHECK:$CHECKID][HOST: $RUNNING_HOST][TAG1: $STACK_ASM_SID] Execution Start Time: $EPOCH_TIME\n";
+
+						my $shell_out;
+						if ( $CHG_USER == 0 ) {
+`$PERL_EXE -p -i$BAKUP_FIL -e "s/#APP_USER#/$RAT_DB_APP_USER/g" $INFIL`;
+							if ( $is_windows == 1 ) {
+								$shell_out =
+"(echo set head off; & echo set lines 80; & echo set feedback off; & echo set serveroutput on; & echo spool $OUTFIL; & echo \@\@$INFIL; & echo spool off; & echo exit;)| $SQLPLUS -s \"$dbConnectString\" 2>$DNUL 2>&1";
+							}
+							else {
+								$shell_out = <<SHELL;
+                                         $SQLPLUS -s $dbConnectString 2>$DNUL 2>&1 <<EOF
+                                         set head off
+                                         set lines 80
+                                         set feedback off
+                                         set timing off
+                                         set serveroutput on
+                                         spool $OUTFIL;
+                                         \@\@$INFIL;
+                                         spool off
+                                         exit
+EOF
+SHELL
+							}
+							`$shell_out`;
+						}
+						else {
+							$NEW_INFIL =
+							  chg_files_for_usr( "NEW_INFIL", "$NEW_INFIL",
+								"$CURRENT_OH_OWNER" );
+							$NEW_OUTFIL =
+							  chg_files_for_usr( "NEW_OUTFIL", "$NEW_OUTFIL",
+								"$CURRENT_OH_OWNER" );
+
+							if ( "$INFIL" ne "$NEW_INFIL" ) {
+								copy( $INFIL, $NEW_INFIL );
+							}
+							my ($uid) = ( getpwnam $CURRENT_OH_OWNER )[2];
+							my ($gid) = ( getpwnam $CURRENT_OH_OWNER )[3];
+							chown $uid, $gid, $NEW_INFIL;
+
+`$PERL_EXE -p -i$BAKUP_FIL -e "s/#APP_USER#/$RAT_DB_APP_USER/g" $NEW_INFIL`;
+
+							if ( $is_windows == 1 ) {
+
+								#Not required
+							}
+							else {
+								$shell_out = <<SHELL;
+                                         if [ -d $HOME_DIR ]; then cd $HOME_DIR; fi;
+                                         su $CURRENT_OH_OWNER -c "$SQLPLUS -s $dbConnectString 2>$DNUL 2>&1 <<EOF
+                                         set head off
+                                         set lines 80
+                                         set feedback off
+                                         set timing off
+                                         set serveroutput on
+                                         spool $NEW_OUTFIL;
+                                         \@\@$NEW_INFIL;
+                                         spool off
+                                         exit
+EOF
+"
+SHELL
+								`$shell_out`;
+							}
+
+							if ( $is_windows == 1 ) {
+
+								#Not required
+							}
+							else {
+								$shell_out = <<SHELL;
+					if [ "$NEW_OUTFIL" != "$OUTFIL" ]; then cp $NEW_OUTFIL $OUTFIL; fi;
+SHELL
+								`$shell_out`;
+							}
+							write_del_rolbk_tmpoutput();
+						}
+
+						$EPOCH_TIME = get_current_epoch();
+						print $CHKT
+"[CHECK:$CHECKID][HOST: $RUNNING_HOST][TAG1: $STACK_ASM_SID] Execution End Time: $EPOCH_TIME\n";
+					}
+					close($CHKT);
+				}
+				else {
+					if ( $CHG_USER == 1 ) {
+						$USER_HASH = get_dbOwner( $ORACLE_HOME, $RUNNING_HOST );
+						( $CURRENT_OH_OWNER, $CURRENT_OH_GROUP, $HOME_DIR ) = (
+							$USER_HASH->{CURRENT_OH_OWNER},
+							$USER_HASH->{CURRENT_OH_GROUP},
+							$USER_HASH->{HOME_DIR}
+						);
+						$t_SKIPFIL =
+						  chg_files_for_usr( "t_SKIPFIL", "$t_SKIPFIL",
+							"$CURRENT_OH_OWNER" );
+						$t_CHK_TIMINGS =
+						  chg_files_for_usr( "t_CHK_TIMINGS", "$t_CHK_TIMINGS",
+							"$CURRENT_OH_OWNER" );
+						$t_STATFIL =
+						  chg_files_for_usr( "t_STATFIL", "$t_STATFIL",
+							"$CURRENT_OH_OWNER" );
+					}
+					open( my $CHKT, ">", "$t_CHK_TIMINGS" )
+					  or die "Cannot open $t_CHK_TIMINGS: $!";
+
+					open( my $STF, ">>", "$t_STFIL" )
+					  or die "Cannot open $t_STFIL: $!";
+					if ( -z "$COLLECTION_NAME" ) {
+						print $STF
+						  " Collecting - $COMSUBSTR for $DBNAME database\n";
+					}
+					else {
+						print $STF
+" Collecting - $COLLECTION_NAME for $DBNAME database\n";
+					}
+					close($STF);
+
+					if ( -e $t_CHECK_TIMINGS ) {
+						open( my $CT, ">>", "$t_CHECK_TIMINGS" )
+						  or die "Cannot open $t_CHECK_TIMINGS: $!";
+						my ($TIMESTAMP) = strftime "%a %b %d %H:%M:%S %Y",
+						  localtime(time);
+						print $CT
+						  "$TIMESTAMP - $COLLECTION_NAME on $DBNAME\n\n";
+						close($CT);
+					}
+
+					if (   defined $CHKSYSDBA
+						&& $CHKSYSDBA =~ m/\d+/
+						&& $CHKSYSDBA == 0 )
+					{
+						if ( $RUNNING_HOST eq $LOCALNODE ) {
+							$EPOCH_TIME = get_current_epoch();
+							print $CHKT
+"[CHECK:$CHECKID][HOST: $RUNNING_HOST][TAG1: $ORACLE_SID] Execution Start Time: $EPOCH_TIME\n";
+
+							my $shell_out;
+							if ( $CHG_USER == 0 ) {
+`$PERL_EXE -p -i$BAKUP_FIL -e "s/#APP_USER#/$RAT_DB_APP_USER/g" $INFIL`;
+								if ( $is_windows == 1 ) {
+									$shell_out =
+"(echo set head off; & echo set lines 80; & echo set feedback off; & echo set serveroutput on; & echo spool $OUTFIL; & echo \@\@$INFIL; & echo spool off; & echo exit;)| $SQLPLUS -s \"$dbConnectString\" 2>$DNUL 2>&1";
+								}
+								else {
+									$shell_out = <<SHELL;
+                                             $SQLPLUS -s $dbConnectString 2>$DNUL 2>&1 <<EOF
+                                             set head off
+                                             set lines 80
+                                             set feedback off
+                                             set serveroutput on
+                                             spool $OUTFIL;
+                                             \@\@$INFIL;
+                                             spool off
+                                             exit
+EOF
+SHELL
+								}
+								`$shell_out`;
+							}
+							else {
+								$NEW_INFIL =
+								  chg_files_for_usr( "NEW_INFIL", "$NEW_INFIL",
+									"$CURRENT_OH_OWNER" );
+								$NEW_OUTFIL = chg_files_for_usr( "NEW_OUTFIL",
+									"$NEW_OUTFIL", "$CURRENT_OH_OWNER" );
+
+								if ( $INFIL ne $NEW_INFIL ) {
+									copy( $INFIL, $NEW_INFIL );
+								}
+								my ($uid) = ( getpwnam $CURRENT_OH_OWNER )[2];
+								my ($gid) = ( getpwnam $CURRENT_OH_OWNER )[3];
+								chown $uid, $gid, $NEW_INFIL;
+
+`$PERL_EXE -p -i$BAKUP_FIL -e "s/#APP_USER#/$RAT_DB_APP_USER/g" $NEW_INFIL`;
+
+								$shell_out = <<SHELL;
+                                     if [ -d $HOME_DIR ]; then cd $HOME_DIR; fi;
+                                     su $CURRENT_OH_OWNER -c "$SQLPLUS -s $dbConnectString 2>$DNUL 2>&1 <<EOF
+                                     set head off
+                                     set lines 80
+                                     set feedback off
+                                     set serveroutput on
+                                     spool $NEW_OUTFIL;
+                                     \@\@$NEW_INFIL;
+                                     spool off
+                                     exit
+EOF
+"
+SHELL
+								`$shell_out`;
+								$shell_out = <<SHELL;
+                                        if [ "$NEW_OUTFIL" != "$OUTFIL" ]; then cp $NEW_OUTFIL $OUTFIL; fi;
+SHELL
+								`$shell_out`;
+								write_del_rolbk_tmpoutput();
+							}
+
+							$EPOCH_TIME = get_current_epoch();
+							print $CHKT
+"[CHECK:$CHECKID][HOST: $RUNNING_HOST][TAG1: $ORACLE_SID] Execution End Time: $EPOCH_TIME\n";
+						}
+						else {
+							my ($SQLTORUN) = File::Spec->catfile( $PROCESS_RDIR,
+								    'sqltorun_' . 'd_'
+								  . $OUTFILNAM . '_-'
+								  . $CHECKID . '_-'
+								  . $DBNAME . '_-'
+								  . $RUNNING_HOST
+								  . '.sql' );
+							my ($SPOOLFILE) = File::Spec->catfile(
+								$PROCESS_RDIR,
+								'sqltorun_' . 'd_'
+								  . $OUTFILNAM . '_-'
+								  . $CHECKID . '_-'
+								  . $DBNAME . '_-'
+								  . $RUNNING_HOST . '.out'
+							);
+
+							my ($m_OUTFIL) = basename $SPOOLFILE;
+							$m_OUTFIL =~ s/sqltorun_//g;
+							$m_OUTFIL =~ s/_-$CHECKID//g;
+							$m_OUTFIL =
+							  File::Spec->catfile( $OUTPUTDIR, $m_OUTFIL );
+
+							exit if ( -e $m_OUTFIL );
+
+							$EPOCH_TIME = get_current_epoch();
+							print $CHKT
+"[CHECK:$CHECKID][HOST: $RUNNING_HOST][TAG1: $ORACLE_SID] Execution Start Time: $EPOCH_TIME\n";
+
+							my $shell_out;
+							if ( $CHG_USER == 0 ) {
+`$PERL_EXE -p -i$BAKUP_FIL -e "s/#APP_USER#/$RAT_DB_APP_USER/g" $INFIL`;
+								if ( $is_windows == 1 ) {
+									my $rfile =
+									  File::Spec->catfile( "$PROCESS_RDIR",
+										basename($INFIL) );
+
+									remote_win_copy_without_cred(
+										$LOCALNODE, $INFIL,
+										$LOCALNODE, $PROCESS_RDIR
+									);
+									win_ssh_without_cred( $RUNNING_HOST,
+										"cmd rename $rfile $SQLTORUN" );
+									$shell_out =
+"(echo set head off; & echo set lines 80; & echo set feedback off; & echo set serveroutput on; & echo spool $SPOOLFILE; & echo \@\@$SQLTORUN; & echo spool off & echo exit;)| $SQLPLUS -s \"$dbConnectString\" 2>$DNUL 2>&1";
+
+#									$shell_out = <<WINSHELL;
+#			                                set ORACLE_HOME=$ORACLE_HOME;
+#			                                set ORACLE_SID=$ORACLE_SID;
+#			                                $SQLPLUS -s $dbConnectString 2>$DNUL 2>&1 <<EOF
+#			                                set head off
+#			                                set lines 80
+#			                                set feedback off
+#			                                set serveroutput on
+#			                                spool $SPOOLFILE;
+#			                                \@\@$SQLTORUN;
+#			                                spool off
+#			                                exit
+#EOF
+#WINSHELL
+									$RETURNCODE =
+									  win_ssh_without_cred( $RUNNING_HOST,
+										"cmd $shell_out" );
+								}
+								else {
+									$shell_out = <<SHELL;
+                                             $SCOPY $INFIL $RUNNING_HOST:$SQLTORUN
+                                             $SSHELL $RUNNING_HOST bash <<EOF2
+                                             export ORACLE_HOME=$ORACLE_HOME;
+                                             export ORACLE_SID=$ORACLE_SID;
+                                             $SQLPLUS -s $dbConnectString 2>$DNUL 2>&1 <<EOF
+                                             set head off
+                                             set lines 80
+                                             set feedback off
+                                             set serveroutput on
+                                             spool $SPOOLFILE;
+                                             \@\@$SQLTORUN;
+                                             spool off
+                                             exit
+EOF
+EOF2
+SHELL
+									`$shell_out`;
+								}
+							}
+							else {
+								$NEW_INFIL =
+								  chg_files_for_usr( "NEW_INFIL", "$NEW_INFIL",
+									"$CURRENT_OH_OWNER" );
+								$NEW_OUTFIL = chg_files_for_usr( "NEW_OUTFIL",
+									"$NEW_OUTFIL", "$CURRENT_OH_OWNER" );
+								$SQLTORUN =
+								  chg_files_for_usr( "SQLTORUN", "$SQLTORUN",
+									"$CURRENT_OH_OWNER" );
+								$SPOOLFILE =
+								  chg_files_for_usr( "SPOOLFILE", "$SPOOLFILE",
+									"$CURRENT_OH_OWNER" );
+
+								if ( $INFIL ne $NEW_INFIL ) {
+									copy( $INFIL, $NEW_INFIL );
+								}
+
+`$PERL_EXE -p -i$BAKUP_FIL -e "s/#APP_USER#/$RAT_DB_APP_USER/g" $INFIL`;
+
+								my ($a_rdir) = dirname($SQLTORUN);
+								if ( $is_windows == 1 ) {
+
+									#Not required
+								}
+								else {
+									$shell_out = <<SHELL;
+                                            $SSHELL $RUNNING_HOST "mkdir -p $a_rdir >$DNUL 2>&1; chown $CURRENT_OH_OWNER:$CURRENT_OH_GROUP $a_rdir >$DNUL 2>&1"
+                                            $SCOPY $INFIL $RUNNING_HOST:$SQLTORUN
+                                            $SSHELL $RUNNING_HOST "chown $CURRENT_OH_OWNER:$CURRENT_OH_GROUP $SQLTORUN"
+                                            $SSHELL $RUNNING_HOST bash <<EOF2
+                                            if [[ -e $HOME_DIR ]]; then cd $HOME_DIR; fi;
+                                            export ORACLE_HOME=$ORACLE_HOME;
+                                            export ORACLE_SID=$ORACLE_SID;
+                                            su $CURRENT_OH_OWNER -c "$SQLPLUS -s $dbConnectString 2>$DNUL 2>&1 <<EOF
+                                            set head off
+                                            set lines 80
+                                            set feedback off
+                                            set serveroutput on
+                                            spool $SPOOLFILE;
+                                            \@\@$SQLTORUN;
+                                            spool off
+                                            exit
+EOF
+"
+EOF2
+SHELL
+								}
+								`$shell_out`;
+								write_del_rolbk_tmpoutput();
+							}
+
+							$EPOCH_TIME = get_current_epoch();
+							print $CHKT
+"[CHECK:$CHECKID][HOST: $RUNNING_HOST][TAG1: $ORACLE_SID] Execution End Time: $EPOCH_TIME\n";
+							if ( $is_windows == 1 ) {
+								remote_win_copy_without_cred(
+									$RUNNING_HOST, $SPOOLFILE,
+									$LOCALNODE,    $RTEMPDIR
+								);
+								win_ssh_without_cred( $RUNNING_HOST,
+									"cmd del /f $SPOOLFILE" );
+							}
+							else {
+								$shell_out = <<SHELL;
+                                    $SCOPY $RUNNING_HOST:$SPOOLFILE $RTEMPDIR >$DNUL 2>&1
+                                    $SSHELL $RUNNING_HOST "rm -rf $SPOOLFILE  >$DNUL 2>&1"
+SHELL
+								`$shell_out`;
+							}
+						}
+					}
+					else {
+						if ( $RUNNING_HOST eq $LOCALNODE ) {
+							$EPOCH_TIME = get_current_epoch();
+							print $CHKT
+"[CHECK:$CHECKID][HOST: $RUNNING_HOST][TAG1: $ORACLE_SID] Execution Start Time: $EPOCH_TIME\n";
+
+							my $shell_out;
+
+							if ( $CHG_USER == 0 ) {
+`$PERL_EXE -p -i$BAKUP_FIL -e "s/#APP_USER#/$RAT_DB_APP_USER/g" $INFIL`;
+								if ( $is_windows == 1 ) {
+									$shell_out =
+"(echo set head off; & echo set lines 80; & echo set feedback off; & echo set serveroutput on; & echo spool $OUTFIL; & echo \@\@$INFIL; & echo spool off; & echo exit;)| $SQLPLUS -s \"$dbConnectString\" 2>$DNUL 2>&1";
+								}
+								else {
+									$shell_out = <<SHELL;
+                                     $SQLPLUS -s $dbConnectString 2>$DNUL 2>&1 <<EOF
+                                     set head off
+                                     set lines 80
+                                     set feedback off
+                                     set serveroutput on
+                                     spool $OUTFIL;
+                                     \@\@$INFIL;
+                                     spool off
+                                     exit
+EOF
+SHELL
+								}
+								`$shell_out`;
+							}
+							else {
+								$NEW_INFIL =
+								  chg_files_for_usr( "NEW_INFIL", "$NEW_INFIL",
+									"$CURRENT_OH_OWNER" );
+								$NEW_OUTFIL = chg_files_for_usr( "NEW_OUTFIL",
+									"$NEW_OUTFIL", "$CURRENT_OH_OWNER" );
+
+								if ( $INFIL ne $NEW_INFIL ) {
+									copy( $INFIL, $NEW_INFIL );
+								}
+								my ($uid) = ( getpwnam $CURRENT_OH_OWNER )[2];
+								my ($gid) = ( getpwnam $CURRENT_OH_OWNER )[3];
+								chown $uid, $gid, $NEW_INFIL;
+
+`$PERL_EXE -p -i$BAKUP_FIL -e "s/#APP_USER#/$RAT_DB_APP_USER/g" $NEW_INFIL`;
+								if ( $is_windows == 1 ) {
+
+									#Not required
+								}
+								else {
+									$shell_out = <<SHELL;
+                                     if [ -d $HOME_DIR ]; then cd $HOME_DIR; fi;
+                                     su $CURRENT_OH_OWNER -c "$SQLPLUS -s $dbConnectString 2>$DNUL 2>&1 <<EOF
+                                     set head off
+                                     set lines 80
+                                     set feedback off
+                                     set serveroutput on
+                                     spool $NEW_OUTFIL;
+                                     \@\@$NEW_INFIL;
+                                     spool off
+                                     exit
+EOF
+"
+SHELL
+									`$shell_out`;
+								}
+
+								if ( $is_windows == 1 ) {
+
+									#Not required
+								}
+								else {
+									$shell_out = <<SHELL;
+					if [ "$NEW_OUTFIL" != "$OUTFIL" ]; then cp $NEW_OUTFIL $OUTFIL; fi;
+SHELL
+									`$shell_out`;
+								}
+								write_del_rolbk_tmpoutput();
+							}
+
+							$EPOCH_TIME = get_current_epoch();
+							print $CHKT
+"[CHECK:$CHECKID][HOST: $RUNNING_HOST][TAG1: $ORACLE_SID] Execution End Time: $EPOCH_TIME\n";
+						}
+						else {
+							my ($SQLTORUN) = File::Spec->catfile( $PROCESS_RDIR,
+								    'sqltorun_' . 'd_'
+								  . $OUTFILNAM . '_-'
+								  . $CHECKID . '_-'
+								  . $DBNAME . '_-'
+								  . $RUNNING_HOST
+								  . '.sql' );
+							my ($SPOOLFILE) = File::Spec->catfile(
+								$PROCESS_RDIR,
+								'sqltorun_' . 'd_'
+								  . $OUTFILNAM . '_-'
+								  . $CHECKID . '_-'
+								  . $DBNAME . '_-'
+								  . $RUNNING_HOST . '.out'
+							);
+							$EPOCH_TIME = get_current_epoch();
+							print $CHKT
+"[CHECK:$CHECKID][HOST: $RUNNING_HOST][TAG1: $ORACLE_SID] Execution Start Time: $EPOCH_TIME\n";
+
+							my $shell_out;
+							if ( $CHG_USER == 0 ) {
+`$PERL_EXE -p -i$BAKUP_FIL -e "s/#APP_USER#/$RAT_DB_APP_USER/g" $INFIL`;
+								if ( $is_windows == 1 ) {
+									$shell_out =
+"(echo set head off; & echo set lines 80; & echo set feedback off; & echo set serveroutput on; & echo spool $SPOOLFILE; & echo \@\@$SQLTORUN; & echo spool off & echo exit;)| $SQLPLUS -s \"$dbConnectString\" 2>$DNUL 2>&1";
+
+#									$shell_out = <<WINSHELL;
+#                                            set ORACLE_HOME=$ORACLE_HOME;
+#                                            set ORACLE_SID=$ORACLE_SID;
+#                                            $SQLPLUS -s $dbConnectString 2>$DNUL 2>&1 <<EOF
+#                                            set head off
+#                                            set lines 80
+#                                            set feedback off
+#                                            set serveroutput on
+#                                            spool $SPOOLFILE;
+#                                            \@\@$SQLTORUN;
+#                                            spool off
+#                                            exit
+#EOF
+#WINSHELL
+									win_ssh_without_cred( $RUNNING_HOST,
+										"cmd $shell_out" );
+								}
+								else {
+									$shell_out = <<SHELL;
+                                            $SCOPY $INFIL $RUNNING_HOST:$SQLTORUN
+                                            $SSHELL $RUNNING_HOST bash <<EOF2
+                                            export ORACLE_HOME=$ORACLE_HOME;
+                                            export ORACLE_SID=$ORACLE_SID;
+                                            $SQLPLUS -s $dbConnectString 2>$DNUL 2>&1 <<EOF
+                                            set head off
+                                            set lines 80
+                                            set feedback off
+                                            set serveroutput on
+                                            spool $SPOOLFILE;
+                                            \@\@$SQLTORUN;
+                                            spool off
+                                            exit
+EOF
+EOF2
+SHELL
+									`$shell_out`;
+								}
+							}
+							else {
+								$NEW_INFIL =
+								  chg_files_for_usr( "NEW_INFIL", "$NEW_INFIL",
+									"$CURRENT_OH_OWNER" );
+								$NEW_OUTFIL = chg_files_for_usr( "NEW_OUTFIL",
+									"$NEW_OUTFIL", "$CURRENT_OH_OWNER" );
+								$SQLTORUN =
+								  chg_files_for_usr( "SQLTORUN", "$SQLTORUN",
+									"$CURRENT_OH_OWNER" );
+								$SPOOLFILE =
+								  chg_files_for_usr( "SPOOLFILE", "$SPOOLFILE",
+									"$CURRENT_OH_OWNER" );
+
+								if ( $INFIL ne $NEW_INFIL ) {
+									copy( $INFIL, $NEW_INFIL );
+								}
+
+`$PERL_EXE -p -i$BAKUP_FIL -e "s/#APP_USER#/$RAT_DB_APP_USER/g" $INFIL`;
+
+								my ($a_rdir) = dirname($SQLTORUN);
+								if ( $is_windows == 1 ) {
+
+									#Not required
+								}
+								else {
+									$shell_out = <<SHELL;
+                                            $SSHELL $RUNNING_HOST "mkdir -p $a_rdir >$DNUL 2>&1; chown $CURRENT_OH_OWNER:$CURRENT_OH_GROUP $a_rdir >$DNUL 2>&1"
+                                            $SCOPY $INFIL $RUNNING_HOST:$SQLTORUN
+                                            $SSHELL $RUNNING_HOST "chown $CURRENT_OH_OWNER:$CURRENT_OH_GROUP $SQLTORUN"
+                                            $SSHELL $RUNNING_HOST bash <<EOF2
+                                            if [[ -e $HOME_DIR ]]; then cd $HOME_DIR; fi;
+                                            export ORACLE_HOME=$ORACLE_HOME;
+                                            export ORACLE_SID=$ORACLE_SID;
+                                            su $CURRENT_OH_OWNER -c "$SQLPLUS -s $dbConnectString 2>$DNUL 2>&1 <<EOF
+                                            set head off
+                                            set lines 80
+                                            set feedback off
+                                            set serveroutput on
+                                            spool $SPOOLFILE;
+                                            \@\@$SQLTORUN;
+                                            spool off
+                                            exit
+EOF
+"
+EOF2
+SHELL
+									`$shell_out`;
+								}
+								write_del_rolbk_tmpoutput();
+							}
+
+							$EPOCH_TIME = get_current_epoch();
+							print $CHKT
+"[CHECK:$CHECKID][HOST: $RUNNING_HOST][TAG1: $ORACLE_SID] Execution End Time: $EPOCH_TIME\n";
+
+							if ( $is_windows == 1 ) {
+								remote_win_copy_without_cred(
+									$RUNNING_HOST, $SPOOLFILE,
+									$LOCALNODE,    $RTEMPDIR
+								);
+								win_ssh_without_cred( $RUNNING_HOST,
+									"cmd del /f $SPOOLFILE" );
+							}
+							else {
+								$shell_out = <<SHELL;
+                                $SCOPY $RUNNING_HOST:$SPOOLFILE $RTEMPDIR >$DNUL 2>&1
+                                $SSHELL $RUNNING_HOST "rm -rf $SPOOLFILE  >$DNUL 2>&1"
+SHELL
+								`$shell_out`;
+							}
+
+						}
+					}
+					close($CHKT);
+				}
+			}
+		}
+		elsif ( $COMTYPE eq 'OS' ) {
+			my ($USERN);
+			my ( $CURRENT_OH_OWNER, $CURRENT_OH_GROUP, $HOME_DIR );
+			if ( $MODE == 0 ) {
+				$USER_HASH = get_dbOwner( $ORACLE_HOME, $RUNNING_HOST );
+				( $CURRENT_OH_OWNER, $CURRENT_OH_GROUP, $HOME_DIR ) = (
+					$USER_HASH->{CURRENT_OH_OWNER},
+					$USER_HASH->{CURRENT_OH_GROUP},
+					$USER_HASH->{HOME_DIR}
+				);
+				$USERN = current_user();
+			}
+			else {
+				my ($CURREN_OH);
+				open( my $EF, "<", "$ENVFIL" ) or die "Cannot open $ENVFIL: $!";
+				while ( my $line = <$EF> ) {
+					if ( $line =~ m/CURRENT_USER/ ) {
+						$USERN = $line;
+						$USERN =~ s/CURRENT_USER = //g;
+						$USERN =~ s/ //g;
+					}
+					elsif ( $line =~ m/DB_NAME = $DBNAME/ ) {
+						$CURREN_OH = $line;
+						$CURREN_OH =~ s/DB_NAME = //g;
+						$CURREN_OH = ( split '|', $CURREN_OH )[2];
+						$CURREN_OH =~ s/ //g;
+					}
+					elsif ( $line =~ m/RDBMS_ORACLE_HOME = $CURREN_OH/ ) {
+						$CURRENT_OH_OWNER = $line;
+						$CURRENT_OH_OWNER =~ s/RDBMS_ORACLE_HOME = //g;
+						$CURRENT_OH_OWNER = ( split '|', $CURREN_OH )[2];
+					}
+				}
+				if ( !defined $CURRENT_OH_OWNER ) {
+					$CURRENT_OH_OWNER = getpwuid($<);
+				}
+				$CURRENT_OH_GROUP = ( getpwnam $CURRENT_OH_OWNER )[3];
+				$HOME_DIR         = ( getpwnam $CURRENT_OH_OWNER )[7];
+				close($EF);
+
+				$USER_HASH->{CURRENT_OH_OWNER} = $CURRENT_OH_OWNER;
+				$USER_HASH->{CURRENT_OH_GROUP} = $CURRENT_OH_GROUP;
+				$USER_HASH->{HOME_DIR}         = $HOME_DIR;
+
+				if ( defined $USER_HASH->{CURRENT_OH_OWNER} ) {
+					if ( !-d "$OUTPUTDIR/$USER_HASH->{CURRENT_OH_OWNER}" ) {
+						mkdir("$OUTPUTDIR/$USER_HASH->{CURRENT_OH_OWNER}");
+					}
+					if ( !-d "$INPUTDIR/$USER_HASH->{CURRENT_OH_OWNER}" ) {
+						mkdir("$INPUTDIR/$USER_HASH->{CURRENT_OH_OWNER}");
+					}
+
+					if ( $TMP_OUTPUT =~ m/USR_HOMEDIR/ ) {
+						$OLD_TMP_OUTPUT = $TMP_OUTPUT;
+						$TMP_OUTPUT =~ s|USR_HOMEDIR|$USER_HASH->{HOME_DIR}|g;
+					} else {
+						$OLD_TMP_OUTPUT = $ENV{RAT_TMP_OUTPUT};
+					}
+					if ( !-d "$TMP_OUTPUT/$USER_HASH->{CURRENT_OH_OWNER}" ) {
+						mkdir("$TMP_OUTPUT/$USER_HASH->{CURRENT_OH_OWNER}");
+					}
+					if ( !-d "$RTEMPDIR/$USER_HASH->{CURRENT_OH_OWNER}" ) {
+						mkdir("$RTEMPDIR/$USER_HASH->{CURRENT_OH_OWNER}");
+					}
+
+					my ($uid) = ( getpwnam $USER_HASH->{CURRENT_OH_OWNER} )[2];
+					my ($gid) = ( getpwnam $USER_HASH->{CURRENT_OH_OWNER} )[3];
+					my (@fobjects);
+					push(
+						@fobjects,
+						(
+							File::Spec->catfile(
+								"$OUTPUTDIR", "$USER_HASH->{CURRENT_OH_OWNER}"
+							),
+							File::Spec->catfile(
+								"$INPUTDIR", "$USER_HASH->{CURRENT_OH_OWNER}"
+							),
+
+							#$TMP_OUTPUT,
+							File::Spec->catfile(
+								"$TMP_OUTPUT", "$USER_HASH->{CURRENT_OH_OWNER}"
+							),
+							File::Spec->catfile(
+								"$RTEMPDIR", "$USER_HASH->{CURRENT_OH_OWNER}"
+							)
+						)
+					);
+
+					chown $uid, $gid, @fobjects;
+				}
+				$USR_DIRS{$TMP_OUTPUT} = 1;
+			}
+
+			if ( $CHG_USER == 1 ) {
+				$t_SKIPFIL = chg_files_for_usr( "t_SKIPFIL", "$t_SKIPFIL",
+					"$CURRENT_OH_OWNER" );
+				$t_CHK_TIMINGS =
+				  chg_files_for_usr( "t_CHK_TIMINGS", "$t_CHK_TIMINGS",
+					"$CURRENT_OH_OWNER" );
+				$t_STATFIL = chg_files_for_usr( "t_STATFIL", "$t_STATFIL",
+					"$CURRENT_OH_OWNER" );
+			}
+			open( my $CHKT, ">", "$t_CHK_TIMINGS" )
+			  or die "Cannot open $t_CHK_TIMINGS: $!";
+
+			open( my $EF, "<", "$ENVFIL" ) or die "Cannot open $ENVFIL: $!";
+			my ($INST_MODE);
+			my ($INST_NAME);
+			while ( my $line = <$EF> ) {
+				chomp($line);
+				next if ( $line =~ m/^\s*#/ );
+				if ( $line =~ m/$rHOST\.$DBNAME\.INSTANCE_MODE/ ) {
+					$INST_MODE = $line;
+					$INST_MODE =~ s/$rHOST\.$DBNAME\.INSTANCE_MODE\s*=\s*//g;
+				}
+				elsif ( $line =~ m/$rHOST\.$DBNAME\.INSTANCE_NAME/ ) {
+					$INST_NAME = $line;
+					$INST_NAME =~ s/$rHOST\.$DBNAME\.INSTANCE_NAME\s*=\s*//g;
+				}
+			}
+			close($EF);
+
+			if ( $CHG_USER == 1 ) {
+				$PROCESS_IDIR = $TMP_OUTPUT;
+				$PROCESS_ODIR = $TMP_OUTPUT;
+				$PROCESS_RDIR = $TMP_OUTPUT;
+			}
+			my ($t_OSSPOOLFIL) = File::Spec->catfile( $PROCESS_ODIR,
+				    'o_check' . '_-'
+				  . $LOCALNODE . '_-'
+				  . $CHECKID . '_-'
+				  . $DBNAME
+				  . '.out' );
+			if ( $DBROLEMCNT >= 1 && $DBTYPEMCNT >= 1 ) {
+				my ($t_CHECK_TIMINGS) = File::Spec->catfile( $PROCESS_IDIR,
+					    $rHOST . '_-'
+					  . $CHECKID . '_-'
+					  . $DBNAME . '_-'
+					  . 'timings.out' );
+				if ( $MODE == 0 && $INST_MODE == 3 ) {
+					open( my $CT, ">>", "$t_CHECK_TIMINGS" )
+					  or die "Cannot open $t_CHECK_TIMINGS: $!";
+					my ($TIMESTAMP) = strftime "%a %b %d %H:%M:%S %Y",
+					  localtime(time);
+					print $CT
+"start time - $TIMESTAMP  - $AU_CHK_NAME on $rHOST for $DBNAME database\n\n";
+					close($CT);
+
+					my ($LD_LIBRARY_PATH);
+					my ($TMP_ENVFIL) = File::Spec->catfile( $PROCESS_IDIR,
+						    'tmp_env_file' . '_-'
+						  . $LOCALNODE . '_-'
+						  . $CHECKID . '_-'
+						  . $DBNAME
+						  . '.py' );
+					open( my $OEF, "<", "$ORCLENVFIL" )
+					  or die "Cannot open $ORCLENVFIL: $!";
+					open( my $TOEF, ">>", "$TMP_ENVFIL" )
+					  or die "Cannot open $TMP_ENVFIL: $!";
+
+					while (<$OEF>) {
+
+						#if ( $_ =~ m/^LD_LIBRARY_PATH=/ ) {
+						if ( $_ =~ m/^os.environ\['LD_LIBRARY_PATH'\]/ ) {
+							$LD_LIBRARY_PATH = "$_";
+							chomp($LD_LIBRARY_PATH);
+							$LD_LIBRARY_PATH =
+							  ( split "=", $LD_LIBRARY_PATH )[1];
+
+							#$LD_LIBRARY_PATH =~ s/ //g;
+						}
+
+						if (   $_ !~ m/ORACLE_SID/
+							&& $_ !~ m/ORACLE_HOME/
+							&& $_ !~ m/LD_LIBRARY_PATH/ )
+						{
+							print $TOEF $_;
+						}
+					}
+
+					#print $TOEF "export ORACLE_SID=$INST_NAME\n";
+					#print $TOEF "export ORACLE_HOME=$ORACLE_HOME\n";
+					print $TOEF "os.environ['ORACLE_SID'] = '$INST_NAME'\n";
+					print $TOEF "os.environ['ORACLE_HOME'] = '$ORACLE_HOME'\n";
+
+					close($TOEF);
+					close($OEF);
+
+					update_ld_lib_path( "$LD_LIBRARY_PATH", "$ORACLE_HOME",
+						"$TMP_ENVFIL" );
+
+					my ($TRGTORCLENV) = basename $TMP_ENVFIL;
+					if ( $CHG_USER == 0 ) {
+						$TRGTORCLENV =
+						  File::Spec->catfile( $RTEMPDIR, $TRGTORCLENV );
+					}
+					else {
+						$TRGTORCLENV =
+						  File::Spec->catfile( $TMP_OUTPUT, $TRGTORCLENV );
+					}
+
+					if ( $rHOST eq $LOCALNODE ) {
+						if ( "$TMP_ENVFIL" ne "$TRGTORCLENV" ) {
+							copy( $TMP_ENVFIL, $TRGTORCLENV );
+						}
+						if ( $CHG_USER == 1 ) {
+							subs_files_to_usr_files( "$TRGTORCLENV",
+								"$OLD_TMP_OUTPUT" );
+						}
+					}
+					else {
+						if ( $CHG_USER == 1 ) {
+							copy( $TMP_ENVFIL, $TMP_ENVFIL . '.bak' );
+							subs_files_to_usr_files( "$TMP_ENVFIL.bak",
+								"$OLD_TMP_OUTPUT" );
+							my $shell_out;
+							if ( $is_windows == 1 ) {
+
+								#Not required
+							}
+							else {
+								$shell_out = <<SHELL;
+                                $SCOPY $TMP_ENVFIL $rHOST:$TMP_OUTPUT >$DNUL 2>&1;
+SHELL
+								`$shell_out`;
+							}
+							unlink( $TMP_ENVFIL . '.bak' );
+						}
+						else {
+							my $shell_out;
+							if ( $is_windows == 1 ) {
+								remote_win_copy_without_cred(
+									$LOCALNODE, $TMP_ENVFIL,
+									$rHOST,     $RTEMPDIR
+								);
+							}
+							else {
+								$shell_out = <<SHELL;
+                                $SCOPY $TMP_ENVFIL $rHOST:$RTEMPDIR >$DNUL 2>&1;
+SHELL
+								`$shell_out`;
+							}
+						}
+					}
+					copy_env_files_to_tmp( $TMP_ENVFIL, $rHOST );
+
+					my ( $LOCALCMD, $O_CHK_FIL, $OLD_O_CHK_FIL, $t_ERRFIL );
+					if ( $CHG_USER == 0 ) {
+						($LOCALCMD) = File::Spec->catfile( $RTEMPDIR,
+							    'localcmd' . '_-'
+							  . $LOCALNODE . '_-'
+							  . $CHECKID . '_-'
+							  . $DBNAME
+							  . '.py' );
+						($O_CHK_FIL) = File::Spec->catfile( $OUTPUTDIR,
+							    $LOCALNODE . '_-'
+							  . $CHECKID . '_-'
+							  . $DBNAME . '_-'
+							  . 'report.out' );
+						($t_ERRFIL) = File::Spec->catfile( $INPUTDIR,
+							    $rHOST . '_-'
+							  . $CHECKID . '_-'
+							  . $DBNAME . '_-'
+							  . 'error.log' );
+					}
+					else {
+						($LOCALCMD) = File::Spec->catfile( $TMP_OUTPUT,
+							    'localcmd' . '_-'
+							  . $LOCALNODE . '_-'
+							  . $CHECKID . '_-'
+							  . $DBNAME
+							  . '.py' );
+						($O_CHK_FIL) = File::Spec->catfile( $PROCESS_ODIR,
+							    $LOCALNODE . '_-'
+							  . $CHECKID . '_-'
+							  . $DBNAME . '_-'
+							  . 'report.out' );
+						($OLD_O_CHK_FIL) = File::Spec->catfile( $PROCESS_ODIR,
+							    $LOCALNODE . '_-'
+							  . $CHECKID . '_-'
+							  . $DBNAME . '_-'
+							  . 'report.out' );
+						($t_ERRFIL) = File::Spec->catfile( $PROCESS_IDIR,
+							    $rHOST . '_-'
+							  . $CHECKID . '_-'
+							  . $DBNAME . '_-'
+							  . 'error.log' );
+					}
+					open( my $LCMD, ">", "$LOCALCMD" )
+					  or die "Cannot open $LOCALCMD: $!";
+					open( my $EF, "<", "$TRGTORCLENV" )
+					  or die "Cannot open $TRGTORCLENV: $!";
+					my ($header) = get_header( $USER_HASH->{CURRENT_OH_OWNER},
+						$USER_HASH->{HOME_DIR}, $LOCALCMD );
+					print $LCMD "'''\n$header\n'''\n";
+					while ( my $line = <$EF> ) {
+						print $LCMD $line;
+					}
+					close($EF);
+					if ( $CHG_USER == 1 && defined $HOME_DIR ) {
+						print $LCMD <<"EOF";
+os.environ['HOME'] = '$HOME_DIR';
+EOF
+					}
+					my $USR_ENTRY = "";
+					if ( $CHG_USER == 1 ) {
+						$USR_ENTRY = "os.environ['RUN_USER'] = '" . $USER_HASH->{CURRENT_OH_OWNER} . "'";
+					}
+					print $LCMD <<"EOF";
+os.environ['JAVA'] = ''
+os.environ['CLASSPATH'] = ''
+os.environ['ARGS'] = ''
+$USR_ENTRY
+
+rat_exitcode = None
+ALVL = None
+
+from lib.security import Secure
+_secure = Secure(logfile = Secure.DNUL)
+
+EOF
+
+					if ($COM_REPORT) {
+						open( my $CHKF, ">", "$O_CHK_FIL" )
+						  or die "Cannot open $O_CHK_FIL: $!";
+						print $CHKF "TO REVIEW COLLECTED DATA FROM "
+						  . uc($rHOST) . " - "
+						  . uc($DBNAME)
+						  . " DATABASE - "
+						  . uc($AU_CHK_NAME)
+						  . "\n\n\n";
+						close($CHKF);
+					}
+
+					my ($FILVAL);
+					my ($RETURNCODE);
+					if ( $rHOST eq $LOCALNODE ) {
+						if ( $CHG_USER == 1 ) {
+							$O_CHK_FIL = chg_files_for_usr( "O_CHK_FIL", "$O_CHK_FIL",
+								"$CURRENT_OH_OWNER" );
+							$t_ERRFIL = chg_files_for_usr( "t_ERRFIL", "$t_ERRFIL",
+								"$CURRENT_OH_OWNER" );
+							move($OLD_O_CHK_FIL, $O_CHK_FIL);								
+						}
+						if ($COM_REPORT) {
+							print $LCMD <<"EOF"
+native_c_rep = '''$DEBUG_FLG\n$COMMAND\necho DELIMCOM;$COM_REPORT'''
+(proc_out, proc_err, rat_exitcode) = _secure.sync_subprocess(native_c_rep, shell=True, return_code_from_task = True, executable = "$EXECUTABLE")
+proc_out2 = ''
+try:
+    proc_outval = proc_out.split("DELIMCOM")
+    proc_out1 = proc_outval[0]
+    proc_out2 = proc_outval[1]
+    print (proc_out1)
+except:
+    print (proc_out)
+	
+with open('$O_CHK_FIL','a') as CREP:
+    CREP.write(proc_out2)
+    CREP.write('\\n')
+if proc_err:
+    with open('$t_ERRFIL', 'a') as EFIL:
+        EFIL.write(proc_err)
+        EFIL.write('\\n')
+EOF
+							  ;
+						}
+						else {
+							print $LCMD <<"EOF"
+native_c_rep = '''$DEBUG_FLG\n$COMMAND'''
+(proc_out, proc_err, rat_exitcode) = _secure.sync_subprocess(native_c_rep, shell=True, return_code_from_task = True, executable = "$EXECUTABLE")
+try:
+    print (proc_out)
+except: pass
+if proc_err:
+    with open('$t_ERRFIL', 'a') as EFIL:
+        EFIL.write(proc_err)
+        EFIL.write('\\n')
+EOF
+							  ;
+						}
+
+						$localcmdval = File::Spec->catfile( $TMP_OUTPUT,
+							$DBNAME . '.localcmd.val' );
+						$rat_exit = File::Spec->catfile( $TMP_OUTPUT,
+							$DBNAME . '.localcmdrat.val' );
+
+						if ( $CHG_USER == 1 ) {
+							$localcmdval = chg_files_for_usr( "localcmdval", "$localcmdval",
+								"$CURRENT_OH_OWNER" );
+							$rat_exit = chg_files_for_usr( "rat_exit", "$rat_exit",
+								"$CURRENT_OH_OWNER" );
+						}
+						print $LCMD <<"EOF"
+if ALVL is not None:
+    with open('$localcmdval', 'w') as LCVAL:
+        LCVAL.write(ALVL)
+with open('$rat_exit', 'w') as REFIL:
+    if rat_exitcode is not None:
+        REFIL.write(str(rat_exitcode))
+        sys.exit(rat_exitcode)
+    else:
+        REFIL.write("0")
+        sys.exit(0)
+EOF
+						  ;
+						close($LCMD);
+						chmod( 0540, $LOCALCMD );
+						chmod( 0740, $TRGTORCLENV );
+
+						$EPOCH_TIME = get_current_epoch();
+						print $CHKT
+"[CHECK:$CHECKID][HOST: $RUNNING_HOST][TAG1: $DBNAME] Execution Start Time: $EPOCH_TIME\n";
+
+						if ( $CHG_USER == 0 ) {
+							my $PYTHON = set_python();
+							$FILVAL     = `$PYTHON $LOCALCMD 2>>$t_ERRFIL`;
+							$RETURNCODE = `echo $?`;
+							reset_python();
+						}
+						else {
+							#$t_ERRFIL =
+							#  chg_files_for_usr( "t_ERRFIL", "$t_ERRFIL",
+							#    "$CURRENT_OH_OWNER" );
+
+							my ($uid) =
+							  ( getpwnam $USER_HASH->{CURRENT_OH_OWNER} )[2];
+							my ($gid) =
+							  ( getpwnam $USER_HASH->{CURRENT_OH_OWNER} )[3];
+
+							chown $uid, $gid, $TRGTORCLENV;
+							chown $uid, $gid, $LOCALCMD;
+							chown $uid, $gid, $O_CHK_FIL;
+
+							my $PYTHON = set_python( $USER_HASH->{HOME_DIR} );
+
+							$FILVAL =
+`if [ -e $HOME_DIR ]; then cd $HOME_DIR; fi; su $CURRENT_OH_OWNER -c "$PYTHON $LOCALCMD 2>>$t_ERRFIL"`;
+							$RETURNCODE = `echo $?`;
+
+							reset_python();
+
+							if ($COM_REPORT) {
+								my $TMP_FILVAL =
+`if [ "$O_CHK_FIL" != "$OLD_O_CHK_FIL" ]; then cp $O_CHK_FIL $OLD_O_CHK_FIL; fi`;
+							}
+						}
+
+						$EPOCH_TIME = get_current_epoch();
+						print $CHKT
+"[CHECK:$CHECKID][HOST: $RUNNING_HOST][TAG1: $DBNAME] Execution End Time: $EPOCH_TIME\n";
+
+						if ( -e $LOCALCMD ) {
+							if ( $KEEP_LCMD == 0 ) {
+								unlink($LOCALCMD);
+							}
+							else {
+								store_localcmd( $TRGTORCLENV, $LOCALCMD );
+							}
+						}
+					}
+					else {
+						my ( $t_LOCALCMD, $t_O_CHK_FIL );
+						if ( $CHG_USER == 0 ) {
+							($t_LOCALCMD) =
+							  File::Spec->catfile( $RTEMPDIR,
+								basename($LOCALCMD) );
+							($t_O_CHK_FIL) =
+							  File::Spec->catfile( $RTEMPDIR,
+								basename($O_CHK_FIL) );
+						}
+						else {
+							($t_LOCALCMD) =
+							  File::Spec->catfile( $TMP_OUTPUT,
+								basename($LOCALCMD) );
+							($t_O_CHK_FIL) =
+							  File::Spec->catfile( $TMP_OUTPUT,
+								basename($O_CHK_FIL) );
+						}
+						my ($ORIG_O_CHK_FIL) = $O_CHK_FIL;
+						if ( $CHG_USER == 1 ) {
+							$O_CHK_FIL = chg_files_for_usr( "O_CHK_FIL", "$O_CHK_FIL",
+								"$CURRENT_OH_OWNER" );
+							$t_ERRFIL = chg_files_for_usr( "t_ERRFIL", "$t_ERRFIL",
+								"$CURRENT_OH_OWNER" );
+						}
+
+						if ($COM_REPORT) {
+							print $LCMD <<"EOF"
+native_c_rep = '''$DEBUG_FLG\n$COMMAND\necho DELIMCOM;$COM_REPORT'''
+(proc_out, proc_err, rat_exitcode) = _secure.sync_subprocess(native_c_rep, shell=True, return_code_from_task = True, executable = "$EXECUTABLE")
+proc_out2 = ''
+try:
+    proc_outval = proc_out.split("DELIMCOM")
+    proc_out1 = proc_outval[0]
+    proc_out2 = proc_outval[1]
+    print (proc_out1)
+except:
+    print (proc_out)
+	
+with open('$O_CHK_FIL','a') as CREP:
+    CREP.write(proc_out2)
+    CREP.write('\\n')
+if proc_err:
+    with open('$t_ERRFIL', 'a') as EFIL:
+        EFIL.write(proc_err)
+    	EFIL.write('\\n')
+EOF
+							  ;
+						}
+						else {
+							print $LCMD <<"EOF"
+native_c_rep = '''$DEBUG_FLG\n$COMMAND'''
+(proc_out, proc_err, rat_exitcode) = _secure.sync_subprocess(native_c_rep, shell=True, return_code_from_task = True, executable = "$EXECUTABLE")
+try:
+    print (proc_out)
+except: pass
+if proc_err:
+    with open('$t_ERRFIL', 'a') as EFIL:
+        EFIL.write(proc_err)
+        EFIL.write('\\n')
+EOF
+							  ;
+						}
+
+						$localcmdval = File::Spec->catfile( $TMP_OUTPUT,
+							$DBNAME . '.localcmd.val' );
+						$rat_exit = File::Spec->catfile( $TMP_OUTPUT,
+							$DBNAME . '.localcmdrat.val' );
+
+						if ( $CHG_USER == 1 ) {
+							$localcmdval = chg_files_for_usr( "localcmdval", "$localcmdval",
+								"$CURRENT_OH_OWNER" );
+							$rat_exit = chg_files_for_usr( "rat_exit", "$rat_exit",
+								"$CURRENT_OH_OWNER" );
+						}
+						print $LCMD <<"EOF"
+if ALVL is not None:
+    with open('$localcmdval', 'w') as LCVAL:
+        LCVAL.write(ALVL)
+with open('$rat_exit', 'w') as REFIL:        						
+    if rat_exitcode is not None:
+        REFIL.write(str(rat_exitcode))
+        sys.exit(rat_exitcode)
+    else:
+        REFIL.write("0")
+        sys.exit(0)
+EOF
+						  ;
+						close($LCMD);
+
+						if ( $KEEP_LCMD == 1 ) {
+							store_localcmd( $TRGTORCLENV, $LOCALCMD );
+						}
+
+						$EPOCH_TIME = get_current_epoch();
+						print $CHKT
+"[CHECK:$CHECKID][HOST: $RUNNING_HOST][TAG1: $DBNAME] Execution Start Time: $EPOCH_TIME\n";
+
+						if ( $CHG_USER == 0 ) {
+							my $shell_out;
+							if ( $is_windows == 1 ) {
+								remote_win_copy_without_cred(
+									$LOCALNODE, $LOCALCMD,
+									$LOCALNODE, $RTEMPDIR
+								);
+								remote_win_copy_without_cred(
+									$LOCALNODE, $O_CHK_FIL,
+									$LOCALNODE, $RTEMPDIR
+								);
+							}
+							else {
+								$shell_out = <<SHELL;
+                              $SCOPY $LOCALCMD $rHOST:$RTEMPDIR >$DNUL 2>&1
+                              $SCOPY $O_CHK_FIL $rHOST:$RTEMPDIR >$DNUL 2>&1
+SHELL
+								`$shell_out`;
+							}
+
+							if ( $is_windows == 1 ) {
+
+								#Not required
+							}
+							else {
+								$shell_out = <<SHELL;
+                              $SSHELL $rHOST "chmod 540 $t_LOCALCMD >$DNUL 2>&1"
+SHELL
+								`$shell_out`;
+							}
+
+							my $PYTHON = set_python();
+							$FILVAL =
+`$SSHELL $rHOST "$PYTHON $t_LOCALCMD" 2>>$t_ERRFIL`;
+							$RETURNCODE = `echo $?`;
+							reset_python();
+						}
+						else {
+							#$t_ERRFIL =
+							#  chg_files_for_usr( "t_ERRFIL", "$t_ERRFIL",
+							#    "$CURRENT_OH_OWNER" );
+
+							#my ($ORIG_O_CHK_FIL) = $O_CHK_FIL;
+							#$O_CHK_FIL =
+							# chg_files_for_usr( "t_ERRFIL", "$O_CHK_FIL",
+							#   "$CURRENT_OH_OWNER" );
+							move( $ORIG_O_CHK_FIL, $O_CHK_FIL );
+
+							my $shell_out;
+							if ( $is_windows == 1 ) {
+
+								#Not required
+							}
+							else {
+								$shell_out = <<SHELL;
+                              $SCOPY $LOCALCMD $rHOST:$TMP_OUTPUT >$DNUL 2>&1
+                              $SCOPY $O_CHK_FIL $rHOST:$TMP_OUTPUT >$DNUL 2>&1
+SHELL
+								`$shell_out`;
+							}
+
+							if ( $is_windows == 1 ) {
+
+								#Not required
+							}
+							else {
+								$shell_out = <<SHELL;
+                              $SSHELL $rHOST "chmod 540 $TRGTORCLENV >$DNUL 2>&1"
+                              $SSHELL $rHOST "chmod 540 $t_LOCALCMD >$DNUL 2>&1"
+                              $SSHELL $rHOST "chown $CURRENT_OH_OWNER:$CURRENT_OH_GROUP $TRGTORCLENV"
+                              $SSHELL $rHOST "chown $CURRENT_OH_OWNER:$CURRENT_OH_GROUP $t_LOCALCMD"
+SHELL
+								`$shell_out`;
+							}
+
+							my $PYTHON = set_python($HOME_DIR);
+
+							$FILVAL =
+`if [ -d $HOME_DIR ]; then cd $HOME_DIR; fi; $SSHELL $rHOST "su $CURRENT_OH_OWNER -c '$PYTHON $t_LOCALCMD 2>>$t_ERRFIL'"`;
+							$RETURNCODE = `echo $?`;
+
+							reset_python();
+						}
+
+						$EPOCH_TIME = get_current_epoch();
+						print $CHKT
+"[CHECK:$CHECKID][HOST: $RUNNING_HOST][TAG1: $DBNAME] Execution End Time: $EPOCH_TIME\n"
+						  ;
+
+						my $shell_out;
+						if ( $is_windows == 1 ) {
+							remote_win_copy_without_cred(
+								$rHOST,     $t_O_CHK_FIL,
+								$LOCALNODE, $OUTPUTDIR
+							);
+							win_ssh_without_cred( $RUNNING_HOST,
+								"cmd del /f $t_LOCALCMD" );
+						}
+						else {
+							$shell_out = <<SHELL;
+                            $SCOPY $rHOST:$t_O_CHK_FIL $OUTPUTDIR >$DNUL 2>&1
+                            $SSHELL $rHOST "rm -f $t_LOCALCMD $t_O_CHK_FIL>$DNUL 2>&1"
+SHELL
+							`$shell_out`;
+						}
+					}
+					if ( $CUR_USERN eq "root" or $CUR_USERI == 0 ) {
+						if ( $is_windows != 1 ) {
+							$ROOT_RUN = 1;
+						}
+					}
+
+					$ALVL_HASH = set_alvl(
+						$RETURNCODE, $ROOT_RUN,   $RUNNING_HOST,
+						$LOCALNODE,  $TMP_OUTPUT, $RTEMPDIR
+					);
+					$RETURNCODE = $ALVL_HASH->{RCODE};
+					my $ALVL = $ALVL_HASH->{ALVL};
+
+					if ( $IS_FIXUP_RUN == 0 ) {
+						my ($SHASH) =
+						  move_failed_to_skipped( $RETURNCODE, "",
+							"$rHOST:$DBNAME", $t_SKIPFIL, $t_STATFIL, "Execute",
+							$ALVL );
+
+						open( my $OSF, ">>", "$t_OSSPOOLFIL" )
+						  or die "Cannot open $t_OSSPOOLFIL: $!";
+						print $OSF "\n";
+						print $OSF "$DBNAME $PARAM_PATH $CHECKID == $FILVAL\n";
+					}
+					if ( $CHG_USER == 1 ) { write_del_rolbk_tmpoutput(); }
+				}
+			}
+			close($CHKT);
+		}
+		exit;
+	}
+	else {
+		set_run_log( $RLOG, "Unable to spawn process, skipping!" );
+		exit;
+	}
+
+	close($RLOG);
+}
+close($DFH);
+
+for my $pid (@PIDS) {
+	waitpid $pid, 0;
+}
+
+foreach
+  my $file ( glob( File::Spec->catfile( $OUTPUTDIR, "*$CHECKID*_run.log" ) ) )
+{
+	open( my $RFH, "<", "$file" ) or die "Cannot open $file: $!";
+	while (<$RFH>) {
+		print $RGLOG $_;
+	}
+	close($RFH);
+}
+if ( $MERGE == 1 ) {
+	set_run_log( $RGLOG, "Started Merging" );
+}
+else {
+	set_run_log( $RGLOG, "Not Merging as [ parameter : MERGE = $MERGE ]" );
+}
+
+sql_formatter();
+
+merge( $STFIL, "*.prt", $INPUTDIR );
+
+if ( $MERGE == 1 ) {
+	merge( $SKIPFIL, "*$CHECKID*_-skipped_checks.log", $INPUTDIR );
+
+	merge( $STATFIL, "*$CHECKID*_-stat.data", $INPUTDIR );
+	foreach my $iTMP_OUTPUT ( keys %USR_DIRS ) {
+		merge( $STATFIL, "*$CHECKID*_-stat.data", "$iTMP_OUTPUT/*/" );
+	}
+
+	merge( $CHECK_TIMINGS, "*$CHECKID*_-timings.out", $INPUTDIR );
+
+	merge( $ERRFIL, "*$CHECKID*_-error.log", $INPUTDIR );
+
+	merge( $CHK_TIMINGS, "*$CHECKID*_-epoch_timings.out", $INPUTDIR );
+
+	if ( $COMTYPE eq 'SQL' ) {
+		foreach my $SPOOL (
+			glob( File::Spec->catfile( $RTEMPDIR, "sqltorun_$CHECKID*.out" ) ) )
+		{
+			next if ( $SPOOL !~ m/_-/ );
+
+			my ($t_SPOOL) = basename $SPOOL;
+			$t_SPOOL =~ s/sqltorun_//g;
+			$t_SPOOL =~ s/\.out//g;
+
+			my ($OUTFIL);
+			if ( $SPOOL =~ m/_-report/ ) {
+				$t_SPOOL =~ s/_-report//g;
+
+				my ( $t_CHECKID, $t_DBNAME, $t_HOST ) = split( '_-', $t_SPOOL );
+				$OUTFIL = File::Spec->catfile( $OUTPUTDIR,
+					$t_CHECKID . '_' . $t_DBNAME . '_' . 'report.out' );
+			}
+			else {
+				my ( $t_CHECKID, $t_DBNAME, $t_HOST ) = split( '_-', $t_SPOOL );
+				$OUTFIL = File::Spec->catfile( $OUTPUTDIR,
+					'd_check' . '_' . $t_DBNAME . '.out' );
+			}
+
+			set_run_log( $RGLOG, "$SPOOL -> $OUTFIL" );
+
+			open( my $OFH, ">>", "$OUTFIL" ) or die "Cannot open $OUTFIL: $!";
+			open( my $SFH, "<",  "$SPOOL" )  or die "Cannot open $SPOOL: $!";
+			while (<$SFH>) {
+				print $OFH $_;
+			}
+			close($OUTFIL);
+			close($SPOOL);
+
+			unlink($SPOOL);
+		}
+
+		if ( $CHG_USER == 1 ) {
+			foreach my $iTMP_OUTPUT ( keys %USR_DIRS ) {
+				if ( -d $iTMP_OUTPUT ) {
+					foreach my $SPOOL (
+						glob(
+							File::Spec->catfile(
+								"$iTMP_OUTPUT/*/", "sqltorun_$CHECKID*.out"
+							)
+						)
+					  )
+					{
+						next if ( $SPOOL !~ m/_-/ );
+
+						my ($t_SPOOL) = basename $SPOOL;
+						$t_SPOOL =~ s/sqltorun_//g;
+						$t_SPOOL =~ s/\.out//g;
+
+						my ($OUTFIL);
+						if ( $SPOOL =~ m/_-report/ ) {
+							$t_SPOOL =~ s/_-report//g;
+
+							my ( $t_CHECKID, $t_DBNAME, $t_HOST ) =
+							  split( '_-', $t_SPOOL );
+							$OUTFIL = File::Spec->catfile( $OUTPUTDIR,
+								    $t_CHECKID . '_'
+								  . $t_DBNAME . '_'
+								  . 'report.out' );
+						}
+						else {
+							my ( $t_CHECKID, $t_DBNAME, $t_HOST ) =
+							  split( '_-', $t_SPOOL );
+							$OUTFIL = File::Spec->catfile( $OUTPUTDIR,
+								'd_check' . '_' . $t_DBNAME . '.out' );
+						}
+
+						set_run_log( $RGLOG, "$SPOOL -> $OUTFIL" );
+
+						open( my $OFH, ">>", "$OUTFIL" )
+						  or die "Cannot open $OUTFIL: $!";
+						open( my $SFH, "<", "$SPOOL" )
+						  or die "Cannot open $SPOOL: $!";
+						while (<$SFH>) {
+							print $OFH $_;
+						}
+						close($OUTFIL);
+						close($SPOOL);
+
+						unlink($SPOOL);
+					}
+
+				}
+			}
+		}
+
+		foreach my $C_SPOOL (
+			glob( File::Spec->catfile( $OUTPUTDIR, "d_check_-$CHECKID*.out" ) )
+		  )
+		{
+			next if ( $C_SPOOL !~ m/_-/ );
+
+			my ($t_SPOOL) = basename $C_SPOOL;
+			$t_SPOOL =~ s/d_check_-//g;
+			$t_SPOOL =~ s/\.out//g;
+
+			my ($OUTFIL);
+			my ( $t_CHECKID, $t_DBNAME ) = split( '_-', $t_SPOOL );
+			if ( defined $t_CHECKID && defined $t_DBNAME ) {
+				$OUTFIL = File::Spec->catfile( $OUTPUTDIR,
+					'd_check' . '_' . $t_DBNAME . '.out' );
+
+				set_run_log( $RGLOG, "$C_SPOOL -> $OUTFIL" );
+
+				open( my $OFH, ">>", "$OUTFIL" )
+				  or die "Cannot open $OUTFIL: $!";
+				open( my $SFH, "<", "$C_SPOOL" )
+				  or die "Cannot open $C_SPOOL: $!";
+				while (<$SFH>) {
+					print $OFH $_;
+				}
+				close($OFH);
+				close($SFH);
+			}
+		}
+	}
+	elsif ( $COMTYPE eq 'SQL_COLLECT' ) {
+		foreach my $C_SPOOL (
+			glob( File::Spec->catfile( $OUTPUTDIR, "d_*$CHECKID*.out" ) ) )
+		{
+			next if ( $C_SPOOL !~ m/_-/ );
+
+			my ($OUTFIL) = basename $C_SPOOL;
+			$OUTFIL =~ s/_-$CHECKID//g;
+			$OUTFIL = File::Spec->catfile( $OUTPUTDIR, $OUTFIL );
+
+			set_run_log( $RGLOG, "$C_SPOOL -> $OUTFIL" );
+
+			open( my $OFH, ">", "$OUTFIL" )  or die "Cannot open $OUTFIL: $!";
+			open( my $SFH, "<", "$C_SPOOL" ) or die "Cannot open $C_SPOOL: $!";
+			while (<$SFH>) {
+				print $OFH $_;
+			}
+			close($OFH);
+			close($SFH);
+
+			my ($new_name) = $C_SPOOL;
+			$new_name =~ s/_-/_/g;
+			move( $C_SPOOL, $new_name );
+		}
+
+		foreach my $C_SPOOL (
+			glob( File::Spec->catfile( $OUTPUTDIR, "a_*$CHECKID*.out" ) ) )
+		{
+			next if ( $C_SPOOL !~ m/_-/ );
+
+			my ($OUTFIL) = basename $C_SPOOL;
+			$OUTFIL =~ s/_-$CHECKID//g;
+			$OUTFIL = File::Spec->catfile( $OUTPUTDIR, $OUTFIL );
+
+			set_run_log( $RGLOG, "$C_SPOOL -> $OUTFIL" );
+
+			open( my $OFH, ">>", "$OUTFIL" )  or die "Cannot open $OUTFIL: $!";
+			open( my $SFH, "<",  "$C_SPOOL" ) or die "Cannot open $C_SPOOL: $!";
+			while (<$SFH>) {
+				print $OFH $_;
+			}
+			close($OFH);
+			close($SFH);
+
+			my ($new_name) = $C_SPOOL;
+			$new_name =~ s/_-/_/g;
+			move( $C_SPOOL, $new_name );
+		}
+
+		foreach my $SPOOL (
+			glob(
+				File::Spec->catfile( $RTEMPDIR, "sqltorun_d_*$CHECKID*.out" )
+			)
+		  )
+		{
+			next if ( $SPOOL !~ m/_-/ );
+
+			my ($t_SPOOL) = basename $SPOOL;
+			$t_SPOOL =~ s/sqltorun_d_//g;
+			$t_SPOOL =~ s/\.out//g;
+
+			my ( $t_OUTFILNAM, $t_CHECKID, $t_DBNAME, $t_HOST ) =
+			  split( '_-', $t_SPOOL );
+			my ($OUTFIL) = File::Spec->catfile( $OUTPUTDIR,
+				'd_' . $t_OUTFILNAM . '_' . $t_DBNAME . '.out' );
+
+			set_run_log( $RGLOG, "$SPOOL -> $OUTFIL" );
+
+			open( my $OFH, ">", "$OUTFIL" ) or die "Cannot open $OUTFIL: $!";
+			open( my $SFH, "<", "$SPOOL" )  or die "Cannot open $SPOOL: $!";
+			while (<$SFH>) {
+				print $OFH $_;
+			}
+			close($OUTFIL);
+			close($SPOOL);
+
+			my ($new_name) = $SPOOL;
+			$new_name =~ s/_-/_/g;
+			move( $SPOOL, $new_name );
+		}
+
+		if ( $CHG_USER == 1 ) {
+			foreach my $iTMP_OUTPUT ( keys %USR_DIRS ) {
+				if ( -d $iTMP_OUTPUT ) {
+					foreach my $SPOOL (
+						glob(
+							File::Spec->catfile(
+								$iTMP_OUTPUT, "sqltorun_d_*$CHECKID*.out"
+							)
+						)
+					  )
+					{
+						next if ( $SPOOL !~ m/_-/ );
+
+						my ($t_SPOOL) = basename $SPOOL;
+						$t_SPOOL =~ s/sqltorun_d_//g;
+						$t_SPOOL =~ s/\.out//g;
+
+						my ( $t_OUTFILNAM, $t_CHECKID, $t_DBNAME, $t_HOST ) =
+						  split( '_-', $t_SPOOL );
+						my ($OUTFIL) = File::Spec->catfile( $OUTPUTDIR,
+							'd_' . $t_OUTFILNAM . '_' . $t_DBNAME . '.out' );
+
+						set_run_log( $RGLOG, "$SPOOL -> $OUTFIL" );
+
+						open( my $OFH, ">", "$OUTFIL" )
+						  or die "Cannot open $OUTFIL: $!";
+						open( my $SFH, "<", "$SPOOL" )
+						  or die "Cannot open $SPOOL: $!";
+						while (<$SFH>) {
+							print $OFH $_;
+						}
+						close($OUTFIL);
+						close($SPOOL);
+
+						my ($new_name) = $SPOOL;
+						$new_name =~ s/_-/_/g;
+						move( $SPOOL, $new_name );
+					}
+				}
+			}
+		}
+	}
+	elsif ( $COMTYPE eq 'OS' ) {
+		foreach my $iTMP_OUTPUT ( keys %USR_DIRS ) {
+			foreach my $O_SPOOL (
+				glob(
+					File::Spec->catfile(
+						$iTMP_OUTPUT, "o_check_-*$CHECKID*.out"
+					)
+				)
+			  )
+			{
+				next if ( $O_SPOOL !~ m/_-/ );
+
+				my ($t_SPOOL) = basename $O_SPOOL;
+				$t_SPOOL =~ s/o_check_-//g;
+				$t_SPOOL =~ s/\.out//g;
+
+				my ($OUTFIL);
+				my ( $t_HOST, $t_CHECKID, $t_DBNAME ) = split( '_-', $t_SPOOL );
+				if (   defined $t_HOST
+					&& defined $t_CHECKID
+					&& defined $t_DBNAME )
+				{
+					$OUTFIL = File::Spec->catfile( $OUTPUTDIR,
+						'o_check' . '_' . $t_HOST . '.out' );
+
+					set_run_log( $RGLOG, "$O_SPOOL -> $OUTFIL" );
+
+					open( my $OFH, ">>", "$OUTFIL" )
+					  or die "Cannot open $OUTFIL: $!";
+					open( my $SFH, "<", "$O_SPOOL" )
+					  or die "Cannot open $O_SPOOL: $!";
+					while (<$SFH>) {
+						print $OFH $_;
+					}
+					close($OFH);
+					close($SFH);
+				}
+			}
+
+			foreach my $CHK_SPOOL (
+				glob(
+					File::Spec->catfile(
+						$iTMP_OUTPUT, "*_-$CHECKID*_-report.out"
+					)
+				)
+			  )
+			{
+				next if ( $CHK_SPOOL !~ m/_-/ );
+
+				my ($t_SPOOL) = basename $CHK_SPOOL;
+				$t_SPOOL =~ s/\.out//g;
+				$t_SPOOL =~ s/_-report//g;
+
+				my ($OUTFIL);
+				my ( $t_HOST, $t_CHECKID, $t_DBNAME ) = split( '_-', $t_SPOOL );
+				if (   defined $t_HOST
+					&& defined $t_CHECKID
+					&& $t_CHECKID eq $CHECKID
+					&& defined $t_DBNAME )
+				{
+					$OUTFIL = File::Spec->catfile( $OUTPUTDIR,
+						$t_CHECKID . '_' . $t_HOST . '_report.out' );
+
+					set_run_log( $RGLOG, "$CHK_SPOOL -> $OUTFIL" );
+
+					open( my $OFH, ">>", "$OUTFIL" )
+					  or die "Cannot open $OUTFIL: $!";
+					open( my $SFH, "<", "$CHK_SPOOL" )
+					  or die "Cannot open $CHK_SPOOL: $!";
+					while (<$SFH>) {
+						print $OFH $_;
+					}
+					close($OFH);
+					close($SFH);
+				}
+			}
+		}
+		foreach my $O_SPOOL (
+			glob(
+				File::Spec->catfile( $OUTPUTDIR, "o_check_-*$CHECKID*.out" )
+			)
+		  )
+		{
+			next if ( $O_SPOOL !~ m/_-/ );
+
+			my ($t_SPOOL) = basename $O_SPOOL;
+			$t_SPOOL =~ s/o_check_-//g;
+			$t_SPOOL =~ s/\.out//g;
+
+			my ($OUTFIL);
+			my ( $t_HOST, $t_CHECKID, $t_DBNAME ) = split( '_-', $t_SPOOL );
+			if ( defined $t_HOST && defined $t_CHECKID && defined $t_DBNAME ) {
+				$OUTFIL = File::Spec->catfile( $OUTPUTDIR,
+					'o_check' . '_' . $t_HOST . '.out' );
+
+				set_run_log( $RGLOG, "$O_SPOOL -> $OUTFIL" );
+
+				open( my $OFH, ">>", "$OUTFIL" )
+				  or die "Cannot open $OUTFIL: $!";
+				open( my $SFH, "<", "$O_SPOOL" )
+				  or die "Cannot open $O_SPOOL: $!";
+				while (<$SFH>) {
+					print $OFH $_;
+				}
+				close($OFH);
+				close($SFH);
+			}
+		}
+
+		foreach my $CHK_SPOOL (
+			glob(
+				File::Spec->catfile( $OUTPUTDIR, "*_-$CHECKID*_-report.out" )
+			)
+		  )
+		{
+			next if ( $CHK_SPOOL !~ m/_-/ );
+
+			my ($t_SPOOL) = basename $CHK_SPOOL;
+			$t_SPOOL =~ s/\.out//g;
+			$t_SPOOL =~ s/_-report//g;
+
+			my ($OUTFIL);
+			my ( $t_HOST, $t_CHECKID, $t_DBNAME ) = split( '_-', $t_SPOOL );
+			if (   defined $t_HOST
+				&& defined $t_CHECKID
+				&& $t_CHECKID eq $CHECKID
+				&& defined $t_DBNAME )
+			{
+				$OUTFIL = File::Spec->catfile( $OUTPUTDIR,
+					$t_CHECKID . '_' . $t_HOST . '_report.out' );
+
+				set_run_log( $RGLOG, "$CHK_SPOOL -> $OUTFIL" );
+
+				open( my $OFH, ">>", "$OUTFIL" )
+				  or die "Cannot open $OUTFIL: $!";
+				open( my $SFH, "<", "$CHK_SPOOL" )
+				  or die "Cannot open $CHK_SPOOL: $!";
+				while (<$SFH>) {
+					print $OFH $_;
+				}
+				close($OFH);
+				close($SFH);
+			}
+		}
+	}
+	elsif ( $COMTYPE eq 'GENERIC' ) {
+		foreach my $SPOOL (
+			glob( File::Spec->catfile( $RTEMPDIR, "sqltorun_*.out" ) ) )
+		{
+			next if ( $SPOOL !~ m/_-/ );
+
+			my ($t_SPOOL) = $SPOOL;
+			$t_SPOOL =~ s/$RTEMPDIR\/sqltorun_//g;
+			$t_SPOOL =~ s/\.out//g;
+
+			my ($OUTFIL);
+			my ( $t_CHECKID, $t_DBNAME, $t_HOST ) = split( '_-', $t_SPOOL );
+			$OUTFIL = File::Spec->catfile( $OUTPUTDIR,
+				$t_CHECKID . '_' . $t_DBNAME . '.out' );
+
+			set_run_log( $RGLOG, "$SPOOL -> $OUTFIL" );
+
+			open( my $OFH, ">>", "$OUTFIL" ) or die "Cannot open $OUTFIL: $!";
+			open( my $SFH, "<",  "$SPOOL" )  or die "Cannot open $SPOOL: $!";
+			while (<$SFH>) {
+				print $OFH $_;
+			}
+			close($OUTFIL);
+			close($SPOOL);
+		}
+
+		if ( $CHG_USER == 1 ) {
+			foreach my $iTMP_OUTPUT ( keys %USR_DIRS ) {
+				if ( -d $iTMP_OUTPUT ) {
+					foreach my $SPOOL (
+						glob(
+							File::Spec->catfile(
+								$iTMP_OUTPUT, "sqltorun_*.out"
+							)
+						)
+					  )
+					{
+						next if ( $SPOOL !~ m/_-/ );
+
+						my ($t_SPOOL) = $SPOOL;
+						$t_SPOOL =~ s/$iTMP_OUTPUT\/sqltorun_//g;
+						$t_SPOOL =~ s/\.out//g;
+
+						my ($OUTFIL);
+						my ( $t_CHECKID, $t_DBNAME, $t_HOST ) =
+						  split( '_-', $t_SPOOL );
+						$OUTFIL = File::Spec->catfile( $OUTPUTDIR,
+							$t_CHECKID . '_' . $t_DBNAME . '.out' );
+
+						set_run_log( $RGLOG, "$SPOOL -> $OUTFIL" );
+
+						open( my $OFH, ">>", "$OUTFIL" )
+						  or die "Cannot open $OUTFIL: $!";
+						open( my $SFH, "<", "$SPOOL" )
+						  or die "Cannot open $SPOOL: $!";
+						while (<$SFH>) {
+							print $OFH $_;
+						}
+						close($OUTFIL);
+						close($SPOOL);
+
+						unlink($SPOOL);
+					}
+
+				}
+			}
+		}
+	}
+}
+
+foreach my $FILE ( glob( File::Spec->catfile( $RTEMPDIR, "*_-*" ) ) ) {
+	my ($new_name) = $FILE;
+	$new_name =~ s/_-/_/g;
+	if ( !-e $new_name || defined $ENV{'POST_FIXUP_RUN'} ) {
+		move( $FILE, $new_name );
+	}
+}
+
+foreach my $FILE ( glob( File::Spec->catfile( $OUTPUTDIR, "*_-*" ) ) ) {
+	my ($new_name) = $FILE;
+	$new_name =~ s/_-/_/g;
+	if ( !-e $new_name || defined $ENV{'POST_FIXUP_RUN'} ) {
+		move( $FILE, $new_name );
+	}
+}
+
+foreach my $FILE ( glob( File::Spec->catfile( $INPUTDIR, "*_-*" ) ) ) {
+	my ($new_name) = $FILE;
+	$new_name =~ s/_-/_/g;
+	if ( !-e $new_name || defined $ENV{'POST_FIXUP_RUN'} ) {
+		move( $FILE, $new_name );
+	}
+}
+
+if ( $CHG_USER == 1 ) {
+	foreach my $iTMP_OUTPUT ( keys %USR_DIRS ) {
+		if ( -d $iTMP_OUTPUT ) {
+			foreach
+			  my $FILE ( glob( File::Spec->catfile( $iTMP_OUTPUT, "*_-*" ) ) )
+			{
+				my ($new_name) = $FILE;
+				$new_name =~ s/_-/_/g;
+				if ( !-e $new_name || defined $ENV{'POST_FIXUP_RUN'} ) {
+					move( $FILE, $new_name );
+				}
+			}
+		}
+	}
+}
+
+if ( $HOUSEKEEPING == 1 ) {
+	housekeeping();
+}
+
+set_run_log( $RGLOG, "\n----------------\n\n" );
+close($RGLOG);
+
+exit(0);
+

@@ -1,0 +1,27 @@
+printf("==========START_OF_REPORT_chkExtShadows.aksh==========\n");
+
+var founderrorsShadows = false;
+var report = 1;
+
+// ----------------------------------------------------------------------------
+// MAIN STARTS HERE	
+getHostname();
+
+var projects, p, shares, s;
+pools = getPoolNames();
+for (i = 0; i < pools.length; i++) {
+    run('cd /');
+    run('shares');    
+    printreport("Pool name: " + pools[i] + "\n");
+    run('set pool=' + pools[i]);
+    checkShadows();
+}
+if ( founderrorsShadows == false ) {
+    printf("OK: %s Shadow Check Completed: No Errors Found\n",host_name);
+}
+printf("==========END_OF_REPORT_chkExtShadows.aksh==========\n");
+
+printf("==========START_OF_AUDIT_CHECK_chkExtShadows.aksh==========\n");
+printf("shadow_check_status = %d\n", founderrorsShadows);
+printf("==========END_OF_AUDIT_CHECK_chkExtShadows.aksh==========\n");
+

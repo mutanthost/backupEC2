@@ -1,0 +1,37 @@
+183548B477554B11E0530D98EB0AD7F8|Oracle GoldenGate version check
+183977294FB9E35EE0530B98EB0A6024|Oracle GoldenGate Streams performance advisor installation
+18505E3592016770E0530B98EB0A5FB3|Oracle GoldenGate Integrated Extract process existence
+1850BDB58A2F730DE0530B98EB0AD08B|Oracle GoldenGate Integrated Replicat process existence
+1ACCA8C6291F9C87E0530C98EB0A6EFA|Oracle GoldenGate failure prevention best practices
+1AFAFF86C353FAC8E0530B98EB0AA016|Database compatible for Oracle GoldenGate Integrated Replicat
+1B6A7AEEB0F96A72E0530B98EB0A4425|Streams pool size
+56E46780346871B8E053D398EB0A4474|Oracle GoldenGate health check for 12.1.0.2 and 12.2
+56E9670C4916160EE053D498EB0AF86B|Is Oracle GoldenGate configured for 12102 and 12.2?
+E2D9FEDF1F3D125EE04313C0E50A840F|Oracle GoldenGate health check for 11.2.0.4
+E2DA0009E5F31545E04313C0E50A2929|Is Oracle GoldenGate configured for 11204?
+E2DA667B304B79C6E04312C0E50AC3B5|Is Oracle GoldenGate configured for 11203?
+E2DA698738A60DB2E04313C0E50A04C0|Oracle GoldenGate health check for 11.2.0.3
+E2DA779ACE4942BAE04312C0E50ACC66|Is Oracle GoldenGate integrated capture configured?
+E2DAB6FC13824418E04312C0E50A303E|Is Oracle GoldenGate classic capture configured?
+E2E699D9BBAF4E6EE04312C0E50A2B97|Oracle GoldenGate Supplemental logging mode?
+E2E8511B736E7569E04313C0E50A78BC|Archive log mode
+E2E88D578386573CE04312C0E50A3348|Oracle GoldenGate Force logging mode enabled?
+E2F42BDE63F05BB5E04312C0E50A3ED4|Oracle GoldenGate User Tablespace datafiles
+E2F4AB684E3524E4E04313C0E50A2A80|Database compatible for Oracle GoldenGate Integrated Extract
+E32BC266FE3A7410E04313C0E50A7AD4|Oracle GoldenGate Administrator privilege check
+E3303ECBBEC379B1E04312C0E50AE1F2|Status of Logmining Server Processes
+E330692063FE5ABAE04313C0E50AD820|Oracle GoldenGate objects status in database 
+E33403A7DF47301DE04312C0E50A00D7|Check for No Rule Set defined for Oracle GoldenGate Integrated Capture 
+E33580D8A099290AE04312C0E50A3280|Check for Rule Set defined for Oracle GoldenGate Integrated Capture Logmining Server
+E33BC76F65665B57E04313C0E50A86C4|Oracle GoldenGate capture type
+E33BC76F65675B57E04313C0E50A86C4|Force logging mode enabled?
+E33BC76F65685B57E04313C0E50A86C4|Supplemental logging mode
+EB2964F104AA48B3E04313C0E50A135A|Oracle GoldenGate processes status
+EBA18662BD884573E04312C0E50A6FC7|ggsci_infoall
+EBBAA820D4CE07C1E04313C0E50AA64F|Oracle GoldenGate Extract and Replicat Lag time
+ECD082C919D96ABEE04312C0E50AE6F9|Oracle GoldenGate Swap consumption
+ECD0CEAD77424741E04312C0E50AB127|Verify Memory consumption
+ECD0D3C366EF402EE04312C0E50A64A3|Oracle GoldenGate Tracing parameter
+ECD14B3BE2B52C24E04312C0E50A3F4E|Verify CPU consumption
+EF7F416C7D60159BE04312C0E50AA655|Oracle GoldenGate health check for 12.1.0.1
+EF80A61A19BB51EEE04312C0E50AFC74|Is Oracle GoldenGate configured for 12101?

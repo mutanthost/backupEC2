@@ -1,0 +1,69 @@
+#!/bin/sh
+#
+# $Header: trcsess.sbs 22-oct-2003.06:55:40 fekhan Exp $
+#
+# Copyright (c) 1997, 2003, Oracle Corporation.  All rights reserved.  
+#
+#    NAME
+#      trcsess - Shell script to run session tracer in
+#              standalone mode.
+#
+#    DESCRIPTION
+#      Runs trcsess Java application.  This file comes
+#      in two forms its original, with a .sbs extension, and its final, without
+#      a .sbs extension.  The .sbs version is source for the final
+#      version which the Oracle Universal creates by doing
+#      variables substitution at install time.
+#
+#    MODIFIED   (MM/DD/YY)
+#    fekhan      10/22/03  - use s_jreLocation.
+#    fekhan      10/15/03  - support for spaces in argument.
+#    fekhan      10/15/02  - fekhan_sess_trace
+#    fekhan      09/01/02  - creation
+#
+
+case $ORACLE_HOME in
+    "") echo "****ORACLE_HOME environment variable not set!"
+        echo "    ORACLE_HOME should be set to the main"
+        echo "    directory that contains Oracle products."
+        echo "    Set and export ORACLE_HOME, then re-run."
+        exit 1;;
+esac
+
+# Get or set the platform.
+PLATFORM=`uname`
+
+# Unset any existing JAVA_HOME variable to ensure that only
+# the JRE we want to use is used.
+unset JAVA_HOME
+
+# Some platform may need other JVM environment variables set
+# or unset as appropriate.
+case $PLATFORM in "AIX")
+   JAVA_COMPILER=NONE
+   export JAVA_COMPILER
+esac
+case $PLATFORM in "LINUX")
+   THREADS_FLAG=native
+   export THREADS_FLAG
+esac
+
+# External Directory Variables set by the Installer
+JRE_HOME=/u01/app/oracle/product/19.0.0/dbhome_1/jdk/jre/
+JLIBDIR=/u01/app/oracle/product/19.0.0/dbhome_1/jlib
+LIBDIR=/u01/app/oracle/product/19.0.0/dbhome_1/lib
+RDBMSJLIBDIR=/u01/app/oracle/product/19.0.0/dbhome_1/rdbms/jlib
+
+
+# trcsess File Variables
+TRCSESS_JAR=$RDBMSJLIBDIR/trcsess.jar
+
+# JRE Executable and Class File Variables
+JRE_CLASSPATH=$JRE_HOME/lib:$JRE_HOME/lib/rt.jar:$JRE_HOME/lib/i18n.jar
+
+# Set Classpath for  trcsess
+CLASSPATH=$TRCSESS_JAR:$JRE_CLASSPATH
+
+# Run trcsess
+$JRE_HOME/bin/java -classpath $CLASSPATH oracle.ss.tools.trcsess.TrcSess "$@"
+exit $status

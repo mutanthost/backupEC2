@@ -1,0 +1,1449 @@
+#!/usr/bin/python
+# asrexacheck - 4.3
+# for more information or feedback please refer to My Oracle Support doc ID 2103715.1
+
+import commands
+import datetime
+import getopt
+import os
+import pprint
+import re
+import shutil
+import socket
+import sys
+import time
+import zipfile
+
+
+PING_PACKET_SIZES = (56, 1024, 2048, 3072)
+
+class Asr:
+  """ ASR checks """
+
+  def __init__(self, logger, env, noTest, configFile):
+    self.l = logger
+    self.e = env
+    self.noTestCli = noTest
+    self.irule_regex = re.compile(r'.*rules/(\d+)$')
+    self.ilomip = self.e["ilomip"]
+    self.ilomhn = self.e["ilomhn"]
+    self.hostip = self.e["hostip"]
+    self.hosthn = self.e["hosthn"]
+    self.asrIF = self.e["asrif"]
+    self._exit_if_no_valid_asrif()
+    self.u = Utils(self.l)
+    self.snmpSubscribers = self._get_snmp_subscribers()
+    self.alertmgmtRules = self._get_alert_mgt_rules()
+    self.osRules = self._get_os_asr_hosts()
+    self.ilomRules = self._get_ilom_asr_hosts()
+    self.fromIps = self._get_from_ips()
+    self.ipRouteGetIf = None
+    self.asrM = None
+    self.asrOutput = []
+    self.asr_config = AsrConfig(configFile)
+    self.asr_settings = self.asr_config.settings
+    self.testEventsSent = []
+
+  def is_ilom_only_platform(self):
+    return self.e["estype"] in ("Exalogic", )
+
+  def _exit_if_no_valid_asrif(self):
+    if not self.is_ilom_only_platform() and not self.asrIF:
+      self.l.print_out("")
+      self.l.print_out("No ASR interface found, tried cellcli, dbmcli, and could not locate the mon_hw_asr script", "err")
+      sys.exit()
+
+  def _get_snmp_subscribers(self):
+    if self.asrIF == "cellcli":
+      cmd = "cellcli -e list cell attributes snmpsubscriber"
+    elif self.asrIF == "dbmcli":
+      cmd = "dbmcli -e list dbserver attributes snmpsubscriber"
+    else:
+      cmd = "%s -get_snmp_subscribers -type asr" % self.asrIF
+    return self.u.run_shell_cmd(cmd) or []
+
+  def _get_alert_mgt_rules(self):
+    cmd = "%s sunoem cli 'show -l all /SP/alertmgmt/rules'" % self.e["ipmitool"]
+    out =  self.u.run_shell_cmd(cmd) or []
+    r = None
+    rules = {}
+    for o in out:
+      m = re.search(r'\s*(/SP/alertmgmt/rules/\d+).*', o)
+      if m:
+        r = m.groups()[0]
+        rules.setdefault(r, {})
+      if "=" in o and r:
+        fields = o.split("=")
+        rules[r][fields[0].strip()] = fields[1].strip()
+    return rules
+
+  def _ip_route_get_nw_interface(self, asrm):
+    nif = None
+    cmd = "ip route get %s" % asrm
+    out = self.u.run_shell_cmd(cmd) or []
+    for o in out:
+      if asrm in o:
+        nif = re.sub(r'.*dev\s+(\S+)\s+src\s.*', r'\1', o)
+    return nif
+
+  def _os_validation(self):
+    if self.asrIF == "cellcli":
+      cmd = "cellcli -e alter cell validate snmp type=asr"
+    elif self.asrIF == "dbmcli":
+      cmd = "dbmcli -e alter dbserver validate snmp type=asr"
+    else:
+      cmd = "%s -validate_snmp_subscriber -type asr" % self.asrIF
+    return self.u.run_shell_cmd(cmd) or []
+
+  def _ilom_validation(self, rule):
+    cmd = "%s sunoem cli 'set %s testrule=true'" % (self.e["ipmitool"], rule)
+    return self.u.run_shell_cmd(cmd) or []
+
+  def _get_rule_template(self, host, ip, interface):
+    """ provides generic rule syntax to standardize handling of snmpsubscriber and ilom alertmgmt rules """
+    return {
+      "interface": interface,
+      "community": "",
+      "fromip"   : "",
+      "host"     : host,
+      "ip"       : ip,
+      "level"    : "",
+      "port"     : "",
+      "ilomrule" : "",
+      "testrule" : "",
+      "type"     : "",
+      "version"  : "",
+    }
+
+  def _remove_invalid_output_lines(self):
+    subscribers = []
+    for line in self.snmpSubscribers:
+      if not line.strip():
+        continue
+      if "bda_mon_hw_asr.pl line" in line:
+        continue
+      subscribers.append(line)
+    return subscribers
+
+  def _get_os_asr_hosts(self):
+    hosts = []
+    subscribers = self._remove_invalid_output_lines()
+    if not subscribers:
+      return hosts
+    for o in subscribers[0].split("("):
+      if not o.startswith("host"):
+        continue
+      fields = o.split(",")
+      host = fields[0].replace("host=", "")
+      (ip, host) = self.u.ip_host_translation(host)
+      if not ip:
+        ip = "Unresolveable"
+      if not host:
+        host = "Unresolveable"
+      dt = self._get_rule_template(host, ip, "os")
+      for f in fields:
+        if "=" in f:
+          (k, v) = f.split("=")
+          # already key in new dict
+          if k == "host":
+            continue
+          dt[k] = v.strip(")")
+      hosts.append(dt)
+    return hosts
+
+  def _get_ilom_asr_hosts(self):
+    hosts = []
+    for rule,d in self.alertmgmtRules.items():
+      if not "destination" in d or d["destination"] == "0.0.0.0":
+        continue
+      host = d["destination"]
+      (ip, host) = self.u.ip_host_translation(host)
+      if not ip:
+        ip = "Unresolveable"
+      if not host:
+        host = "Unresolveable"
+      dt = self._get_rule_template(host, ip, "ilom")
+      dt["ilomrule"] = rule
+      for k,v in d.items():
+        # already key of new return dict
+        if k == "destination":
+          continue
+        # renaming to match dict of os rules
+        if k == "destination_port":
+          k = "port"
+        elif k == "snmp_version":
+          k = "version"
+        elif k == "community_or_username":
+          k = "community"
+        elif k == "destination_port":
+          k = "port"
+        dt[k] = v
+      hosts.append(dt)
+    return hosts
+
+  def _match_asr_managers(self):
+    ASRManagers = []
+    non2cRules = []
+    for orule in self.osRules:
+      # 1. OS rule type = asr ?
+      if not "asr" in orule["type"].lower():
+        continue
+      for irule in self.ilomRules:
+        # 2. os ip == ilom ip ?
+        if orule["ip"] != irule["ip"]:
+          continue
+        # 3. ilom rule == minor ?
+        if irule["level"].lower() != "minor":
+          continue
+        # 4. ilom version == 2c ?
+        if irule["version"].lower() != "2c" and not irule["ilomrule"] in non2cRules:
+          self.asrOutput.append(("ILOM property snmp_version is set to use SNMP protocol version %s (not 2c) for IP Address %s in rule %s" % \
+            (irule["version"], irule["ip"], self._shorten_ilom_rule(irule["ilomrule"])), "info"))
+          non2cRules.append(irule["ilomrule"])
+          continue
+        # 5. port is default 162 or user defined
+        if orule["port"] != self.asr_settings["port"]:
+          continue
+        # ... then, you are an ASRM
+        ASRManagers.append({
+          "ip"          : irule["ip"],
+          "ilomrule"    : irule["ilomrule"],
+          "osport"      : orule["port"],
+          "ilomport"    : irule["port"],
+        })
+    return ASRManagers
+
+  def _match_asr_managers_ilom_only(self):
+    ASRManagers = []
+    for irule in self.ilomRules:
+      # 1. ilom rule == minor ?
+      if irule["level"].lower() != "minor":
+        continue
+      # 2. ilom version == 2c ?
+      if irule["version"].lower() != "2c":
+        continue
+      # 3. type = snmptrap
+      if irule["type"] != "snmptrap":
+        continue
+      # 4. community = public
+      if irule["community"].lower() != self.asr_settings["community"]:
+        continue
+      # 5. check for port
+      if irule["port"] != self.asr_settings["port"]:
+        continue
+      # 6. then, you are an ASRM
+      ASRManagers.append({
+        "ip"          : irule["ip"],
+        "ilomrule"    : irule["ilomrule"],
+        "osport"      : "N/A",
+        "ilomport"    : irule["port"],
+      })
+    return ASRManagers
+
+  def _validation_success_msg(self, typeValidation, toIp, toPort=None):
+    if toPort:
+      port = ":" + toPort
+    else:
+      port = ""
+    self.asrOutput.append(("%s Test event sent to %s%s" % (typeValidation, toIp, port), "ok"))
+
+  def _get_from_ips(self):
+    ips = {}
+    for rule in self.osRules:
+      if rule["fromip"].strip():
+        ips[rule["ip"]] = rule["fromip"]
+    return ips
+
+  def _get_notification_method(self):
+    if self.asrIF not in ("cellcli", "dbmcli"):
+      return False
+    cmd = "cellcli -e list cell attributes notificationMethod"
+    if self.asrIF == "dbmcli":
+      cmd = "dbmcli -e list dbserver attributes notificationMethod"
+    return self.u.run_shell_cmd(cmd) or []
+
+  def _shorten_ilom_rule(self, rule):
+    return self.irule_regex.sub(r'\1', rule)
+
+  def asr_checks(self):
+    asrIfShort = "ASR IF"
+    if self.asrIF:
+      asrIfShort = self.asrIF.upper()
+      if "MON" in asrIfShort:
+        asrIfShort = "MON.PL"
+    if self.is_ilom_only_platform():
+      if not self.ilomRules:
+        self.asrOutput.append(("No ASR Manager was found configured on ILOM, exiting", "info"))
+        return
+    else:
+      if not self.osRules or not self.ilomRules:
+        self.asrOutput.append(("No ASR Manager was found configured on both server and ILOM, exiting", "info"))
+        return
+    self.asrOutput.append("%-16s %-16s %4s %4s %7s %5s %8s %9s %3s" % \
+      ("Destination", "Hostname", "Rule", "Type", asrIfShort, "Port", "Level", "Community", "Ver"))
+    self.asrOutput.append(self.l.get_divider_line())
+    rows = []
+    for rule in self.osRules + self.ilomRules:
+      asrIfShort = ""
+      if rule["interface"] == "os":
+        asrIfShort = "YES"
+      ruleType = ""
+      if "asr" in rule["type"]:
+        ruleType = "ASR"
+      hostName = str(rule["host"])
+      if len(hostName) > 15:
+        hostName = hostName[0:15]
+      rows.append("%-16s %-16s %4s %4s %7s %5s %8s %9s %3s" % \
+        (rule["ip"], hostName, self._shorten_ilom_rule(rule["ilomrule"]), ruleType, asrIfShort, rule["port"], rule["level"], rule["community"], rule["version"])
+      )
+    for r in sorted(rows):
+      self.asrOutput.append(r)
+    self.asrOutput.append("")
+
+    if self.is_ilom_only_platform():
+      ASRManagers = self._match_asr_managers_ilom_only()
+    else:
+      ASRManagers = self._match_asr_managers()
+
+    if len(ASRManagers) == 0:
+      if self.is_ilom_only_platform():
+        exalNoAsrmMsg = "Unable to identify a valid ASR Manager.\nChecked: type = snmptrap, level = minor, version = 2c, "
+        exalNoAsrmMsg += "community = %s, port = %s.\nExiting" % (self.asr_settings["community"], self.asr_settings["port"])
+        self.asrOutput.append((exalNoAsrmMsg, "info"))
+      else:
+        self.asrOutput.append(("Unable to identify a valid ASR Manager, exiting", "info"))
+      return
+    elif len(ASRManagers) > 1:
+      self.asrOutput.append(("There is more than one ASR manager identified (%s), exiting" % ", ".join(list(set([am["ip"] for am in ASRManagers]))), "warn"))
+      return
+    else:
+      self.asrM = ASRManagers[0]
+      self.asrOutput.append(("There is exactly one ASR manager (ASRM) identified (%s)" % self.asrM["ip"], "ok"))
+
+    # ping for different packet sizes
+    for packet_size in PING_PACKET_SIZES:
+      if not self.u.ping(self.asrM["ip"], psize=packet_size):
+        self.asrOutput.append(("ASRM IP %s is not pingable for packet size %s" % (self.asrM["ip"], packet_size), "fail"))
+
+    # cannot do earlier because we need a single ASRM IP as input to this command
+    self.ipRouteGetIf = self._ip_route_get_nw_interface(self.asrM["ip"])
+
+    notificationMethod = self._get_notification_method()
+    if notificationMethod and not self.u.filter_output_regex(notificationMethod, "snmp|Snmp|SNMP"):
+      self.asrOutput.append(("Notification method does not contain snmp", "info"))
+
+    if self.noTestCli:
+      self.asrOutput.append(("Asrexacheck called with -n / --notest flag, omitting test events", "info"))
+      return
+
+    if self.asr_settings["test"].lower() == "false":
+      self.asrOutput.append(("Asrexacheck.conf has test set to false, omitting test events", "info"))
+      return
+
+    self.asrOutput.append("* Validation: ")
+    # 1. OS validation
+    if self.is_ilom_only_platform():
+      self.asrOutput.append(("This is an ILOM-validation-only platform, skipping OS validation", "info"))
+    else:
+      osValOut = self._os_validation()
+      if not osValOut or not self.u.filter_output_regex(osValOut, "(Sending test trap.*to destination|successfully altered)"):
+        self.asrOutput.append(("Trap not sent, output: %s" % "".join(osValOut), "err"))
+        self.asrOutput.append("Exiting")
+        return
+      self._validation_success_msg("OS", self.asrM["ip"], toPort=self.asrM["osport"])
+      self.testEventsSent.append(TestEvent(typeEv="os", fromIp=self.hostip, fromHn=self.hosthn, asrM=self.asrM["ip"]))
+
+    # 2. ILOM validation
+    if self._ilomip_not_valid():
+      self.asrOutput.append(("Cannot send ILOM test event as not a valid ILOM IP", "err"))
+    else:
+      ilomValOut = self._ilom_validation(self.asrM["ilomrule"])
+      if not ilomValOut or self.u.filter_output(ilomValOut, "To send a test alert"):
+        self.asrOutput.append(("Unable to send Test Event due to ILOM Configuration issue", "err"))
+        if ilomValOut:
+          for ivo in ilomValOut:
+            if "set" in ivo:
+              self.asrOutput.append(ivo)
+        self.asrOutput.append("Exiting")
+        return
+      self._validation_success_msg("ILOM", self.asrM["ip"], toPort=self.asrM["ilomport"])
+      self.testEventsSent.append(TestEvent(typeEv="ilom", fromIp=self.ilomip, fromHn=self.ilomhn, asrM=self.asrM["ip"]))
+    self._print_uptime()
+
+  def print_asr_checks(self):
+    self.l.print_header(self.__class__.__name__)
+    for line in self.asrOutput:
+      if type(line) == tuple and len(line) == 2:
+        line = self.l.build_out(line[0], line[1])
+      self.l.print_out(line)
+
+  def _ilomip_not_valid(self):
+    return "(none)" in self.ilomip or "False" in self.ilomip
+
+  def _print_uptime(self):
+    ut = Uptime(self.l, self.e["image"], self.hostip, self.ilomRules)
+    os_uptime = ut.get_os_uptime()
+    ilom_uptime = ut.get_ilom_uptime()
+    if os_uptime:
+      self.asrOutput.append("* OS uptime: %s" % os_uptime)
+    if ilom_uptime:
+      self.asrOutput.append("* ILOM uptime: %s" % ilom_uptime)
+
+
+class AsrConfig:
+
+  def __init__(self, configFile):
+    self.config_file = configFile
+    self.settings = {
+      "port"      : "162",
+      "community" : "public",
+      "test"      : "true",
+    }
+    self.delimit = "="
+    self.customized_settings = set()
+    self._update_settings()
+
+  def _update_settings(self):
+    if not os.path.isfile(self.config_file):
+      return
+    for line in self._read_config_file():
+      try:
+        key, value = line.split(self.delimit)
+      except ValueError:
+        continue
+      if key in self.settings:
+        if self._validations_pass(key, value):
+          self.settings[key] = value
+          self.customized_settings.add(key)
+
+  def _read_config_file(self):
+    try:
+      f = open(self.config_file)
+      lines = [line.lower().strip() for line in f.readlines()]
+      f.close()
+      return lines
+    except:
+      return []
+
+  def _validations_pass(self, key, value):
+    if key == "port" and not value.isdigit():
+      return False
+    if key == "test" and not value in ("true", "false"):
+      return False
+    return True
+
+  def __repr__(self):
+    out = ["\nUsing ASR settings: "]
+    for key in sorted(self.settings):
+      source = "default"
+      if key in self.customized_settings:
+        source = self.config_file
+      out.append("- %-15s%1s %-10s (%s)" % (key, self.delimit, self.settings[key], source))
+    return "\n".join(out)
+
+
+class AsrSetting:
+
+  def __init__(self, logger):
+    self.l = logger
+    self.f = self.l.outputs["setting"] # created in logging -> setup
+    self.sep = "|"
+    self._create_header()
+
+  def _create_header(self):
+    header = self.sep.join(["Event_Type", "From_IP", "From_HN", "To_ASRM", "Tstamp"])
+    if os.stat(self.f).st_size == 0:
+      self.l.write_to_file(self.f, header)
+
+  def log_test_events(self, testEvents):
+    for te in testEvents:
+      record = self.sep.join(te.get_records())
+      self.l.write_to_file(self.f, record)
+
+
+class Cli:
+  """ Handle command line parameters """
+
+  def __init__(self, script, version, baseDir, configFile):
+    self.script = script
+    self.version = version
+    self.defaultBasedir = baseDir
+    self.defaultConfigFile = configFile
+    self.defaultNoTest = False
+
+  def parse_cli_args(self):
+    try:
+      self.opts, self.args = getopt.getopt(sys.argv[1:],"L:C:hnv",["Logdir=", "Config=", "help", "notest", "version", ])
+    except getopt.GetoptError, err:
+      print err
+      self.usage()
+      sys.exit(1)
+
+  def get_args(self):
+    baseDir = self.defaultBasedir
+    configFile = self.defaultConfigFile
+    noTest = self.defaultNoTest
+    for opt, arg in self.opts:
+      if opt in ("-h", "--help"):
+        self.usage()
+        sys.exit(0)
+      elif opt in ("-v", "--version"):
+        self.print_version()
+        sys.exit(0)
+      elif opt in ("-n", "--notest"):
+        noTest = True
+      elif opt in ("-L", "--Logdir"):
+        self._validate_logdir_path(arg)
+        baseDir = arg
+      elif opt in ("-C", "--Config"):
+        self._validate_config_file(arg)
+        configFile = arg
+    return (baseDir, configFile, noTest)
+
+  def _validate_logdir_path(self, arg):
+    if os.path.isfile(arg):
+      print "[WARN] Base directory is an existing file, please specify another value"
+      sys.exit(1)
+    if arg == "/":
+      print "[WARN] Cannot specify / (root) as destination, please choose another directory"
+      sys.exit(1)
+
+  def _validate_config_file(self, arg):
+    if not os.path.isfile(arg):
+      print "[WARN] Specified config file %s does not exist" % arg
+      sys.exit(1)
+
+  def usage(self):
+    print """
+    %(script)s, version: %(version)s
+
+    Automated Service Request (ASR) Engineered System validation script.
+
+    DESCRIPTION
+    ASREXACHECK validates the ASR configuration of the ILOM and the host OS of the server in which it is executed.
+    It will report any concerns found and can send a minimal set of test events resulting in emails used to confirm that the installation has been verified.
+    Engineered Systems should run this as a sub component of EXACHK which will run this on all the nodes in their cluster.
+    For more information or feedback please refer to My Oracle Support doc ID 2103715.1
+
+    USAGE
+    %(script)s [OPTIONS]
+
+      -C, --Config           specify a asrexacheck config file (default %(defaultConfigFile)s)
+      -L, --Logdir           specify a base log directory (default %(defaultBasedir)s)
+      -h, --help             print help message
+      -n, --notest           don't send test events
+      -v, --version          print version
+    """ % {
+      "script"             : self.script,
+      "version"            : self.version,
+      "defaultConfigFile"  : self.defaultConfigFile,
+      "defaultBasedir"     : self.defaultBasedir,
+    }
+
+  def print_version(self):
+    print "%s, version: %s" % (self.script, self.version)
+
+
+class Env:
+  """ ES configuration and setting of environment variables """
+
+  def __init__(self, logging):
+    self.l = logging
+    self.u = Utils(self.l)
+    self.exaTypes = ("Exadata", "Exalogic", "Exalytics", "BDA", "SSC", "ODA", )
+    self.esNodeTypes = ("COMPUTE", "STORAGE", )
+    self.defaultNodeTypes = {
+      "Exalogic": "COMPUTE",
+      "Exalytics": "NODE",
+      "BDA" : "COMPUTE",
+      "ODA" : "NODE",
+    }
+    self.uname = os.uname()
+    self.arch = self.uname[0]
+    self.hostname = self.uname[1]
+    self.linux_version = self._get_linux_version()
+    self.osVersion = self._create_os_version_string()
+    self.ipmitool = self._locate_ipmitool()
+    self._check_requirements()
+    self._get_system_info()
+    self._get_other_config_info()
+
+  def _get_linux_version(self):
+    version_file = "/etc/oracle-release"
+    if os.path.isfile(version_file):
+      f = open(version_file)
+      version_lines = f.readlines()
+      f.close()
+      return version_lines
+    return False
+
+  def _create_os_version_string(self):
+    s = self.uname[2]
+    s += " ("
+    if self.linux_version and len(self.linux_version) == 1:
+      s += self.linux_version[0].replace(" release", "").strip()
+    else:
+      s += self.arch
+    s += ")"
+    return s
+
+  def _locate_ipmitool(self):
+    if "sunos" in " ".join(self.uname).lower():
+      path = self._get_first_matching_path(["/opt/ipmitool/bin/ipmitool", "/usr/sbin/ipmitool", "/usr/sfw/bin/ipmitool", ])
+      if path:
+        return path
+    else:
+      # linux should be standard in path
+      path = "ipmitool"
+      if self.u.which(path): # checks in $PATH
+        return path
+    self.l.print_out("required ipmitool command not found.", "err")
+    sys.exit(1)
+
+  def _get_system_info(self):
+    self.dmidecodeT1 = self._get_dmidecode_t1()
+    self.dmidecodeT129 = self._get_dmidecode_t129()
+    self.esProductName = False
+    # dmidecode
+    if self.dmidecodeT1 and len(self.dmidecodeT129) > 5:
+      self.productName = self._get_product_name_dmidecode()
+      self.nodeSerial = self._get_node_serial_dmidecode()
+      self.rackSerial = self._get_rack_serial_dmidecode()
+      self.esProductName = self._get_es_flavor_string_dmidecode()
+      self.sysIdent = False
+    # if we know what we are return, otherwise verify ILOM data
+    if self._get_es_flavor(self.esProductName):
+      return
+    else:
+      # not done yet, get show /System
+      self.ilomSystemOutput = self._get_show_system()
+      if self.ilomSystemOutput:
+        self.productName = self.ilomSystemOutput.get("model", False)
+        self.nodeSerial = self.ilomSystemOutput.get("component_serial_number", False)
+        self.rackSerial = self.ilomSystemOutput.get("serial_number", False)
+        if not self.nodeSerial:
+          self.nodeSerial = self.ilomSystemOutput.get("serial_number", False)
+          self.rackSerial = False # if not component_serial_number used we have old format, get rack serial from system_identifier
+        self.esProductName = self.ilomSystemOutput.get("part_number", False)
+        # sometimes don't get ES string in this field (e.g. 4707542-1) so then use the system_identifier
+        if not self._get_es_flavor(self.esProductName) or not self.rackSerial:
+          self.sysIdent = self.ilomSystemOutput.get("system_identifier", False)
+          self._set_rackserial_esprodname_from_sysidentifier()
+      else:
+        # should not get here as /System should have this info
+        self.ilomSysOutput = self._get_show_sys()
+        self.ilomSpOutput = self._get_show_sp()
+        if self.ilomSysOutput and self.ilomSpOutput:
+          self.productName = self.ilomSysOutput.get("product_name", False)
+          self.nodeSerial = self.ilomSysOutput.get("product_serial_number", False)
+          self.sysIdent = self.ilomSpOutput.get("system_identifier", False)
+          self._set_rackserial_esprodname_from_sysidentifier()
+        else:
+          self.l.print_out("Cannot get all system information, tried dmidecode -t1 and -t129, ILOM /System /SYS and /SP properties (including legacy system_identifier)", "err")
+          sys.exit()
+
+  def _set_rackserial_esprodname_from_sysidentifier(self):
+    try:
+      self.rackSerial = self.sysIdent.split()[-1]
+      self.esProductName = " ".join(self.sysIdent.split()[:-1])
+    except:
+      self.rackSerial = False
+      self.esProductName = False
+
+  def _get_other_config_info(self):
+    self.esFlavor = self._get_es_flavor(self.esProductName)
+    if not self.esFlavor:
+      self.l.print_out("Identified ES type '%s' not in known ES types: %s" % (str(self.esProductName), ", ".join(self.exaTypes)), "err")
+      sys.exit(1)
+    self.serverType = self._get_server_type(self.esFlavor)
+    self.imageVersion = self._get_image_version()
+    self.hostIp = str(self.get_host_ip())
+    self.ilomIp = str(self.get_ilom_ip())
+    self.ilomVersion = self.get_ilom_version()
+    self.hostHn = self.u.convert_ip_to_host(self.hostIp)
+    self.ilomHn = self.u.convert_ip_to_host(self.ilomIp)
+    self.esPaths = self._get_es_paths()
+    self.asrIF = self._get_asr_interface()
+    self.ibhosts = self._get_ib_hosts()
+    self.networkIfs = self._get_network_interfaces()
+    self.snmp = self._get_snmp()
+    self.dns = self._get_dns()
+    self.uname = self._get_uname()
+
+  def _get_uname(self):
+    return self.u.run_shell_cmd("uname -a") or []
+
+  def _get_ib_hosts(self):
+    ibhostsAll = self.u.run_shell_cmd("ibhosts")
+    return self.u.run_shell_cmd("ibhosts | grep HCA | cut -f2 -d'\"' | awk '{print $2, $1}' | sort")
+
+  def _get_network_interfaces(self):
+    nifs = {}
+    loAddr = "127.0.0.1"
+    ifconfigOut = self.u.run_shell_cmd("ifconfig -a")
+    interfaces = self._parse_ifconfig(ifconfigOut)
+    for i in interfaces:
+      interfaceIp =  self._get_ip(interfaces[i])
+      if not interfaceIp or loAddr in interfaceIp:
+        continue
+      interfaceHostname = self.u.convert_ip_to_host(interfaceIp)
+      if not interfaceHostname:
+        interfaceHostname = "no_hostname"
+      nifs[i] = {
+        "ip" : interfaceIp,
+        "hn" : interfaceHostname,
+      }
+    return nifs
+
+  def _props_to_dict(self, out):
+    d = {}
+    for o in out:
+      if "=" in o:
+        (k, v) = o.split("=")
+        d[k.strip()] = v.strip()
+    return d
+
+  def _get_snmp(self):
+    out = self.u.run_shell_cmd(self.ipmitool + " sunoem cli 'show /SP/services/snmp'")
+    return self._props_to_dict(out)
+
+  def _get_dns(self):
+    out = self.u.run_shell_cmd(self.ipmitool + " sunoem cli 'show /SP/clients/dns'")
+    return self._props_to_dict(out)
+
+  def _get_ip(self, out):
+    for o in out:
+      if "inet addr:" in o:
+        return re.sub(r'inet addr:(\S+)\s+Bcast.*', r'\1', o).strip()
+      elif "inet6 addr" in o:
+        return re.sub(r'inet6 addr:\s?(\S+)\s+.*', r'\1', o).strip()
+    return False
+
+  def _parse_ifconfig(self, out):
+    nic = ip = False
+    p = re.compile(r'^(\S+)\s+Link encap.*')
+    interfaces = {}
+    for o in out:
+      # blank line reset vars
+      if not o.strip():
+        nic = ip = False
+      # match nic interface
+      m = p.match(o)
+      if m:
+        nic = m.groups()[0]
+      if not nic in interfaces:
+        interfaces[nic] = []
+      interfaces[nic].append(o)
+    return interfaces
+
+  def _parse_ip(self, out):
+    for o in out:
+      if "inet addr:" in o:
+        return re.sub(r'inet addr:(\S+)\s+Bcast.*', r'\1', o).strip()
+      elif "inet6 addr" in o:
+        return re.sub(r'inet6 addr:\s?(\S+)\s+.*', r'\1', o).strip()
+    return False
+
+  def _check_requirements(self):
+    self._check_if_root()
+    self._check_if_virtual()
+    self._bmc_responds()
+
+  def _check_if_root(self):
+    if os.geteuid() != 0:
+      self.l.print_out("This script must be run as the root user.", "err")
+      sys.exit(1)
+
+  def _check_if_virtual(self):
+    dmidecode_output = self.u.run_shell_cmd("dmidecode --string system-product-name") or []
+    for line in dmidecode_output:
+      if line.strip() == "HVM domU":
+        self.l.print_out("Dmidecode shows this is a virtual node. This script does not run on such node.", "err")
+        sys.exit(1)
+
+  def _bmc_responds(self):
+    bmcResponse = self.u.run_shell_cmd("%s bmc info 2>&1 >/dev/null; echo $?" % self.ipmitool)
+    if bmcResponse and bmcResponse[0] != "0":
+      self.l.print_out("Ipmitool bmc info command did not respond, a working BMC interface is required for this script.", "err")
+      sys.exit(1)
+
+  # dmidecode
+  def _get_dmidecode_t1(self):
+    return self.u.run_shell_cmd("dmidecode -t1") or []
+
+  def _get_dmidecode_t129(self):
+    return self.u.run_shell_cmd("dmidecode -t129") or []
+
+  def _sunoem_cli_cmd(self, param):
+    return '%s sunoem cli "show %s"' % (self.ipmitool, param)
+
+  def _get_show_system(self):
+    return self.u.output_to_dict(self.u.run_shell_cmd(self._sunoem_cli_cmd("/SYSTEM")))
+
+  def _get_show_sys(self):
+    return self.u.output_to_dict(self.u.run_shell_cmd(self._sunoem_cli_cmd("/SYS")))
+
+  def _get_show_sp(self):
+    return self.u.output_to_dict(self.u.run_shell_cmd(self._sunoem_cli_cmd("/SP")))
+
+  def _query_dmidecode_t1(self, strVal):
+    val = [line for line in self.dmidecodeT1 if strVal in line]
+    if val:
+      return val[0].strip().replace(strVal, "")
+
+  def _get_product_name_dmidecode(self):
+    return self._query_dmidecode_t1("Product Name: ")
+
+  def _get_dmidecode_t129_strings_pos(self):
+    try:
+      return [i for i,x in enumerate(self.dmidecodeT129) if "Strings:" in x][0]
+    except IndexError:
+      return False
+
+  def _query_dmidecode_t129(self, offset):
+    startPos = self._get_dmidecode_t129_strings_pos()
+    if startPos:
+      offsetPos = startPos + offset
+      if len(self.dmidecodeT129) > offsetPos:
+        return self.dmidecodeT129[offsetPos].strip()
+
+  def _get_node_serial_dmidecode(self):
+    return self._query_dmidecode_t1("Serial Number: ")
+
+  def _get_rack_serial_dmidecode(self):
+    return self._query_dmidecode_t129(4)
+
+  def _get_es_flavor_string_dmidecode(self):
+    return self._query_dmidecode_t129(2)
+
+  def _get_es_flavor(self, esProductName):
+    if esProductName:
+      esProductName = esProductName.lower()
+      if "exalogic" in esProductName:
+        return "Exalogic"
+      elif "exalytic" in esProductName:
+        return "Exalytics"
+      elif "big data" in esProductName or "bda" in esProductName:
+        return "BDA"
+      elif "supercluster" in esProductName:
+        return "SSC"
+      elif "oda" in esProductName:
+        return "ODA"
+      elif "zdlra" in esProductName:
+        return "ZDLRA"
+      elif "exa" in esProductName or "appliance" in esProductName or "oracle database machine" in esProductName:
+        return "Exadata"
+    return False
+
+  def _get_server_type(self, esFlavor):
+    if esFlavor in self.defaultNodeTypes:
+      return self.defaultNodeTypes[esFlavor]
+    image_info_output = self.u.run_shell_cmd("imageinfo -node") or []
+    for node_type in self.esNodeTypes:
+      if self.u.filter_output(image_info_output, node_type):
+        return node_type
+    return "not_found"
+
+  def _get_image_version(self):
+    imageinfo_cmd = self._get_imageinfo_cmd()
+    imageVersion = self.u.run_shell_cmd(imageinfo_cmd) or []
+    esImgLabels = {
+      "generic" : "(?:Active )?[Ii]mage version.*:.*\d+\.\d+\.\d+(\.\d+\.\d+)?",
+      "bda"     : "IMAGE_VERSION.*:",
+      "oda"     : "ODA base template.*:",
+    }
+    matches = self.u.filter_output_regex(imageVersion, "(%s|%s|%s)" % \
+        (esImgLabels["generic"], esImgLabels["bda"], esImgLabels["oda"]))
+    try:
+      return self._clean_image_version_string(matches[0].split(":")[1].strip())
+    except:
+      return "not_found"
+
+  def _get_imageinfo_cmd(self):
+    if self.esFlavor == "Exalytics":
+      return "/opt/exalytics/bin/exalytics_imageinfo"
+    elif self.esFlavor == "ODA":
+      return "oakcli show oda_base"
+    return "imageinfo"
+
+  def _clean_image_version_string(self, image_version):
+    strip_strings = {
+      "oda" : re.compile(r'.*?_([0-9.]+)\.template.*')
+    }
+    for regex in strip_strings.values():
+      image_version = regex.sub(r'\1', image_version)
+    return image_version
+
+  def get_host_ip(self):
+    try:
+      return socket.gethostbyname(socket.gethostname())
+    except:
+      return False
+
+  def get_ilom_ip(self):
+    out = self.u.run_shell_cmd(self.ipmitool + " sunoem cli 'show /SP/network ipaddress'")
+    try:
+      return [o for o in out if "ipaddress = " in o][0].replace("ipaddress = ", "").strip()
+    except:
+      return False
+
+  def get_ilom_version(self):
+    out = self.u.run_shell_cmd(self.ipmitool + " sunoem cli 'version'")
+    try:
+      return [o for o in out if re.search(r'^SP firmware \d+\.', o.strip())][0].strip().replace("SP firmware ", "")
+    except:
+      return False
+
+  def _get_first_matching_path(self, paths):
+    for p in paths:
+      if os.path.isfile(p):
+        return p
+    return False
+
+  def _get_es_paths(self):
+    paths = {
+      "Exadata" : {
+        "MonHwAsr"  : "/opt/oracle.cellos/compmon/exadata_mon_hw_asr.pl",
+      },
+      "Exalogic" : {
+        "MonHwAsr"  : False,
+      },
+      "Exalytics" : {
+        "MonHwAsr"  : "/opt/exalytics/asr/bda_mon_hw_asr.pl",
+      },
+      "BDA" : {
+        "MonHwAsr"  : "/opt/oracle/bda/compmon/bda_mon_hw_asr.pl",
+      },
+      "SSC" : {
+        "MonHwAsr"  : False,
+      },
+      "ODA" : {
+        "MonHwAsr"  : False,
+      },
+    }
+    if self.esFlavor in paths:
+      return paths[self.esFlavor]
+
+  def _get_asr_interface(self):
+    if self.u.which("cellcli"): return "cellcli"
+    if self.u.which("dbmcli"):  return "dbmcli"
+    if self.esPaths["MonHwAsr"] and os.path.isfile(self.esPaths["MonHwAsr"]):
+      return self.esPaths["MonHwAsr"]
+    else:
+      return False
+
+  def print_environment(self):
+    self.l.print_header("System configuration")
+    if self.sysIdent:
+      sysIdentPrint = ("System identifier", self.sysIdent, "")
+    else:
+      sysIdentPrint = False
+    rows = (
+      # col1 (label) => col2 => col3
+      ("Product name", self.esProductName, self.rackSerial),
+      ("Component name", self.productName, self.nodeSerial),
+      sysIdentPrint,
+      ("Engineered System type", self.esFlavor, self.serverType),
+      ("Image version", self.imageVersion, ""),
+      ("OS Hostname", self.hostHn, self.hostIp),
+      ("OS version", self.osVersion, ""),
+      ("ILOM Hostname", self.ilomHn, self.ilomIp),
+      ("ILOM version", self.ilomVersion, ""),
+    )
+    for row in rows:
+      if row and len(row) == 3:
+        configLine = "%-22s : %-28s" % (row[0], row[1])
+        if row[2]:
+          configLine += " : %-25s" % row[2]
+        self.l.print_out(configLine)
+
+  def print_network(self, fromIps, ipRouteGetIf):
+    self.l.print_header("Network")
+    self.l.print_out("%-9s  %-16s %-30s %-5s %-15s" % ("Interface", "IP Address", "Hostname", "Route", "  fromIP"))
+    self.l.print_divider_line()
+    for nif, d in sorted(self.networkIfs.items()):
+      route = "NO"
+      if ipRouteGetIf and nif == ipRouteGetIf:
+        route = "YES"
+      fromIp = ""
+      if fromIps:
+        for ip, fip in fromIps.items():
+          if d["ip"] == ip:
+            fromIp = fip
+      self.l.print_out("%-9s  %-16s %-30s %-5s %-15s" % (nif, d["ip"], str(d["hn"]), route, fromIp))
+    if "servicestate" in self.snmp and self.snmp["servicestate"] == "disabled":
+      self.l.print_out("ILOM SNMP servicestate is disabled",  "warn")
+
+  def get_config(self):
+    return {
+      "lprod"    : self.esProductName,
+      "sprod"    : self.productName,
+      "nserial"  : self.nodeSerial,
+      "rserial"  : self.rackSerial,
+      "estype"   : self.esFlavor,
+      "stype"    : self.serverType,
+      "image"    : self.imageVersion,
+      "ostype"   : self.arch,
+      "hostname" : self.hostname,
+      "hostip"   : self.hostIp,
+      "ilomip"   : self.ilomIp,
+      "hosthn"   : self.hostHn,
+      "ilomhn"   : self.ilomHn,
+      "ipmitool" : self.ipmitool,
+      "paths"    : self.esPaths,
+      "asrif"    : self.asrIF,
+    }
+
+
+class Logging:
+  """ Class for printing and writing outputs """
+
+  def __init__(self, outputs, verbose):
+    self.verbose = verbose
+    self.outputs = outputs
+    self.outputWidth = 80
+    self.states = {
+      "ok" : "[OK]",
+      "err" : "[FAIL]",
+      "warn" : "[WARN]",
+      "info" : "[INFO]",
+    }
+    self.alphaPattern = re.compile(r'[^-_a-zA-Z0-9]')
+    self.multiUnderscore = re.compile(r'_+')
+
+  def setUp(self, initInfo):
+    if os.path.isdir(self.outputs["hostdir"]):
+      if self.verbose:
+        print "Hostdir %s present, removing it" % self.outputs["hostdir"]
+      shutil.rmtree(self.outputs["hostdir"])
+    if self.verbose:
+      print "Creating command outputs sub directory %s" % self.outputs["cmds"]
+    os.makedirs(self.outputs["cmds"], 0755)
+    for fname in (self.outputs["setting"], self.outputs["version"], self.outputs["summary"]):
+      # if setting file, don't delete it
+      if "asr_setting" in fname.lower() and os.path.isfile(fname):
+        continue
+      if self.verbose:
+        print "Create file %s" % fname
+      f = open(fname, 'w')
+      # if version file, write config details
+      if "version" in fname.lower():
+        for k,v in initInfo.items():
+          f.write("%s: %s\n" % (k,v))
+      f.close()
+
+  def print_header(self, title):
+    self.print_out("\n" + "="*self.outputWidth)
+    self.print_out(title.upper())
+    self.print_out("="*self.outputWidth)
+
+  def print_divider_line(self):
+    self.print_out("-"*self.outputWidth)
+
+  def get_divider_line(self):
+    return "-"*self.outputWidth
+
+  def print_out(self, line, state=None):
+    if state and state in self.states:
+      line = self.states[state] + " " + line
+    print line
+    self.capture_out(line)
+
+  def build_out(self, line, state=None):
+    if state and state in self.states:
+      line = self.states[state] + " " + line
+    return line
+
+  def write_to_file(self, fname, content):
+    try:
+      f = open(fname, 'a') # setting file needs appending
+      if type(content) == list:
+        content = "\n".join(content)
+      f.write(content + "\n")
+      f.close()
+    except:
+      print "[FAIL] Cannot write to file %s" % fname
+      sys.exit()
+
+  def read_from_file(self, fname, grep="All"):
+    try:
+      f = open(fname, 'r')
+      lines = f.readlines()
+      f.close()
+      return [li.strip() for li in lines if grep == "All" or grep in li]
+    except:
+      print "[FAIL] Cannot read from file %s" % fname
+      sys.exit()
+
+  def capture_out(self, content):
+    fname = self.outputs["summary"]
+    self.write_to_file(fname, content)
+
+  def _clean_fname(self, fname):
+    fname = fname.replace("2>&1", "").strip()
+    fname = self.alphaPattern.sub(r'_', fname)
+    fname = self.multiUnderscore.sub(r'_', fname)
+    fname += ".out"
+    return fname
+
+  def capture_out_cmd(self, cmd, content, numRetries, returnCode, timeElapsed):
+    fname = os.path.join(self.outputs["cmds"], self._clean_fname(cmd))
+    self.write_to_file(fname, "* cmd: \n%s" % cmd)
+    self.write_to_file(fname, "\n===\n* output:")
+    self.write_to_file(fname, content)
+    self.write_to_file(fname, "\n\n* stats:")
+    self.write_to_file(fname, "- exit code: %s" % returnCode)
+    self.write_to_file(fname, "- attempts: %d" % numRetries)
+    self.write_to_file(fname, "- duration: %s seconds" % timeElapsed)
+
+
+class TestEvent:
+
+  def __init__(self, typeEv, fromIp, fromHn, asrM):
+    self.typeEv = typeEv
+    if self.typeEv not in ("os", "ilom"):
+      raise Exception('test event can only be OS or ILOM')
+    self.fromIp = str(fromIp)
+    self.fromHn = str(fromHn)
+    self.asrM = str(asrM)
+    self.uTstamp = str(int(time.time()))
+
+  def get_records(self):
+    return (self.typeEv, self.fromIp, self.fromHn, self.asrM, self.uTstamp)
+
+  def __repr__(self):
+    return "%s test event sent from %s (%s) to %s at %s" \
+      % (self.typeEv, self.fromIp, self.fromHn, self.asrM, self.uTstamp)
+
+
+
+class Uptime:
+
+  def __init__(self, logger, image_version, host_ip, ilom_rules):
+    self.l = logger
+    self.u = Utils(self.l)
+    self.image_self_rule1 = 121220
+    self.image_supported = self._image_at_required_level(image_version.replace(".", ""))
+    self.host_ip = host_ip
+    self.ilom_rule1_ip = self._get_rule1_ip(ilom_rules)
+    self.now_tstamp_log_format = self._get_log_timestamp_from_utstamp(int(time.time()))
+    self.msodl_log = self._get_ms_odl_log()
+    self.time_units = {
+      "seconds_in_min"  : 60,
+      "seconds_in_hour" : 60*60,
+      "seconds_in_day"  : 24*60*60,
+    }
+    self.regex_timestamp = re.compile(r'.*:\s+(\d+).*')
+    self.regex_trap = re.compile(r'\[%s.*Received Trap.*' % self.now_tstamp_log_format[0:-4])
+
+  def _image_at_required_level(self, image):
+    try:
+      image = int(image)
+    except:
+      return False
+    return image >= self.image_self_rule1
+
+  def _get_rule1_ip(self, ilom_rules):
+    for irule in ilom_rules:
+      if irule["ilomrule"].endswith("/1"):
+        return irule["ip"]
+
+  def _get_log_timestamp_from_utstamp(self, t):
+    try:
+      return (datetime.datetime.fromtimestamp(int(t)).strftime('%Y-%m-%dT%H:%M:%S'))
+    except:
+      return "err_no_timestamp"
+
+  def _get_ms_odl_log(self):
+    ms_odls = self.u.run_shell_cmd("locate ms-odl")
+    for log in ms_odls:
+      if log.endswith("ms-odl.trc"):
+        return self._read_file(log)
+    return []
+
+  def _read_file(self, log):
+    if not os.path.isfile(log):
+      return []
+    f = open(log)
+    lines = [line.strip() for line in f.readlines()]
+    f.close()
+    return lines
+
+  def get_os_uptime(self):
+    uptime = self.u.run_shell_cmd("uptime")
+    try:
+      return uptime[0].split(",")[0]
+    except:
+      return None
+
+  def get_ilom_uptime(self):
+    if not self.image_supported:
+      return
+    if not self.ilom_rule1_ip:
+      return
+    if not self._rule1_points_back_to_self():
+      return
+    msodl_timestamp = self._get_timestamp_from_msodl_log()
+    if msodl_timestamp:
+      try:
+        return self._create_readable_uptime(msodl_timestamp)
+      except:
+        return None
+
+  def _rule1_points_back_to_self(self):
+    hostname = self.u.convert_ip_to_host(self.host_ip)
+    same_ip = self.ilom_rule1_ip and self.ilom_rule1_ip == self.host_ip
+    same_hostname = hostname and hostname in self.ilom_rule1_ip
+    return same_ip or same_hostname
+
+  def _get_timestamp_from_msodl_log(self):
+    if not self.msodl_log:
+      return False
+    trap_found_in_line_number = self._is_trap_in_log()
+    if not trap_found_in_line_number:
+      return False
+    for line in self.msodl_log[trap_found_in_line_number:]:
+      if "Timestamp:" in line:
+        try:
+          return int(self.regex_timestamp.sub(r'\1', line))
+        except:
+          return False
+
+  def _is_trap_in_log(self):
+    for lineno, line in enumerate(self.msodl_log, 1):
+      if self.regex_trap.match(line):
+        return lineno
+
+  def _create_readable_uptime(self, uptime):
+    try:
+      uptime_hundreds_of_seconds = int(uptime)
+    except:
+      raise ValueError
+    if uptime_hundreds_of_seconds < 0:
+      raise ValueError
+    uptime_seconds = uptime_hundreds_of_seconds/100
+    if uptime_seconds < self.time_units["seconds_in_min"]:
+      return "%d seconds" % uptime_seconds
+    elif uptime_seconds < self.time_units["seconds_in_hour"]:
+      return "%.1f minutes" % (float(uptime_seconds)/self.time_units["seconds_in_min"])
+    elif uptime_seconds < self.time_units["seconds_in_day"]:
+      return "%.1f hours" % (float(uptime_seconds)/self.time_units["seconds_in_hour"])
+    else:
+      return "%.1f days" % (float(uptime_seconds)/self.time_units["seconds_in_day"])
+
+
+class Utils:
+  """ Helper methods to support the main classes """
+
+  def __init__(self, logger):
+    self.l = logger
+    self.success_exit_code = 0
+    self.max_num_retries = 3
+    self.sleep_between_retries = 5
+
+  def _strip_domain_name(self, host):
+    """ hide domain name from output """
+    try:
+      return host.split(".")[0]
+    except:
+      return False
+
+  def _is_solaris(self):
+    return os.uname()[0].lower() == "sunos"
+
+  def run_shell_cmd(self, cmd):
+    startTime = int(time.time())
+    returnCode, output = commands.getstatusoutput(cmd)
+    numAttempts = 1
+    # retry only ipmitool cmds that can give Failed to connect: Busy
+    if "ipmitool" in cmd:
+      while True:
+        if returnCode == self.success_exit_code:
+          break
+        if numAttempts == self.max_num_retries:
+          self.l.print_out("cmd: '%s' failed after %d retries" % (cmd, numAttempts), "err")
+          break
+        time.sleep(self.sleep_between_retries)
+        returnCode, output = commands.getstatusoutput(cmd)
+        numAttempts += 1
+    timeElapsed = str(int(time.time()) - startTime)
+    self.l.capture_out_cmd(cmd, output, numAttempts, returnCode, timeElapsed)
+    return output.split("\n")
+
+  def ping(self, ip, psize=56):
+    if self._is_solaris():
+      out = self.run_shell_cmd("ping -s %s %s 1" % (ip, str(psize))) or []
+    else:
+      out = self.run_shell_cmd("ping %s -s %s -c1" % (ip, str(psize))) or []
+    successValues = [ "%s is alive" % ip, "1 packets transmitted, 1 received", ", 0% packet loss", ]
+    for o in out:
+      for sv in successValues:
+        if sv in o:
+          return True
+    return False
+
+  def ip_host_translation(self, iphost):
+    ip = host = False
+    if self.valid_ip(iphost):
+      ip = iphost
+      host = self.convert_ip_to_host(ip)
+    else:
+      host = iphost
+      ip = self.convert_host_to_ip(host)
+    host = self._strip_domain_name(host)
+    return (ip, host)
+
+  def match_ips(self, osIps, spIps):
+    matches = []
+    for oi in osIps:
+      for si in spIps:
+        if oi == si:
+          matches.append(oi)
+    return list(set(matches))
+
+  def filter_output(self, output, strVal):
+    return [line for line in output if strVal in line]
+
+  def filter_output_regex(self, output, regexVal):
+    return [line for line in output if re.search(r'%s' % regexVal, line)]
+
+  def output_to_dict(self, output):
+    d = {}
+    for op in output:
+      if "=" in op:
+        k = op.split("=", 1)[0].strip()
+        v = op.split("=", 1)[1].strip()
+        d[k] = v
+    return d
+
+  def valid_ip(self, ip):
+    try:
+      socket.inet_aton(ip)
+      return True
+    except:
+      return False
+
+  def convert_host_to_ip(self, host):
+    try:
+      return socket.gethostbyname(host)
+    except:
+      return False
+
+  def convert_ip_to_host(self, ip):
+    try:
+      host = socket.gethostbyaddr(ip)[0]
+      return self._strip_domain_name(host)
+    except:
+      return False
+
+  def which(self, fname):
+    for path in os.environ["PATH"].split(":"):
+      if os.path.exists(path + "/" + fname):
+        return path + "/" + fname
+
+  def zip_output(self, zfName, logdir):
+    zf = zipfile.ZipFile(zfName, "w", zipfile.ZIP_DEFLATED)
+    abs_src = os.path.abspath(logdir)
+    for dirname, subdirs, files in os.walk(logdir):
+      for filename in files:
+        absname = os.path.abspath(os.path.join(dirname, filename))
+        arcname = absname[len(abs_src) + 1:]
+        zf.write(absname, arcname)
+    filesInZip = zf.namelist()
+    zf.close()
+    # check if zipfile was generated correctly
+    if len(filesInZip) > 3 and "VERSION" in filesInZip:
+      return True
+    return False
+
+  def get_readable_time_from_utstamp(self, t):
+    try:
+      return ( datetime.datetime.fromtimestamp(int(t)).strftime('%Y-%m-%d %H:%M:%S'))
+    except:
+      return "Could not print readable timestamp"
+
+
+if __name__ == "__main__":
+  
+  script = "asrexacheck"
+  version = "4.3"
+  baseDir = "/var/log/asrexacheck"
+  configFile = "/var/tmp/asrexacheck.conf"
+  
+  if os.path.isfile(baseDir):
+    print "Destination dir %s is a file, rename or remove it" % baseDir
+    sys.exit(1)
+  if not os.path.isdir(baseDir):
+    print "Base dir %s not present, creating it" % baseDir
+    try:
+      os.makedirs(baseDir)
+    except:
+      print "Cannot create base dir %s" % baseDir
+      sys.exit(1)
+  
+  cli = Cli(script, version, baseDir, configFile)
+  cli.parse_cli_args()
+  (baseDir, configFile, noTest) = cli.get_args()
+  verbose = False
+  
+  today = time.strftime("%Y-%m-%d", time.gmtime())
+  tstamp = time.strftime("%Y%m%dT%H%M%S", time.gmtime())
+  logDir = os.path.join(baseDir, today)
+  startTime = int(time.time())
+  
+  hostName = os.uname()[1].split(".")[0]
+  outputs = {
+    # dirs
+    "basedir"  : baseDir,
+    "timedir"  : logDir,
+    "hostdir"  : os.path.join(logDir, hostName),
+    "summary"  : os.path.join(logDir, hostName, "summary"),
+    "cmds"     : os.path.join(logDir, hostName, "cmd_outs"),
+    # files
+    "version"  : os.path.join(logDir, "VERSION"),
+    "setting"  : os.path.join(logDir, "ASR_setting"),
+  }
+  l = Logging(outputs, verbose=verbose)
+  l.setUp({"version" : version, "verbose" : verbose, })
+  u = Utils(l)
+  l.print_out("%s version: %s" % (script, version))
+  l.print_out("Current time: %s" % u.get_readable_time_from_utstamp(startTime))
+  
+  e = Env(l)
+  env = e.get_config()
+  a = Asr(l, env, noTest, configFile)
+  
+  l.print_out(str(a.asr_config))
+  e.print_environment()
+  
+  # need asr checks first to get the fromIps and route interface
+  a.asr_checks()
+  e.print_network(a.fromIps, a.ipRouteGetIf)
+  a.print_asr_checks()
+  
+  # report conclusion, write test events to ASR_Setting file
+  if not a.testEventsSent:
+    l.print_out("No TEST events sent. Open an SR to ASR team to investigate.", "err")
+  else:
+    num_confirmation_emails = 2
+    plural = "s"
+    if a.is_ilom_only_platform():
+      num_confirmation_emails = 1
+      plural = ""
+    l.print_out("As a result of this ASR configuration check you will receive %s confirmation email%s." % (num_confirmation_emails, plural), "ok")
+    aSet = AsrSetting(l)
+    aSet.log_test_events(a.testEventsSent)
+  
+  endTime = int(time.time())
+  timeElapsed = str(endTime - startTime)
+  l.print_out("\nFor further information on the messages outputted by asrexacheck please refer to MOS document 2119457.1")
+  l.print_out("\nTime elapsed script execution: %s" % time.strftime("%H:%M:%S", time.gmtime(float(timeElapsed))) )
+  zfName = os.path.join(baseDir, "%s_%s_%s.zip" % (script, hostName, tstamp))
+  zfCreated = u.zip_output(zfName, logDir)
+  if zfCreated:
+    l.print_out("Zipfile %s of the outputs created" % zfName)
+    if os.path.isdir(logDir):
+      shutil.rmtree(logDir)
+  else:
+    l.print_out("Zipfile %s not created, please get outputs from %s" % (zfName, logDir), "warn")
+

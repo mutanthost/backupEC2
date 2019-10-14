@@ -1,0 +1,27 @@
+printf("==========START_OF_REPORT_chkExtShareDedup.aksh==========\n");
+
+var founderrorsShareDedup = false; // Track error findings
+var report = 1;
+
+var projects, p, shares, s, shareDedup, projDedup;
+
+getHostname();
+
+pools = getPoolNames();
+for (i = 0; i < pools.length; i++) {
+    run('cd /');
+    run('shares');
+    printreport("Pool name: " + pools[i] + "\n");
+    run('set pool=' + pools[i]);
+    checkShareDedup();
+}
+if(!founderrorsShareDedup) {
+    printreport("OK: Data deduplication for projects and shares are correctly disabled on all pools. \n\n");
+}
+
+printf("==========END_OF_REPORT_chkExtShareDedup.aksh==========\n");
+
+printf("==========START_OF_AUDIT_CHECK_chkExtShareDedup.aksh==========\n");
+printf("share_dedup_check_status = %d\n", founderrorsShareDedup);
+printf("==========END_OF_AUDIT_CHECK_chkExtShareDedup.aksh==========\n");
+

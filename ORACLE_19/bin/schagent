@@ -1,0 +1,66 @@
+#!/bin/sh
+
+# set this if you change your Agent home
+EXECUTION_AGENT_HOME="$ORACLE_HOME"
+
+# set this to use a different data directory for the Agent
+# EXECUTION_AGENT_DATA=""
+
+# set this to use a different JVM for the Agent
+# JVM version must be 1.5 or higher
+EXECUTION_AGENT_JRE=""
+
+# nothing below here is configurable
+LD_LIBRARY_PATH=$EXECUTION_AGENT_HOME/lib:$LD_LIBRARY_PATH
+export LD_LIBRARY_PATH
+
+# for 64-bit HP-UX and SunOS we need to set -d64
+JAVA64FLAG=""
+PLATFORM=`uname`
+case $PLATFORM in
+HP-UX)
+    SHLIB_PATH=$EXECUTION_AGENT_HOME/lib:$SHLIB_PATH
+    export SHLIB_PATH
+    if [ `/bin/file $EXECUTION_AGENT_HOME/lib/libclntsh.so.11.1 | /bin/awk '{print $2}'` = "ELF-64" ];
+    then
+        JAVA64FLAG="-d64"
+    fi
+    ;;
+SunOS)
+     if [ `/bin/file $EXECUTION_AGENT_HOME/lib/libclntsh.so.11.1 | /bin/awk '{print substr($3,0,2)}'` != "32" ];
+     then
+        JAVA64FLAG="-d64"
+     fi
+     ;;
+AIX)
+    LIBPATH=$EXECUTION_AGENT_HOME/lib:$LIBPATH
+    export LIBPATH
+    ;;
+esac
+
+#setup the arguments for calling the ExecutionAgent class
+
+EA_ARGS="${JAVA64FLAG} -DEXECUTION_AGENT_HOME=$EXECUTION_AGENT_HOME"
+
+EA_ARGS="$EA_ARGS -cp $EXECUTION_AGENT_HOME/lib/schagent.jar:$EXECUTION_AGENT_HOME/jdbc/lib/ojdbc8.jar"
+
+if [ "X$EXECUTION_AGENT_DATA" != "X" ]
+then
+  EA_ARGS="$EA_ARGS -DEXECUTION_AGENT_DATA=$EXECUTION_AGENT_DATA"
+else
+  EXECUTION_AGENT_DATA="$EXECUTION_AGENT_HOME/data"
+fi
+
+if [ "X$EXECUTION_AGENT_JRE" != "X" ]
+then
+  EA_ARGS="$EA_ARGS -DEXECUTION_AGENT_JRE=$EXECUTION_AGENT_JRE"
+else
+  EXECUTION_AGENT_JRE="$EXECUTION_AGENT_HOME/jdk/jre"
+fi
+
+EA_ARGS="$EA_ARGS -Djava.library.path=""$LD_LIBRARY_PATH"""
+EA_ARGS="$EA_ARGS oracle.scheduler.agent.ExecutionAgent"
+EA_ARGS="$EA_ARGS $@"
+
+# Pass everything through to Java
+"$EXECUTION_AGENT_JRE/bin/java" $EA_ARGS

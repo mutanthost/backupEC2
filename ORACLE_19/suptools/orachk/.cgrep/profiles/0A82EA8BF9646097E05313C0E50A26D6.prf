@@ -1,0 +1,38 @@
+082611CF6909295EE05313C0E50A6BCF|Ensure db_unique_name is unique across the enterprise [standby]
+0829D67E8B1549AFE05312C0E50AD04F|Ensure db_unique_name is unique across the enterprise [primary]
+18970B1AE9F133C2E0530E98EB0ABDC9|database parameter sga_target
+18B73B8317098710E0530A98EB0A9D09|database parameter diagnostic_dest
+2E1B14FB4CEF8C6BE0530C98EB0A60AB|ES2 firmware build number
+2E31AB23443E8050E0530E98EB0ADF28|Sefos is running on ES2
+2E335BA4C2306251E0530B98EB0AD490|ES2 filesystem vresion
+3269E2C742674725E0530E98EB0AB69E|Verify RAID disk controller CacheVault capacitor condition [Storage Server]
+39E636A70FD62BE0E0530A98EB0A1BA8|Branch to execute checks on a system with five or less databases
+41FD47D323EE3084E0530C98EB0A7B06|processes [two socket database server]
+41FED39B21425DB0E0530C98EB0A7CDB|processes [eight socket database server]
+4ECB4A74640A6E73E0530A98EB0AE540|processes [eight socket database server]
+4ECC43310F338D98E0530C98EB0A62B5|processes [eight socket database server]
+54D3081DC73B64F9E0530B98EB0AC5A1|Verify installed rpm(s) kernel type match the active kernel version
+54D911C87C5A4C85E0530C98EB0A78D4|mismatched_kernel_rpms
+594E09A832BCC864E0401490CACF200D|v_parameter
+6BDA8C6A1A27BABBE053D598EB0A6230|Evaluate Automated Maintenance Tasks configuration
+79B07418D733A48FE053D598EB0A97FB|Verify RAID disk controller CacheVault capacitor condition [Storage Server]
+79B3EF9019346B03E053D498EB0A0E70|Review non-Exadata components on the InfiniBand fabric
+7AA796A86AC8A3FDE053D598EB0A40F8|Verify RAID disk controller CacheVault capacitor condition [Storage Server]
+9AC65EA475A406AEE040E50A1EC03F1E|asm disk attribute check main branch
+9AC68A48CF21EDC9E040E50A1EC040A3|ASM disk group compatible.rdbms attribute
+9AD8F72CFE0CC95BE040E50A1EC050D0|Verify key InfiniBand fabric error counters are not present
+9AD94FEDF62E8296E040E50A1EC06A28|nm2version
+9AD94FEDF63F8296E040E50A1EC06A28|v_parameter
+9F1CF4AE30141CDFE040E50A1EC05E2D|Verify key InfiniBand fabric error counters are not present
+B813230DE8CC2831E0431EC0E50AEB90|cbc_dns_ping_time
+B81546A46C376C14E0431EC0E50A826D|Verify average ping times to DNS nameserver [IB Switch]
+B81848C5EE6573EFE0431EC0E50A803C|Verify average ping times to DNS nameserver [Database Server]
+B8197381F9783BD7E0431EC0E50AD83A|Verify average ping times to DNS nameserver [Storage Server]
+B81A8DC44FEF058BE0431EC0E50AD9F0|Infiniband switch sm_priority configuration 
+B81B7B06B22B3D3DE0431EC0E50A29D5|Verify average ping times to DNS nameserver [Database Server]
+B866C62A7A397C04E0431EC0E50A47D8|Verify the percent of available celldisk space used by the griddisks
+B868BEE57CBB0727E0431EC0E50A6569|Verify the percent of available celldisk space used by the griddisks
+CB914480130176A5E0431EC0E50AB7F2|ibqueryerrors
+DC3BD42DE3422247E04312C0E50A0CB7|db_files
+DC3C01B201A60E36E04313C0E50AC972|processes [eight socket database server]
+DCB1CEA9CF6875BEE04312C0E50A4571|processes [two socket database server]

@@ -1,0 +1,886 @@
+<?xml version="1.0"?>
+
+<!--  $Header: tfa/src/v2/tfa_home/resources/directory_patterns_jcs.xml /main/4 2016/02/09 22:40:29 cnagur Exp $ -->
+
+<!-- 
+ Copyright (c) 2015, 2016, Oracle and/or its affiliates. All rights reserved.
+
+   NAME
+     directory_patterns_jcs.xml - <one-line expansion of the name>
+
+   DESCRIPTION
+     <short description of component this file declares/defines>
+
+   NOTES
+     <other useful comments, qualifications, etc.>
+
+   MODIFIED   (MM/DD/YY)
+   gadiga      12/08/15 - Cleanup components for jcs
+   cnagur      11/08/15 - Fixed Issues on JCS
+   cnagur      09/15/15 - Creation
+
+-->
+<mappings>
+<!-- Mappings for JCS Env. -->
+<!-- Mappings for Generic domains/*/*Domain/servers/*/adr/diag/ofm/*Domain/*/incident -->
+<mapping>
+<directory-pattern>.*/domains/([^//]+)/([^//]+[Dd]omain.*)/servers/([^//]+)/adr/diag/ofm/[^//]+[Dd]omain/[^//]+/incident</directory-pattern>
+<components>
+<component name="2271">
+<inventory-patterns>
+<pattern>.*UCM_.*</pattern>
+</inventory-patterns>
+<sub-components>
+<subcomponent id="1">fmwhost</subcomponent>
+<subcomponent id="2">fmwdomain</subcomponent>
+<subcomponent id="3">appserver</subcomponent>
+</sub-components>
+</component>
+<component name="1696">
+<inventory-patterns>
+<pattern>.*WC_Spaces_.*</pattern>
+</inventory-patterns>
+<sub-components>
+<subcomponent id="1">fmwhost</subcomponent>
+<subcomponent id="2">fmwdomain</subcomponent>
+<subcomponent id="3">appserver</subcomponent>
+</sub-components>
+</component>
+<component name="2025">
+<inventory-patterns>
+<pattern>.*AdminServer.*</pattern>
+</inventory-patterns>
+<sub-components>
+<subcomponent id="1">fmwhost</subcomponent>
+<subcomponent id="2">fmwdomain</subcomponent>
+<subcomponent id="3">appserver</subcomponent>
+</sub-components>
+</component>
+<component name="1479">
+<inventory-patterns>
+<pattern>.*bi_server.*</pattern>
+</inventory-patterns>
+<sub-components>
+<subcomponent id="1">fmwhost</subcomponent>
+<subcomponent id="2">fmwdomain</subcomponent>
+<subcomponent id="3">appserver</subcomponent>
+</sub-components>
+</component>
+<component name="1978">
+<inventory-patterns>
+<pattern>.*</pattern>
+</inventory-patterns>
+<sub-components>
+<subcomponent id="1">fmwhost</subcomponent>
+<subcomponent id="2">fmwdomain</subcomponent>
+<subcomponent id="3">appserver</subcomponent>
+</sub-components>
+</component>
+<component name="2233">
+<inventory-patterns>
+<pattern>.*</pattern>
+</inventory-patterns>
+<sub-components>
+<subcomponent id="1">fmwhost</subcomponent>
+<subcomponent id="2">fmwdomain</subcomponent>
+<subcomponent id="3">appserver</subcomponent>
+</sub-components>
+</component>
+<component name="1775">
+<inventory-patterns>
+<pattern>.*</pattern>
+</inventory-patterns>
+<sub-components>
+<subcomponent id="1">fmwhost</subcomponent>
+<subcomponent id="2">fmwdomain</subcomponent>
+<subcomponent id="3">appserver</subcomponent>
+</sub-components>
+</component>
+<component name="1162">
+<inventory-patterns>
+<pattern>.*soa.*</pattern>
+</inventory-patterns>
+<sub-components>
+<subcomponent id="1">fmwhost</subcomponent>
+<subcomponent id="2">fmwdomain</subcomponent>
+<subcomponent id="3">appserver</subcomponent>
+</sub-components>
+</component>
+<component name="5325">
+<inventory-patterns>
+<pattern>.*soa.*</pattern>
+</inventory-patterns>
+<sub-components>
+<subcomponent id="1">fmwhost</subcomponent>
+<subcomponent id="2">fmwdomain</subcomponent>
+<subcomponent id="3">appserver</subcomponent>
+</sub-components>
+</component>
+<component name="5242">
+<inventory-patterns>
+<pattern>.*</pattern>
+</inventory-patterns>
+<sub-components>
+<subcomponent id="1">fmwhost</subcomponent>
+<subcomponent id="2">fmwdomain</subcomponent>
+<subcomponent id="3">appserver</subcomponent>
+</sub-components>
+</component>
+<component name="2545">
+<inventory-patterns>
+<pattern>.*</pattern>
+</inventory-patterns>
+<sub-components>
+<subcomponent id="1">fmwhost</subcomponent>
+<subcomponent id="2">fmwdomain</subcomponent>
+<subcomponent id="3">appserver</subcomponent>
+</sub-components>
+</component>
+<component name="1139">
+<inventory-patterns>
+<pattern>.*</pattern>
+</inventory-patterns>
+<sub-components>
+<subcomponent id="1">fmwhost</subcomponent>
+<subcomponent id="2">fmwdomain</subcomponent>
+<subcomponent id="3">appserver</subcomponent>
+</sub-components>
+</component>
+</components>
+</mapping>
+<!-- End Mappings for Generic domains/*/*Domain/servers/*/adr/diag/ofm/*Domain/*/incident -->
+<!-- Mappings for Generic domains/*Domain/servers/*/adr/diag/ofm/*Domain/*/incident -->
+<mapping>
+<directory-pattern>.*/domains/([^//]+[Dd]omain.*)/servers/([^//]+)/adr/diag/ofm/[^//]+[Dd]omain/[^//]+/incident</directory-pattern>
+<components>
+<component name="2271">
+<inventory-patterns>
+<pattern>.*UCM_.*</pattern>
+</inventory-patterns>
+<sub-components>
+<subcomponent id="1">fmwdomain</subcomponent>
+<subcomponent id="2">appserver</subcomponent>
+</sub-components>
+</component>
+<component name="1696">
+<inventory-patterns>
+<pattern>.*WC_Spaces_.*</pattern>
+</inventory-patterns>
+<sub-components>
+<subcomponent id="1">fmwdomain</subcomponent>
+<subcomponent id="2">appserver</subcomponent>
+</sub-components>
+</component>
+<component name="2025">
+<inventory-patterns>
+<pattern>.*AdminServer.*</pattern>
+</inventory-patterns>
+<sub-components>
+<subcomponent id="1">fmwdomain</subcomponent>
+<subcomponent id="2">appserver</subcomponent>
+</sub-components>
+</component>
+<component name="1479">
+<inventory-patterns>
+<pattern>.*bi_server.*</pattern>
+</inventory-patterns>
+<sub-components>
+<subcomponent id="1">fmwdomain</subcomponent>
+<subcomponent id="2">appserver</subcomponent>
+</sub-components>
+</component>
+<component name="1978">
+<inventory-patterns>
+<pattern>.*</pattern>
+</inventory-patterns>
+<sub-components>
+<subcomponent id="1">fmwdomain</subcomponent>
+<subcomponent id="2">appserver</subcomponent>
+</sub-components>
+</component>
+<component name="2233">
+<inventory-patterns>
+<pattern>.*</pattern>
+</inventory-patterns>
+<sub-components>
+<subcomponent id="1">fmwdomain</subcomponent>
+<subcomponent id="2">appserver</subcomponent>
+</sub-components>
+</component>
+<component name="1775">
+<inventory-patterns>
+<pattern>.*</pattern>
+</inventory-patterns>
+<sub-components>
+<subcomponent id="1">fmwdomain</subcomponent>
+<subcomponent id="2">appserver</subcomponent>
+</sub-components>
+</component>
+<component name="1162">
+<inventory-patterns>
+<pattern>.*soa.*</pattern>
+</inventory-patterns>
+<sub-components>
+<subcomponent id="1">fmwdomain</subcomponent>
+<subcomponent id="2">appserver</subcomponent>
+</sub-components>
+</component>
+<component name="5325">
+<inventory-patterns>
+<pattern>.*soa.*</pattern>
+</inventory-patterns>
+<sub-components>
+<subcomponent id="1">fmwdomain</subcomponent>
+<subcomponent id="2">appserver</subcomponent>
+</sub-components>
+</component>
+<component name="5242">
+<inventory-patterns>
+<pattern>.*</pattern>
+</inventory-patterns>
+<sub-components>
+<subcomponent id="1">fmwdomain</subcomponent>
+<subcomponent id="2">appserver</subcomponent>
+</sub-components>
+</component>
+<component name="2545">
+<inventory-patterns>
+<pattern>.*</pattern>
+</inventory-patterns>
+<sub-components>
+<subcomponent id="1">fmwdomain</subcomponent>
+<subcomponent id="2">appserver</subcomponent>
+</sub-components>
+</component>
+<component name="1139">
+<inventory-patterns>
+<pattern>.*</pattern>
+</inventory-patterns>
+<sub-components>
+<subcomponent id="1">fmwdomain</subcomponent>
+<subcomponent id="2">appserver</subcomponent>
+</sub-components>
+</component>
+</components>
+</mapping>
+<!-- End Mappings for Generic domains/*Domain/servers/*/adr/diag/ofm/*Domain/*/incident -->
+<!-- Mappings for Generic domains/*Domain/servers/*/logs -->
+<mapping>
+<directory-pattern>.*/domains/([^//]+[Dd]omain.*)/servers/([^//]+)/(logs|logs/metrics)</directory-pattern>
+<components>
+<component name="2271">
+<inventory-patterns>
+<pattern>.*UCM_.*\.log</pattern>
+<pattern>.*UCM_.*\.out</pattern>
+<pattern>.*access\.log</pattern>
+</inventory-patterns>
+<sub-components>
+<subcomponent id="1">fmwdomain</subcomponent>
+<subcomponent id="2">appserver</subcomponent>
+</sub-components>
+</component>
+<component name="1696">
+<inventory-patterns>
+<pattern>.*\.log.*</pattern>
+<pattern>.*\.out.*</pattern>
+<pattern>.*\.trc.*</pattern>
+<pattern>.*\.csv.*</pattern>
+</inventory-patterns>
+<sub-components>
+<subcomponent id="1">fmwdomain</subcomponent>
+<subcomponent id="2">appserver</subcomponent>
+</sub-components>
+</component>
+<component name="2025">
+<inventory-patterns>
+<pattern>.*\.log</pattern>
+<pattern>.*\.out.*</pattern>
+</inventory-patterns>
+<sub-components>
+<subcomponent id="1">fmwdomain</subcomponent>
+<subcomponent id="2">appserver</subcomponent>
+</sub-components>
+</component>
+<component name="1479">
+<inventory-patterns>
+<pattern>.*bi_server.*\.log</pattern>
+<pattern>.*bi_server.*\.out</pattern>
+<pattern>.*bi_server1-diagnostic.log</pattern>
+</inventory-patterns>
+<sub-components>
+<subcomponent id="1">fmwdomain</subcomponent>
+<subcomponent id="2">appserver</subcomponent>
+</sub-components>
+</component>
+<component name="1978">
+<inventory-patterns>
+<pattern>.*</pattern>
+</inventory-patterns>
+<sub-components>
+<subcomponent id="1">fmwdomain</subcomponent>
+<subcomponent id="2">appserver</subcomponent>
+</sub-components>
+</component>
+<component name="2233">
+<inventory-patterns>
+<pattern>.*</pattern>
+</inventory-patterns>
+<sub-components>
+<subcomponent id="1">fmwdomain</subcomponent>
+<subcomponent id="2">appserver</subcomponent>
+</sub-components>
+</component>
+<component name="1775">
+<inventory-patterns>
+<pattern>.*-diagnostic.log</pattern>
+</inventory-patterns>
+<sub-components>
+<subcomponent id="1">fmwdomain</subcomponent>
+<subcomponent id="2">appserver</subcomponent>
+</sub-components>
+</component>
+<component name="1162">
+<inventory-patterns>
+<pattern>.*\.log.*</pattern>
+</inventory-patterns>
+<sub-components>
+<subcomponent id="1">fmwdomain</subcomponent>
+<subcomponent id="2">appserver</subcomponent>
+</sub-components>
+</component>
+<component name="5325">
+<inventory-patterns>
+<pattern>.*\.log.*</pattern>
+</inventory-patterns>
+<sub-components>
+<subcomponent id="1">fmwdomain</subcomponent>
+<subcomponent id="2">appserver</subcomponent>
+</sub-components>
+</component>
+<component name="5242">
+<inventory-patterns>
+<pattern>.*\.log.*</pattern>
+<pattern>.*\.out.*</pattern>
+</inventory-patterns>
+<sub-components>
+<subcomponent id="1">fmwdomain</subcomponent>
+<subcomponent id="2">appserver</subcomponent>
+</sub-components>
+</component>
+<component name="2545">
+<inventory-patterns>
+<pattern>.*\.log</pattern>
+</inventory-patterns>
+<sub-components>
+<subcomponent id="1">fmwdomain</subcomponent>
+<subcomponent id="2">appserver</subcomponent>
+</sub-components>
+</component>
+<component name="1139">
+<inventory-patterns>
+<pattern>.*\.log</pattern>
+</inventory-patterns>
+<sub-components>
+<subcomponent id="1">fmwdomain</subcomponent>
+<subcomponent id="2">appserver</subcomponent>
+</sub-components>
+</component>
+</components>
+</mapping>
+<!-- End Mappings for Generic domains/*Domain/servers/*/logs -->
+<!-- Mappings for Generic domains/*/*Domain/servers/*/logs -->
+<mapping>
+<directory-pattern>.*/domains/([^//]+)/([^//]+[Dd]omain.*)/servers/([^//]+)/(logs|logs/metrics)</directory-pattern>
+<components>
+<component name="2271">
+<inventory-patterns>
+<pattern>.*UCM_.*\.log</pattern>
+<pattern>.*UCM_.*\.out</pattern>
+<pattern>.*access\.log</pattern>
+</inventory-patterns>
+<sub-components>
+<subcomponent id="1">fmwhost</subcomponent>
+<subcomponent id="2">fmwdomain</subcomponent>
+<subcomponent id="3">appserver</subcomponent>
+</sub-components>
+</component>
+<component name="1696">
+<inventory-patterns>
+<pattern>.*\.log.*</pattern>
+<pattern>.*\.out.*</pattern>
+<pattern>.*\.trc.*</pattern>
+<pattern>.*\.csv.*</pattern>
+</inventory-patterns>
+<sub-components>
+<subcomponent id="1">fmwhost</subcomponent>
+<subcomponent id="2">fmwdomain</subcomponent>
+<subcomponent id="3">appserver</subcomponent>
+</sub-components>
+</component>
+<component name="2025">
+<inventory-patterns>
+<pattern>.*\.log</pattern>
+<pattern>.*\.out.*</pattern>
+</inventory-patterns>
+<sub-components>
+<subcomponent id="1">fmwhost</subcomponent>
+<subcomponent id="2">fmwdomain</subcomponent>
+<subcomponent id="3">appserver</subcomponent>
+</sub-components>
+</component>
+<component name="1479">
+<inventory-patterns>
+<pattern>.*bi_server.*\.log</pattern>
+<pattern>.*bi_server.*\.out</pattern>
+<pattern>.*bi_server1-diagnostic.log</pattern>
+</inventory-patterns>
+<sub-components>
+<subcomponent id="1">fmwhost</subcomponent>
+<subcomponent id="2">fmwdomain</subcomponent>
+<subcomponent id="3">appserver</subcomponent>
+</sub-components>
+</component>
+<component name="1978">
+<inventory-patterns>
+<pattern>.*</pattern>
+</inventory-patterns>
+<sub-components>
+<subcomponent id="1">fmwhost</subcomponent>
+<subcomponent id="2">fmwdomain</subcomponent>
+<subcomponent id="3">appserver</subcomponent>
+</sub-components>
+</component>
+<component name="2233">
+<inventory-patterns>
+<pattern>.*</pattern>
+</inventory-patterns>
+<sub-components>
+<subcomponent id="1">fmwhost</subcomponent>
+<subcomponent id="2">fmwdomain</subcomponent>
+<subcomponent id="3">appserver</subcomponent>
+</sub-components>
+</component>
+<component name="1775">
+<inventory-patterns>
+<pattern>.*-diagnostic.log</pattern>
+</inventory-patterns>
+<sub-components>
+<subcomponent id="1">fmwhost</subcomponent>
+<subcomponent id="2">fmwdomain</subcomponent>
+<subcomponent id="3">appserver</subcomponent>
+</sub-components>
+</component>
+<component name="1162">
+<inventory-patterns>
+<pattern>.*\.log.*</pattern>
+</inventory-patterns>
+<sub-components>
+<subcomponent id="1">fmwhost</subcomponent>
+<subcomponent id="2">fmwdomain</subcomponent>
+<subcomponent id="3">appserver</subcomponent>
+</sub-components>
+</component>
+<component name="5325">
+<inventory-patterns>
+<pattern>.*\.log.*</pattern>
+</inventory-patterns>
+<sub-components>
+<subcomponent id="1">fmwhost</subcomponent>
+<subcomponent id="2">fmwdomain</subcomponent>
+<subcomponent id="3">appserver</subcomponent>
+</sub-components>
+</component>
+<component name="5242">
+<inventory-patterns>
+<pattern>.*\.log.*</pattern>
+<pattern>.*\.out.*</pattern>
+</inventory-patterns>
+<sub-components>
+<subcomponent id="1">fmwhost</subcomponent>
+<subcomponent id="2">fmwdomain</subcomponent>
+<subcomponent id="3">appserver</subcomponent>
+</sub-components>
+</component>
+<component name="2545">
+<inventory-patterns>
+<pattern>.*\.log</pattern>
+</inventory-patterns>
+<sub-components>
+<subcomponent id="1">fmwhost</subcomponent>
+<subcomponent id="2">fmwdomain</subcomponent>
+<subcomponent id="3">appserver</subcomponent>
+</sub-components>
+</component>
+<component name="1139">
+<inventory-patterns>
+<pattern>.*\.log</pattern>
+</inventory-patterns>
+<sub-components>
+<subcomponent id="1">fmwhost</subcomponent>
+<subcomponent id="2">fmwdomain</subcomponent>
+<subcomponent id="3">appserver</subcomponent>
+</sub-components>
+</component>
+</components>
+</mapping>
+<!-- End Mappings for Generic domains/*/*Domain/servers/*/logs -->
+<!-- Mappings for WCCONTENT 2271 for Cloud -->
+<mapping>
+<directory-pattern>.*/([^//]+)/ucm/cs/data</directory-pattern>
+<components>
+<component name="2271">
+<inventory-patterns>
+<pattern>.*</pattern>
+</inventory-patterns>
+<sub-components>
+<subcomponent id="1">fmwdomain</subcomponent>
+</sub-components>
+</component>
+</components>
+<collectall>true</collectall>
+</mapping>
+<mapping>
+<directory-pattern>.*/([^//]+)/ucm/cs/data/trace</directory-pattern>
+<components>
+<component name="2271">
+<inventory-patterns>
+<pattern>.*idccs_UCM_.*_current.log</pattern><pattern>.*idccs_UCM_.*_TIMESTAMP.log</pattern>
+</inventory-patterns>
+<sub-components>
+<subcomponent id="1">fmwdomain</subcomponent>
+</sub-components>
+</component>
+</components>
+<collectall>true</collectall>
+</mapping>
+<mapping>
+<directory-pattern>.*/([^//]+)/ucm/cs/config</directory-pattern>
+<components>
+<component name="2271">
+<inventory-patterns>
+<pattern>.*</pattern>
+</inventory-patterns>
+<sub-components>
+<subcomponent id="1">fmwdomain</subcomponent>
+</sub-components>
+</component>
+</components>
+<collectall>true</collectall>
+</mapping>
+<mapping>
+<directory-pattern>.*/([^//]+)/ucm/cs/install</directory-pattern>
+<components>
+<component name="2271">
+<inventory-patterns>
+<pattern>.*autoinstall\.cfg</pattern>
+</inventory-patterns>
+<sub-components>
+<subcomponent id="1">fmwdomain</subcomponent>
+</sub-components>
+</component>
+</components>
+<collectall>true</collectall>
+</mapping>
+<!-- End Mappings for WCCONTENT 2271 for Cloud -->
+<!-- Mappings for OBIEE 2025 for Cloud -->
+<mapping>
+<directory-pattern>PROP_2025_BI_INSTANCE_HOME/config</directory-pattern>
+<components>
+<component name="2025">
+<inventory-patterns>
+<pattern>.*\.INI</pattern>
+<pattern>.*\.ini</pattern>
+<pattern>.*\.xml</pattern>
+<pattern>.*\.ora</pattern><pattern>.*\.properties</pattern>
+
+</inventory-patterns>
+
+</component>
+</components>
+<collectall>true</collectall>
+</mapping>
+<mapping>
+<directory-pattern>PROP_2025_INSTANCE_HOME/domains/PROP_2025_BI_HOST/PROP_2025_BI_DOMAIN_NAME/config</directory-pattern>
+<components>
+<component name="2025">
+<inventory-patterns>
+<pattern>.*config\.xml</pattern>
+</inventory-patterns>
+</component>
+</components>
+<collectall>true</collectall>
+</mapping>
+<mapping>
+<directory-pattern>PROP_FUSION_APPS_HOME/bi/inventory/ContentsXML</directory-pattern>
+<components>
+<component name="2025">
+<inventory-patterns>
+<pattern>.*\.xml</pattern>
+</inventory-patterns>
+</component>
+</components>
+<collectall>true</collectall>
+</mapping>
+<mapping>
+<directory-pattern>PROP_FUSION_APPS_HOME/bi/.patch_storage</directory-pattern>
+<components>
+<component name="2025">
+<inventory-patterns>
+<pattern>.*interim_inventory\.txt</pattern>
+</inventory-patterns>
+</component>
+</components>
+<collectall>true</collectall>
+</mapping>
+<mapping>
+<directory-pattern>PROP_FUSION_APPS_HOME/bi/.biapps_patch_storage</directory-pattern>
+<components>
+<component name="2025">
+<inventory-patterns>
+<pattern>.*interim_inventory\.txt</pattern>
+</inventory-patterns>
+</component>
+</components>
+<collectall>true</collectall>
+</mapping>
+<mapping>
+<directory-pattern>PROP_FUSION_APPS_HOME/bi/cfgtoollogs</directory-pattern>
+<components>
+<component name="2025">
+<inventory-patterns>
+<pattern>.*</pattern>
+</inventory-patterns>
+</component>
+</components>
+<collectall>true</collectall>
+</mapping>
+<!-- End Mappings for OBIEE 2025 for Cloud -->
+<!-- Mappings for BIPUBLISHER 1479 for Cloud -->
+<mapping>
+<directory-pattern>.*/domains/([^//]+)/([^//]+[Dd]omain.*)/servers/([^//]+)/logs/bipublisher</directory-pattern>
+<components>
+<component name="1479">
+<inventory-patterns>
+<pattern>.*bipublisher\.log</pattern>
+</inventory-patterns>
+<sub-components>
+<subcomponent id="1">fmwhost</subcomponent>
+<subcomponent id="2">fmwdomain</subcomponent>
+<subcomponent id="3">appserver</subcomponent>
+</sub-components>
+</component>
+</components>
+</mapping>
+<mapping>
+<directory-pattern>PROP_1479_INSTANCE_HOME/domains/PROP_1479_BI_HOST/PROP_1479_BI_DOMAIN_NAME/config/bipublisher</directory-pattern>
+<components>
+<component name="1479">
+<inventory-patterns>
+<pattern>.*xmlp-server-config\.xml</pattern>
+</inventory-patterns>
+</component>
+</components>
+<collectall>true</collectall>
+</mapping>
+<!-- End Mappings for BIPUBLISHER 1479 for Cloud -->
+<!-- Mappings for IDM_OSS_991_Oracle Security Services -->
+<!-- End Mappings for IDM_OSS_991_Oracle Security Services -->
+<!-- Mappings for IDM_OIM_1980_Oracle Identity Manager -->
+<!-- End Mappings for IDM_OIM_1980_Oracle Identity Manager -->
+<!-- Mappings for IDM_OAM_5565_Oracle Access Manager -->
+<!-- End Mappings for IDM_OAM_5565_Oracle Access Manager -->
+<!-- Mappings for IDM_OID_355_Oracle Internet Directory -->
+<!-- End Mappings for IDM_OID_355_Oracle Internet Directory -->
+<!-- Mappings for IDM_libOVD_1978_Oracle Virtual Directory -->
+<!-- End Mappings for IDM_libOVD_1978_Oracle Virtual Directory -->
+<!-- Mappings for IDM_OPSS_2233_Oracle Platform Security for Java -->
+<!-- End Mappings for IDM_OPSS_2233_Oracle Platform Security for Java -->
+<!-- Mappings for IDM_OWSM_1775_Oracle Security Developer Tools -->
+<mapping>
+<directory-pattern>.*/domains/.*/([^//]+[Dd]omain.*)/servers/([^//]+)/logs/owsm/msglogging</directory-pattern>
+<components>
+<component name="1775">
+<inventory-patterns>
+<pattern>.*diagnostic\.log</pattern>
+</inventory-patterns>
+<sub-components>
+<subcomponent id="1">fmwdomain</subcomponent>
+<subcomponent id="2">appserver</subcomponent>
+</sub-components>
+</component>
+</components>
+</mapping>
+<mapping>
+<directory-pattern>.*/domains/([^//]+[Dd]omain.*)/servers/([^//]+)/logs/owsm/msglogging</directory-pattern>
+<components>
+<component name="1775">
+<inventory-patterns>
+<pattern>.*diagnostic\.log</pattern>
+</inventory-patterns>
+<sub-components>
+<subcomponent id="1">fmwdomain</subcomponent>
+<subcomponent id="2">appserver</subcomponent>
+</sub-components>
+</component>
+</components>
+</mapping>
+<!-- End Mappings for IDM_OWSM_1775_Oracle Security Developer Tools -->
+<!-- Mappings for SOA Suite BPEL-SE,Fabric,B2B,Mediator 1162 for Cloud -->
+<!-- End Mappings for SOA Suite BPEL-SE,Fabric,B2B,Mediator 1162  for Cloud -->
+<!-- Mappings for WLS 5242 for Cloud -->
+<mapping>
+<directory-pattern>.*/lcm/logs</directory-pattern>
+<components>
+<component name="5242">
+<inventory-patterns>
+<pattern>.*\.log</pattern>
+</inventory-patterns>
+</component>
+</components>
+</mapping>
+<mapping>
+<directory-pattern>.*nodemanager/.*</directory-pattern>
+<components>
+<component name="5242">
+<inventory-patterns>
+<pattern>.*\.log</pattern>
+<pattern>.*\.out</pattern>
+<pattern>.*\.sh</pattern>
+<pattern>.*\.properties</pattern>
+<pattern>.*\.domain</pattern>
+</inventory-patterns>
+</component>
+</components>
+<collectall>true</collectall>
+</mapping>
+<mapping>
+<directory-pattern>.*/domains/[^//]+/([^//]+[Dd]omain.*)/servers/([^//]+)/adr</directory-pattern>
+<components>
+<component name="5242">
+<inventory-patterns>
+<pattern>.*\.txt</pattern>
+<pattern>.*\.dmp</pattern>
+</inventory-patterns>
+<sub-components>
+<subcomponent id="1">fmwdomain</subcomponent>
+</sub-components>
+</component>
+</components>
+</mapping>
+<mapping>
+<directory-pattern>.*/domains/([^//]+[Dd]omain.*)/servers/([^//]+)/adr</directory-pattern>
+<components>
+<component name="5242">
+<inventory-patterns>
+<pattern>.*\.txt</pattern>
+<pattern>.*\.dmp</pattern>
+
+</inventory-patterns>
+<sub-components>
+<subcomponent id="1">fmwdomain</subcomponent>
+</sub-components>
+</component>
+</components>
+
+</mapping>
+<mapping>
+<directory-pattern>.*/domains/[^//]+/([^//]+[Dd]omain.*)/config</directory-pattern>
+<components>
+<component name="5242">
+<inventory-patterns>
+<pattern>.*/xmlp-client-config\.xml</pattern>
+<pattern>.*/config\.xml</pattern>
+<pattern>.*\.txt</pattern>
+<pattern>.*/jms/.*\.xml</pattern>
+<pattern>.*/jdbc/.*\.xml</pattern>
+<pattern>.*backup.*\.xml</pattern>
+<pattern>.*\.properties</pattern>
+</inventory-patterns>
+<sub-components>
+<subcomponent id="1">fmwdomain</subcomponent>
+</sub-components>
+</component>
+</components>
+<collectall>true</collectall>
+</mapping>
+<mapping>
+<directory-pattern>.*/domains/([^//]+[Dd]omain.*)/config</directory-pattern>
+<components>
+<component name="5242">
+<inventory-patterns>
+<pattern>.*/xmlp-client-config\.xml</pattern>
+<pattern>.*/config\.xml</pattern>
+<pattern>.*\.txt</pattern>
+<pattern>.*/jms/.*\.xml</pattern>
+<pattern>.*/jdbc/.*\.xml</pattern>
+<pattern>.*backup.*\.xml</pattern>
+<pattern>.*\.properties</pattern>
+</inventory-patterns>
+<sub-components>
+<subcomponent id="1">fmwdomain</subcomponent>
+</sub-components>
+</component>
+</components>
+<collectall>true</collectall>
+</mapping>
+<mapping>
+<directory-pattern>.*/domains/([^//]+[Dd]omain.*)/pending</directory-pattern>
+<components>
+<component name="5242">
+<inventory-patterns>
+<pattern>.*</pattern>
+</inventory-patterns>
+<sub-components>
+<subcomponent id="1">fmwdomain</subcomponent>
+</sub-components>
+</component>
+</components>
+<collectall>true</collectall>
+</mapping>
+<!-- End Mappings for WLS 5242 for Cloud -->
+<!-- Mappings for WCPORTAL 1696 for Cloud -->
+<mapping>
+<directory-pattern>.*/([^//]+)/config/fmwconfig</directory-pattern>
+<components>
+<component name="1696">
+<inventory-patterns>
+<pattern>.*config\.xml</pattern>
+<pattern>.*system-jazn-data\.xml</pattern>
+<pattern>.*jps-config\.xml</pattern>
+<pattern>.*\.xml</pattern>
+</inventory-patterns>
+<sub-components>
+<subcomponent id="1">fmwdomain</subcomponent>
+</sub-components>
+</component>
+</components>
+<collectall>true</collectall>
+</mapping>
+<mapping>
+<directory-pattern>.*/([^//]+)/config</directory-pattern>
+<components>
+<component name="1696">
+<inventory-patterns>
+<pattern>.*config\.xml</pattern>
+</inventory-patterns>
+<sub-components>
+<subcomponent id="1">fmwdomain</subcomponent>
+</sub-components>
+</component>
+</components>
+<collectall>true</collectall>
+</mapping>
+<!-- End Mappings for WCPORTAL 1696 for Cloud -->
+<!-- Mappings for Server_Coherence_2545_Oracle Coherence -->
+<!-- End Mappings for Server_Coherence_2545_Oracle Coherence -->
+<!-- Mappings for Server_TopLink_1339_Oracle TopLink -->
+<!-- End Mappings for Server_TopLink_1339_Oracle TopLink -->
+<!-- Mappings for Server_OTD_9276_Oracle OTD -->
+<!-- End Mappings for Server_OTD_9276_Oracle OTD -->
+<!-- Mappings for Server_OHS_1042_Oracle OHS Plugins -->
+<!-- End Mappings for Server_OHS_1042_Oracle OHS Plugins -->
+<!-- Mappings for DI_ODI_2196_Oracle Data Integrator -->
+<!-- End Mappings for DI_ODI_2196_Oracle Data Integrator -->
+<!-- Mappings for Server_Coherence_2545_Oracle Coherence -->
+<!-- Misc Other Mappings -->
+</mappings>

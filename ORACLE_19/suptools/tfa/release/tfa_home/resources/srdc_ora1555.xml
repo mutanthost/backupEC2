@@ -1,0 +1,218 @@
+<?xml version="1.0"?>
+
+<!--  $Header: tfa/src/v2/tfa_home/resources/srdc_ora1555.xml /main/2 2018/08/15 16:55:53 bburton Exp $ -->
+
+<!-- 
+ Copyright (c) 2017, 2018, Oracle and/or its affiliates. All rights reserved.
+
+   NAME
+     srdc_ora1555.xml
+
+   DESCRIPTION
+     None 
+
+   NOTES
+     None 
+
+   MODIFIED   (MM/DD/YY)
+   xiaodowu    08/01/18 - Resolve Bug 28439844 - ADD PARENTHESIS FOR VALIDATE
+   recornej    11/03/17 - Add new changes
+   recornej    11/02/17 - Creation
+
+-->
+<collections>
+  <collection id="ORA-01555">
+    <user_description></user_description>
+    <description>SRDC for database ORA-01555 Snapshot too Old problems</description>
+    <user_inputs>
+     <user_input cmdline="" default="" showprompt="1" setenv="NO" validate="" prompt="Enter the Database Name">USERINPUT-DATABASE_NAME</user_input>
+     <user_input cmdline="" default="" showprompt="1" setenv="NO" validate="" prompt="Do you need to get errorstack ?">USERINPUT-ERROR_STACK</user_input>
+     <user_input cmdline="" default="" showprompt="1" setenv="NO" validate="" prompt="Can you reproduce the issue ?">USERINPUT-REPRODUCE</user_input>
+     <user_input cmdline="" default="" showprompt="1" setenv="NO" validate="file" prompt="Please give the full path of the sql file that reproduces the issue ?">USERINPUT-SQL_FILE</user_input>
+     <user_input cmdline="" default="" showprompt="1" setenv="" validate="(y|Y|n|N)" prompt="Do you have a table to analyze ? [Y|N] ">USERINPUT-TB</user_input>
+     <user_input cmdline="" default="" showprompt="1" setenv="REPLACE" validate="" depinput="TB" deppattern="y|Y" prompt="Table Analysis-enter table name to be analyzed">USERINPUT-TABLE</user_input>
+     <user_input cmdline="" default="" showprompt="1" setenv="REPLACE" validate="" depinput="TB" deppattern="y|Y" prompt="Table Analysis-enter owner for the above table">USERINPUT-OWNER</user_input>
+     <user_input cmdline="" default="" showprompt="1" setenv="" validate="(y|Y|n|N)" prompt="Do you have a partition table to analyze ? [Y|N]">USERINPUT-PARTITION_TO_ANALYZE</user_input>
+     <user_input cmdline="" default="" showprompt="1" setenv="REPLACE" validate="" depinput="PARTITION_TO_ANALYZE" deppattern="y|Y" prompt="Partition Analysis-enter table name with the partition to be analyzed">USERINPUT-PARTITION_TABLE</user_input>
+     <user_input cmdline="" default="" showprompt="1" setenv="REPLACE" validate="" depinput="PARTITION_TO_ANALYZE" deppattern="y|Y" prompt="Partition Analysis-enter owner for the table above">USERINPUT-PARTITION_TBL_OWNER</user_input>
+     <user_input cmdline="" default="" showprompt="1" setenv="REPLACE" validate="" depinput="PARTITION_TO_ANALYZE" deppattern="y|Y" prompt="Partition Analysis-enter partition name">USERINPUT-PARTITION_NAME</user_input>
+     <user_input cmdline="" default="" showprompt="1" setenv="" validate="(y|Y|n|N)" prompt="Do you have a LOB Corruption Table to analyze ? If you do, we will create/drop table corrupted_lob_data_srdc_tfa_ora1555. [Y|N]">USERINPUT-LOB_TO_ANALYZE</user_input>
+     <user_input cmdline="" default="" showprompt="1" setenv="REPLACE" validate="" depinput="LOB_TO_ANALYZE" deppattern="y|Y" prompt="LOB Corruption Check-enter table name with the LOB to be checked for corruption">USERINPUT-LOB_TABLE</user_input>
+     <user_input cmdline="" default="" showprompt="1" setenv="REPLACE" validate="" depinput="LOB_TO_ANALYZE" deppattern="y|Y" prompt="LOB Corruption Check-enter owner for the table above">USERINPUT-LOB_TBL_OWNER</user_input>
+     <user_input cmdline="" default="" showprompt="1" setenv="REPLACE" validate="" depinput="LOB_TO_ANALYZE" deppattern="y|Y" prompt="LOB Corruption Check-enter LOB name">USERINPUT-LOB_NAME</user_input>
+   </user_inputs>
+   <error_stack>
+     <error error_code="1555" context="errorstack" level="12"/>
+     <error error_code="10442" context="forever" level="10"/>
+   </error_stack>
+   <duration>12h</duration>
+   <clusterwide>no</clusterwide>
+   <filter_files>
+     <filter_file_patterns>
+       <filter_file_pattern>ExaWatcher\/archive</filter_file_pattern>
+       <filter_file_pattern>alert_.*\.log</filter_file_pattern>
+       <filter_file_pattern>archive\/osw</filter_file_pattern>
+       <filter_file_pattern>log</filter_file_pattern>
+       <filter_file_pattern>trc</filter_file_pattern>
+     </filter_file_patterns>
+     <filter_file_exclude_patterns>
+     </filter_file_exclude_patterns>
+   </filter_files>
+   <components>
+     <component>DATABASE</component>
+     <component>NOCHMOS</component>
+     <component>OS</component>
+   </components>
+   <commands>
+     <script type="SQLSCRIPT" name="srdc_db_undo_1555-1.sql" timeout="300" validfor="" platform="" version="">
+     </script>
+     <script type="SQLSCRIPT" name="srdc_db_undo_recommendation_10g.sql" timeout="300" validfor="" platform="" version="10.2">
+     </script>
+     <script type="SQLSCRIPT" name="srdc_db_undo_generic.sql" timeout="300" validfor="" platform="" version="">
+     </script>
+     <script type="DB" name="srdc_db_analyze_partition.sql" timeout="120" validfor="" platform="" version="" depinput="PARTITION_TO_ANALYZE" deppattern="Y|y">
+	REM srdc_db_analyze_partition.sql 
+	REM To identify corrupted row(s) in a LOB segment
+	set pagesize 200 verify off term off entmap off echo off
+	set markup html on spool on
+	COLUMN SRDCSPOOLNAME NOPRINT NEW_VALUE SRDCSPOOLNAME
+	select 'SRDC_'||upper('DB_Analyze_Partition')||'_'||upper(instance_name)||'_'|| to_char(sysdate,'YYYYMMDD_HH24MISS') SRDCSPOOLNAME from v$instance;
+	spool SRDC_ORA1555_ANALYZE_TABLE_PARTITION_%PARTITION_TBL_OWNER%_%PARTITION_TABLE%_%PARTITION_NAME%.htm
+	select 'Diagnostic-Name : ' "Diagnostic-Name ", 'DB_Analyze_Partition' "Report Info" from dual
+	union all
+	select 'Time : ' , to_char(systimestamp, 'YYYY-MM-DD HH24MISS TZHTZM' ) from dual
+	union all
+	select 'Machine : ' , host_name from v$instance
+	union all
+	select 'Version : ',version from v$instance
+	union all
+	select 'DBName : ',name from v$database
+	union all
+	select 'Instance : ',instance_name from v$instance
+	/
+
+	-- You must run the script utlvalid.sql from your $ORACLE_HOME/rdbms/admin directory. 
+	--The utlvalid.sql script creates the table 'INVALID_ROWS'.
+	--This script should be run as the same user who is issuing the analyze command.
+
+  <![CDATA[@?/rdbms/admin/utlvalid.sql
+	select 'Time : ' , to_char(systimestamp, 'YYYY-MM-DD HH24MISS TZHTZM' ) from dual;
+	set echo on
+	set term on
+	set term off
+	set serveroutput on
+	analyze table %PARTITION_TBL_OWNER%.%PARTITION_TABLE% partition (%PARTITION_NAME%) validate structure cascade into invalid_rows;
+  select * from invalid_rows where ANALYZE_TIMESTAMP < sysdate -1;
+
+	spool off
+	set markup html off spool off
+	set term on
+	set echo off
+	set verify on
+  set echo on
+  ]]>
+  </script>
+  <script type="DB" name="srdc_db_analyze_table.sql" timeout="120" validfor="" platform="" version="" depinput="TB" deppattern="Y|y">
+	REM srdc_db_analyze_table.sql 
+	REM To identify corrupted row(s) in a LOB segment
+	set pagesize 200 verify off term off entmap off echo off
+	set markup html on spool on
+	COLUMN SRDCSPOOLNAME NOPRINT NEW_VALUE SRDCSPOOLNAME
+	select 'SRDC_'||upper('DB_Analyze_Table')||'_'||upper(instance_name)||'_'|| to_char(sysdate,'YYYYMMDD_HH24MISS') SRDCSPOOLNAME from v$instance;
+	spool SRDC_ORA1555_ANALYZE_TABLE_%OWNER%_%TABLE%.htm
+	select 'Diagnostic-Name : ' "Diagnostic-Name ", 'DB_Analyze_Table' "Report Info" from dual
+	union all
+	select 'Time : ' , to_char(systimestamp, 'YYYY-MM-DD HH24MISS TZHTZM' ) from dual
+	union all
+	select 'Machine : ' , host_name from v$instance
+	union all
+	select 'Version : ',version from v$instance
+	union all
+	select 'DBName : ',name from v$database
+	union all
+	select 'Instance : ',instance_name from v$instance
+	/
+
+	set echo on
+	set term on
+	set term off
+	set serveroutput on
+
+	analyze table %OWNER%.%TABLE% validate structure cascade;
+
+	spool off
+	set markup html off spool off
+	set term on
+	set verify on
+	set echo on
+  </script>
+  <script type="DB" name="srdc_corrupt_LOB.sql" timeout="120" validfor="" platform="" version="" depinput="LOB_TO_ANALYZE" deppattern="Y|y">
+	REM srdc_corrupt_LOB.sql
+	REM To identify corrupted row(s) in a LOB segment
+	set pagesize 200 verify off term off entmap off echo off
+	set markup html on spool on
+  <![CDATA[
+	COLUMN SRDCSPOOLNAME NOPRINT NEW_VALUE SRDCSPOOLNAME
+	select 'SRDC_'||upper('DB_Corrupt_LOB')||'_'||upper(instance_name)||'_'|| to_char(sysdate,'YYYYMMDD_HH24MISS') SRDCSPOOLNAME from v$instance;
+	spool &&SRDCSPOOLNAME..htm
+  ]]>
+	select 'Diagnostic-Name : ' "Diagnostic-Name ", 'DB_Corrupt_LOB' "Report Info" from dual
+	union all
+	select 'Time : ' , to_char(systimestamp, 'YYYY-MM-DD HH24MISS TZHTZM' ) from dual
+	union all
+	select 'Machine : ' , host_name from v$instance
+	union all
+	select 'Version : ',version from v$instance
+	union all
+	select 'DBName : ',name from v$database
+	union all
+	select 'Instance : ',instance_name from v$instance
+	/
+	set echo on
+	
+	drop table corrupted_lob_data_srdc_tfa_ora1555
+	/
+	create table corrupted_lob_data_srdc_tfa_ora1555 (corrupted_rowid rowid)
+	/
+	
+	set term on
+	
+	set term off
+	set serveroutput on
+	
+	set concat off
+	
+	declare
+  	error_1555 exception;
+  	pragma exception_init(error_1555,-1555);
+  	num number;
+	begin
+  	for cursor_lob in (select rowid r, %LOB_NAME% from %LOB_TBL_OWNER%.%LOB_TABLE%) loop
+    	begin
+      	num := dbms_lob.instr (cursor_lob.%LOB_NAME%, hextoraw ('889911')) ;
+    	exception
+      	when error_1555 then
+        	insert into corrupted_lob_data_srdc_tfa_ora1555 values (cursor_lob.r);
+        	commit;
+    	end;
+  	end loop;
+	end;
+	/
+
+	--********************Corrupt Data*****************
+
+	select *from corrupted_lob_data_srdc_tfa_ora1555;
+	drop table  corrupted_lob_data_srdc_tfa_ora1555;
+
+	spool off
+	set markup html off spool off
+	set term on
+	set echo off
+	set sqlprompt "SQL> " term on
+	set verify on
+	set echo on
+       	</script>
+    </commands>
+  </collection>
+</collections>
+

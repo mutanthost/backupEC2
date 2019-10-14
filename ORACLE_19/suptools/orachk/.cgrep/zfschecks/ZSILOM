@@ -1,0 +1,99 @@
+printf("==========START_OF_REPORT_chkZSILOM.aksh==========\n");
+var founderrors = false;
+
+function isSPFaulted() {
+    var args = [
+        { push: {
+            methodName: 'hardware.config'
+        } },
+        { push: [ {
+            methodName: 'array.create',
+            methodParams: [
+                { member: [ { pop: [] }, 'akch_chassis' ] }
+            ]
+        } ] },
+        {
+            methodName: 'array.chunk',
+            methodParams: [ { peek: [] } ]
+        },
+        { pop: [] }
+    ];
+
+    var ret = system.multicall(args, { abortOnFailure: true });
+    return ret[2][0].chunk[0].akch_sp[0].akch_faulted;
+}
+
+// ILOM failures
+function ILOM(){
+	var hwName 	   	  = 'ILOM/SP Status',
+		hwStatus 	  = 'OK',
+		hwDetails 	  = '',
+		hwDetailsLong = '',
+		pingResult    = '';	
+	//s = "";
+	try {		
+		appl.hardware.sp = new Array();
+		run("cd /");
+		run("maintenance hardware select chassis-000");
+		run("select sp");		
+		appl.hardware.sp.ip = get("ipaddr");
+		
+		try{											
+			s = "ILOM Service Processor\n";		
+									    
+			appl.hardware.sp.faulted = isSPFaulted();							
+			appl.hardware.sp.version = appl.sp_ver;
+			
+			if (appl.hardware.sp.faulted){ 
+				//s += "\tStatus: FAULTED \n";
+				hwStatus = "Faulted";
+				founderrors = true;			
+			}
+			else {
+				//s += '\tStatus: OK \n';
+				hwStatus = "OK";
+			}
+			
+		/*	pingResult = run("ping " + appl.hardware.sp.ip);
+			if(pingResult.match(/alive/) !== null){
+				hwDetails = "Ping Result: alive";
+			}else{
+				hwDetails = "Ping Result: timed out";
+                founderrors = true;
+			} */
+			hwDetailsLong = "*\tILOM:\n"+
+							"\tSP Rev: "+appl.sp_ver+"\n"+
+							"\tIP: "+appl.hardware.sp.ip+"\n";
+		/*					"\tPing Result: "+pingResult+"\n"; */
+		}
+		catch(e){
+			hwStatus = "Error";
+			hwDetails = "Unable to get sp info";
+			hwDetailsLong = "*\tILOM Error:\n"+
+							"\t"+e.message+"\n";
+            founderrors = true;							
+		}
+	}
+	catch(e){
+		hwStatus = "Error";
+		hwDetails = "Unable to select sp";
+		hwDetailsLong = "*\tILOM Error:\n"+
+					    "\t"+e.message+"\n";
+        founderrors = true;					    
+	}
+	finally{
+		hardwareTable.data.push([hwName, hwStatus, hwDetails]);
+		hardwareTable.details.push(hwDetailsLong);		
+	}
+}
+
+var hardwareTable = new printTable({name:"Hardware Checks", headNames:["Name", "Status", "Details"]});
+appl.hardware 	= new Array();	
+ILOM();
+printReportTable(hardwareTable);
+
+
+printf("==========END_OF_REPORT_chkZSILOM.aksh==========\n");
+printf("==========START_OF_AUDIT_CHECK_chkZSILOM.aksh==========\n");
+printf("ilom_status = %d\n", founderrors);
+printf("==========END_OF_AUDIT_CHECK_chkZSILOM.aksh==========\n");			

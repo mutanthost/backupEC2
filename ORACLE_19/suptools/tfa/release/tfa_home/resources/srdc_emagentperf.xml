@@ -1,0 +1,68 @@
+<?xml version="1.0"?>
+
+<!--  $Header: tfa/src/v2/tfa_home/resources/srdc_emagentperf.xml /main/1 2018/08/15 16:55:53 bburton Exp $ -->
+
+<!-- 
+ Copyright (c) 2018, Oracle and/or its affiliates. All rights reserved.
+
+   NAME
+     srdc_emagentperf.xml 
+
+   DESCRIPTION
+     SRDC - Collect Diagnostic Data for EM Agent Performance Issues
+
+   NOTES
+     None
+
+   MODIFIED   (MM/DD/YY)
+   xiaodowu    06/15/18 - Implement SRDC - Collect Diagnostic Data for EM Agent
+                          Performance Issues (Doc ID 2100437.1)
+   xiaodowu    06/15/18 - Creation
+
+-->
+<collections>
+<collection id="emagentperf">
+        <description>EM SRDC - Collect Diagnostic Data for EM Agent Performance Issues.</description>
+        <srdc_docs>Doc ID 2100437.1: SRDC - Collect Diagnostic Data for EM Agent Performance Issues.</srdc_docs>
+        <user_inputs>
+	    <user_input cmdline="" default="" showprompt="0" setenv="REPLACE" validate="" prompt="">USERINPUT-TFA_HOME</user_input>
+        </user_inputs>
+        <onevents>
+                <event>
+                </event>
+        </onevents>
+        <duration>12h</duration>
+        <clusterwide>no</clusterwide>
+        <filter_files>
+                <types>
+                </types>
+                <filter_file_patterns>
+                    <filter_file_pattern>alert_.*\.log</filter_file_pattern>
+                    <filter_file_pattern>trc</filter_file_pattern>
+                    <filter_file_pattern>log</filter_file_pattern>
+                    <filter_file_pattern>archive\/osw</filter_file_pattern>
+                    <filter_file_pattern>ExaWatcher\/archive</filter_file_pattern>
+                </filter_file_patterns>
+        </filter_files>
+        <components>
+            <component>OS</component>
+        </components>
+        <commands>
+            <script type="OS" name="agent_info" timeout="300" validfor="EMAGENT" platform="allux" version="">
+               export ORACLE_HOME=%EMAGENTOHOME%
+               export PATH=$ORACLE_HOME/bin:$PATH
+               emctl status agent scheduler | grep alert
+               emctl listplugins agent
+               emctl status agent
+
+		pid=`emctl status agent|grep "Agent Process ID"|cut -d\: -f2`
+		%TFA_HOME%/resources/scripts/srdc_agent_cpu.sh %EMAGENTOHOME% $pid 
+
+		/bin/cp -p $ORACLE_HOME/sysman/log/agent_perf_logs.tar .
+		/bin/gzip agent_perf_logs.tar
+            </script>
+        </commands>
+        <runtime_flags>
+        </runtime_flags>
+</collection>
+</collections>

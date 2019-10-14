@@ -1,0 +1,111 @@
+<?xml version="1.0"?>
+
+<!--  $Header: tfa/src/v2/tfa_home/resources/srdc_dbunixresources.xml /main/1 2018/05/28 15:06:26 bburton Exp $ -->
+
+<!-- 
+ Copyright (c) 2017, 2018, Oracle and/or its affiliates. All rights reserved.
+
+   NAME
+     srdc_dbunixresources.xml - <one-line expansion of the name>
+
+   DESCRIPTION
+     <short description of component this file declares/defines>
+
+   NOTES
+     <other useful comments, qualifications, etc.>
+
+   MODIFIED   (MM/DD/YY)
+   bburton     07/17/17 - Fix Description
+   bburton     07/14/17 - Gather information for DB start?
+   bburton     07/14/17 - Creation
+
+-->
+<collections>
+  <collection id="dbunixresources">
+    <user_description></user_description>
+    <description>SRDC to capture diagnostic data for DB issues related to O/S resources</description>
+    <onevents>
+    </onevents>
+    <user_inputs>
+        <user_input cmdline="" default="" showprompt="1" setenv="NO" validate="" prompt="Enter the Database Name">USERINPUT-DATABASE_NAME</user_input>
+        <user_input cmdline="" default="" showprompt="1" setenv="NO" validate="" prompt="Do you have the issue now">USERINPUT-ISSUE_NOW</user_input>
+	<user_input cmdline="" default="" showprompt="1" setenv="NO" validate="" prompt="Enter the start time of the issue">USERINPUT-EVENT_START_TIME</user_input>
+	<user_input cmdline="" default="" showprompt="1" setenv="NO" validate="" prompt="Enter the end time of the issue">USERINPUT-EVENT_END_TIME</user_input>
+    </user_inputs>
+    <duration>12h</duration>
+    <awrduration>1h</awrduration>
+    <clusterwide>no</clusterwide>
+    <filter_files>
+      <filter_file_patterns>
+            <filter_file_pattern>alert_.*\.log</filter_file_pattern>
+            <filter_file_pattern>trc</filter_file_pattern>
+            <filter_file_pattern>log</filter_file_pattern>
+            <filter_file_pattern>\.xml</filter_file_pattern>
+            <filter_file_pattern>messages</filter_file_pattern>
+            <filter_file_pattern>archive\/osw</filter_file_pattern>
+            <filter_file_pattern>ExaWatcher\/archive</filter_file_pattern>
+      </filter_file_patterns>
+      <filter_file_exclude_patterns>
+            <filter_file_exclude_pattern>cdmp_.*_bucket\.tr[cm]</filter_file_exclude_pattern>
+      </filter_file_exclude_patterns>
+    </filter_files>
+    <components>
+      <component>DATABASE</component>
+      <component>NOCHMOS</component>
+      <component>OS</component>
+      <component>TNS</component>
+    </components>
+    <commands>
+      <script type="TFACTL" name="rdahcve1120" timeout="120" validfor="" platform="" version="11.2">
+        tfactl run darda run rda_HCVE_11_2 menu menus/oracle_database.xml
+      </script>
+      <script type="TFACTL" name="rdahcve1210" timeout="120" validfor="" platform="" version="12.1">
+        tfactl run darda run rda_HCVE_12_1_0 menu menus/oracle_database.xml
+      </script>
+      <script type="TFACTL" name="rdahcve1110" timeout="120" validfor="" platform="" version="11.1">
+        tfactl run darda run rda_HCVE_11_1 menu menus/oracle_database.xml
+      </script>
+      <script type="TFADBPERF" name="runawr" timeout="120" validfor="" platform="" version="">
+       </script>
+      <script type="OS" name="dbadmin_os_script" timeout="120" validfor="" platform="allux" version="">
+echo "Files in the dbs directory"
+ls -l $ORACLE_HOME/dbs
+echo "Ulimit Setting:" 
+ulimit -Ha
+echo "List of Open files"
+lsof 
+echo "Active Oracle Processes " 
+ps -ef | grep ora_ | grep $ORACLE_SID 
+echo "Binary Permission" 
+ls -l $ORACLE_HOME/bin/
+echo "Files in the dbs directory" 
+ls -l $ORACLE_HOME/dbs
+echo "Binary Permission:" 
+ls -l $ORACLE_HOME/bin
+      </script>
+      <script type="OS" name="dbadmin_os_hponly" timeout="120" validfor="" platform="HPUX" version="">
+echo "Only for HP-UX Platform"
+kctune|grep fs_async
+ls -l /dev/async
+     </script>
+      <script type="OS" name="dbadmin_os_aixonly" timeout="120" validfor="" platform="AIX" version="">
+echo "Only for AIX Platform"
+cat /proc/sys/fs/aio-max-nr
+cat /proc/sys/fs/aio-nr
+     </script>
+      <script type="OS" name="dbadmin_os_linuxonly" timeout="120" validfor="" platform="Linux" version="">
+echo "Hugepages on Linux"
+/usr/sbin/kctune -v
+     </script>
+<script type="SQLSCRIPT" name="srdc_db_NUMA_config.sql" timeout="120" validfor="" platform="" version="">
+      </script>
+      <script type="OS" name="cp_tns" timeout="120" validfor="" platform="allux" version="">
+if [ -e $ORACLE_HOME/network/admin/*.ora ]; then
+cp $ORACLE_HOME/network/admin/*.ora .
+fi
+      </script>
+    </commands>
+    <runtime_flags>
+    </runtime_flags>
+  </collection>
+</collections>

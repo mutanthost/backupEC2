@@ -1,0 +1,96 @@
+:
+# 
+# gensyslib.pp Copyright (c) 1989, 2004 Oracle
+# 
+
+#
+# Generate a list of system and vendor libraries that can be added at the
+# end of the link line. gensyslib writes a string to lib/sysliblist
+# which is the list of libraies that have to be added to the link line.
+# syslibname will be 'cat'ed in all shipped makefiles.
+#
+# File osntab.c is no longer inspected because V1 driver is obsolete. Only
+# ntcontab.c is inspected.
+
+# Dependence: It depends on network/lib/ntcontab.c
+# Usage: gensyslib
+#
+# Porting note: Please include additional network drivers to the following
+# list that is writen to KEY_FILE with the following format:
+# Driver name in upper case:corresponding module in osntab.c:marketing name
+#
+# ${Drivername}LIB; the list of system libraries to be added to the link line
+# should be defined for new ports.
+#
+
+LIB_RUNTIME_XTRA="-lsvml"
+
+DFL_SYSLIB="-ldl -lm -lpthread -lnsl -lirc -limf -lirc -lrt -laio -lresolv $LIB_RUNTIME_XTRA"
+KEY_FILE=tmp$$
+
+trap '\rm -f $KEY_FILE ; exit' 1 2 3 15
+cat <<!> $KEY_FILE
+TCPPA:nttini:SQL*Net TCP/IP V2
+!
+
+if [ -f $KEY_FILE ]; then
+   NETDRIVERS=`awk -F: '{print $1}' $KEY_FILE`
+else
+   NETDRIVERS=
+fi
+
+#list of system libraries.
+
+SYSLIBNAMES=${DFL_SYSLIB-}
+
+INS_DRIVER= 			#List of installed drivers
+
+for net in $NETDRIVERS
+do
+   OSN_NAME=`grep ${net}: $KEY_FILE | awk -F: '{print $2}'`
+   MKTG_NAME=`grep ${net}: $KEY_FILE | awk -F: '{print $3}'`
+   if [ "`grep $OSN_NAME $ORACLE_HOME/network/lib/ntcontab.c 2>/dev/null`" != "" ] 
+
+   then
+
+      NETLIBS=\$${net}LIB
+      for slib in `eval "echo $NETLIBS"`
+      do
+
+	if [ "`echo $slib | grep '^/'`" = "" ] #if first char different from /
+	then
+
+	   if [ ! -f /lib/lib${slib}.a -a ! -f /usr/lib/lib${slib}.a ] ; then
+	      echo ""
+ 	      echo "Cannot locate /lib/lib${slib}.a nor /usr/lib/lib${slib}.a."
+
+ 	      echo "Cannot install $MKTG_NAME driver."
+
+           else
+               SYSLIBNAMES="$SYSLIBNAMES -l${slib}"
+           fi
+	else	    # if library name starts with "/", it is a full pathname
+	   if [ ! -f $slib ] ; then
+	       echo "Cannot locate $slib."
+	       echo "Cannot install $MKTG_NAME driver."
+
+	   else
+               SYSLIBNAMES="$SYSLIBNAMES $slib"
+
+	   fi
+	fi
+
+      done
+
+   fi
+done
+
+\rm -f $KEY_FILE
+SYSLIBLIST=$ORACLE_HOME/lib/sysliblist
+if [ ! -z "$SRCHOME" ]
+then
+	SYSLIBLIST=$SRCHOME/buildtools/lib/sysliblist
+fi
+cat <<! >$SYSLIBLIST
+$SYSLIBNAMES
+!

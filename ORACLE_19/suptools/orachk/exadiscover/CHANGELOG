@@ -1,0 +1,116 @@
+************************************************
+
+                ExaDiscover
+           Exalogic Discovery Tool
+                CHANGELOG
+
+   Version 1.5
+
+   Version 1.5.6
+
+************************************************
+Version 1.5.6
+ - Fixed following bug:
+	Exachk has problem running under Enterprise Manager. The permission of copied .sql files at f_global_init() is not correctly set for Enterprise Manager environment. Added permissions to ${SYS_TMP_DIR}/*.sql
+ 
+Version 1.5.5
+ - Fixed following bug:
+	Unset $TMPDIR in f_global_init() and export $TMPDIR in f_global_clean() to prevent $TMPDIR in exachk to interfere with running exadiscover and generating exachk_exalogic.conf in exachk context
+
+Version 1.5.4
+ - Fixed following bug:
+	Hide the Spine information for now by changing the keywords in list_assets.sql and list_all_ip_vars.sql for spine information
+        For Echo system, output 127.0.0.1 for db related entries
+        Capturing correct leaf switch information from control db in list_assets.sql and list_all_ip_vars.sql and list_all_ips.sql as keywords for switches could be different in various setups. Now the query pattern is %InfiniBand Switch%GW or %InfiniBand Gateway Switch%. The fix in 1.5.3 will capture spine switch information, thus the change of the keywords from 1.5.3.
+
+Version 1.5.3
+ - Fixed following bug:
+        Capturing correct leaf switch information from control db in list_assets.sql and list_all_ip_vars.sql as keywords for switches could be different in various setups. Now the query pattern is %InfiniBand%Switch%.
+
+Version 1.5.2
+ - Fixed following bug:
+	Sort double IPs to a single IP for ovmm_01_IPoIB-admin and ec_01_IPoIB-admin in output file for an upgraded Echo system from Navstar
+
+Version 1.5.1
+ - Fixed following bug:
+	Add db_01_IPoIB-admin to output file for Echo system. 
+        
+Version 1.5
+---------------------------------
+ - Fixed following bugs:
+	Bug 16249761 - NEED RACK IDENTIFIER FROM EXADISCOVER SCRIPT TO GET THE CORRECT RACKID IN EXACHK
+	Bug 16092486 - ILOMS NOT LISTED IN HUMAN READABLE TABLE
+	
+Version 1.4
+---------------------------------
+ - Fixed following bugs:
+	Bug 15831806 - LIST_MASTER_NODE.SQL DOESN'T FIND THE PROPER COMPUTE NODE
+	Bug 14628298 - MISSING SPINE SWITCH
+	Bug 15831842 - ADD HOSTNAMES INTO FULL LIST IP TABLE
+	Bug 15831875 - ADD PYTHON WRAPPER FOR EXADISCOVER
+	Bug 15838349 - MERGE SHORT IP LIST INTO FULL IP LIST UNDER SHELL MODE
+
+Version 1.3
+---------------------------------
+ - In order to get IP adddresses from OVMM, a root password maybe is needed.
+ - Fixed following bugs:
+	Bug 14680094 - MISSING CONTENTS ON OVMM SECTION
+	Bug 14728899 - SN_NODES_01 ETH-ADMIN INTERFACE REPORTING DUPLICATES
+
+Version 1.2
+---------------------------------
+ - Fixed following bugs:
+	Bug 14754852 - NOT RETURNING IPS FOR STORAGE NODES AND PC
+	Bug 14740429 - PRINTS INFO REGARDING HOSTNAME OF EACH NODE
+
+Version 1.1
+---------------------------------
+ - more stable on some special EMOC scenarios and multi-racks cases
+ - Fixed following bugs:
+	Bug 14687005 - ADDING IP NETWORK INTERFACE FOR DB
+	Bug 14695678 - WRONG MESSAGES WHEN USE -S ECU -I FILE_NAME OPTIONS
+ 
+Version 1.0
+---------------------------------
+ - Fixed following bugs:
+	Bug 14665917 - SHOULD WRITE THE OUTPUT TO THE CURRENT DIRECTORY AND ALL TEMPORARY FILES IN /TMP
+	Bug 14672961 - ENHANCEMENT FOR READING ECU CONFIGURATIONS
+
+
+Version 0.92
+---------------------------------
+ - Fixed following bugs:
+	Bug 14628334 - MACHINE FRIENDLY OUTPUT
+	Bug 14628266 - ADJUSTABLE/CONFIGURABLE TABLE LAYOUT
+	Bug 14628230 - RACK NAME IS NOT CORRECTLY EXTRACTED FROM EMOC
+	Bug 14628214 - CAN'T GET THE IP OF THE MASTER NODE CORRECTLY
+	
+
+
+Version 0.91
+---------------------------------
+ - Fixed three bugs:
+	Bug 14597348 - EXADISCOVER CAN'T RUN ON /ROOT
+	Bug 14597445 - "ANOMALIES DETECTED" REPORT DOESN'T WORK PROPERLY BECAUSE OF ^M CHARACTER
+	Bug 14597479 - ADD SUPPORT FOR EXALOGIC EIGHTH RACK IN "ANOMALIES DETECTED"
+
+
+
+Version 0.9
+---------------------------------
+ - First release
+ - The assets list which ExaDiscover can discover:
+	Enterprise Controller
+	Proxy Controllers
+	Exalogic Control DB (VM)
+	Exalogic Control OVM Manager (VM)
+	Compute Nodes
+	Storage Nodes
+	Infiniband Switches
+	Compute Nodes ILOM
+	Storage Nodes ILOM
+	PDU
+ - Reads from two resources: ECU configuration and EMOC live data and provides the analysis report.
+ - Lists all IP addresses of assets and display them by network types.
+
+

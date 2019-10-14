@@ -1,0 +1,13 @@
+#!/bin/sh
+#
+#    NAME
+#      chopt
+#
+#    DESCRIPTION 
+#      invoke ORACLE_HOME/bin/chopt.pl to enable/disable DB options
+#
+
+ORACLE_HOME=/u01/app/oracle/product/19.0.0/dbhome_1
+PERL5LIB=$ORACLE_HOME/perl/lib:$PERL5LIB
+export PERL5LIB
+$ORACLE_HOME/perl/bin/perl $ORACLE_HOME/bin/chopt.pl $*

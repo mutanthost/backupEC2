@@ -1,0 +1,63 @@
+printf("==========START_OF_REPORT_chkSnapshotVisibility.aksh==========\n");
+//
+//
+// This script will check if the ZFS Snapshot is properly hidden to avoid Exacheck using old vm.cfg file
+//
+
+// ----------------------------------------------------------------------------
+// VARS
+
+	var founderrors = true; // Track error findings
+	var auditcheck = 0;
+	var report = 1;
+        var runonetime = 1;
+
+
+// ----------------------------------------------------------------------------
+// MAIN STARTS HERE	
+if(runonetime==1)
+{
+getHostname();
+
+// Get the snapshot visibility property
+try { 
+	run('shares select ExalogicControl');
+	snapdir=get('snapdir');
+	run('cd /');
+} catch(err) { 
+	snapdir = "UNKNOWN";
+}
+
+if (snapdir == 'hidden' || snapdir == 'UNKNOWN') {
+	founderrors = false;
+}
+runonetime=0;
+}
+
+// Report Command
+
+if ( report == 1 ) {
+    if ( founderrors == false ) {
+		if ( snapdir == 'UNKNOWN' ) {
+			printf("INFO: %s Snapshot Visibility Check Completed: No ExalogicControl share was found.\n",host_name);
+		}
+        else {
+			printf("OK: %s Snapshot Visibility Check Completed: ZFS Snapshot is hidden.\n",host_name);
+		}
+    }
+    else {
+	  	printf("WARNING: %s Snapshot Visibility Check Completed: ZFS Snapshot is not hidden.\n",host_name);
+    }
+}
+
+//END
+printf("==========END_OF_REPORT_chkSnapshotVisibility.aksh==========\n");
+printf("==========START_OF_AUDIT_CHECK_chkSnapshotVisibility.aksh==========\n");
+if ( founderrors == false ) {
+        printf("snapshot_visibility_check_status = 0\n");
+}
+else {
+        printf("snapshot_visibility_check_status = 1\n");
+}
+
+printf("==========END_OF_AUDIT_CHECK_chkSnapshotVisibility.aksh==========\n");

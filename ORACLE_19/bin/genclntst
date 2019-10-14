@@ -1,0 +1,237 @@
+#!/bin/sh
+#
+# $Id: genclntst.sh /linuxamd64/18 2017/09/13 10:16:33 jboyce Exp $
+#
+# genclntst.sh
+#
+# Copyright (c) 2000, 2017, Oracle and/or its affiliates. All rights reserved.
+#
+#    NAME
+#      genclntst.sh - Generate the client static library 
+#
+#    DESCRIPTION
+#      This script generate the library libclntst10.a: a single static
+#      library clients can use to link OCI, Pro*C, and XA applications
+#
+#    NOTES
+#      This script assumes the client shared library has already been
+#      generated and the linker map file for it has been saved to the
+#      file ${LIB_DIR}/clntsh.map.  The map file is scanned to determine
+#      the list of objects to include in the static library.
+#
+#    MODIFIED   (MM/DD/YY)
+#    bhshanmu    05/04/17 - bhshanmu_bug-26003322_linux
+#    surikuma    11/18/13 - ipc static libs
+#    tnallath    04/18/12 - use nz static lib
+#    vlakkund    09/07/11 - Bug 12955998
+#    kmohan      08/22/11 - Include libons.a
+#    vlakkund    07/05/11 - Bug 12719121
+#    jboyce      06/07/07 - understand sections named text.{unlikely,hot}
+#    jboyce      02/13/07 - 10->11
+#    mkrohan     01/22/04 - Honour exit codes 
+#    jboyce      01/07/04 - workaround for linker bug (3344378)
+#    mkrohan     11/06/03 - Use picdata workaround for ld map change 
+#    mkrohan     11/21/02 - Remove wtc
+#    skalyana    08/06/02 - Add NZ symbols to libclntst
+#    mkrohan     12/11/00 - Macro-ize 9
+#    mkrohan     12/11/00 - Remove WRKDIR
+#    mkrohan     08/02/00 - Less verbose output
+#    mkrohan     07/18/00 - Static client library generation script
+#    mkrohan     07/12/00 - Verifying
+#    mkrohan     05/29/00 - Creation
+#
+
+#
+# Utility functions
+
+#
+# Error
+#
+# Print an error message and exit
+#
+
+Error () {
+	Status=$1
+	Msg="$2"
+	echo "genclntst: $Msg" 1>&2
+	exit $Status
+}
+
+#
+# Check_Status
+#
+# Check an exit status, if non-zero, raise an error
+#
+
+Check_Status () {
+	Status=$1
+	Msg="$2"
+	[ $Status -ne 0 ] && Error $Status "$Msg"
+}
+
+#
+# Remove_File
+#
+# Remove a file verifying it has been removed
+#
+
+Remove_File () {
+	File=$1
+	/bin/rm -f $File
+	[ ! -r $File ]
+	Check_Status $? "Failed to remove $File"
+}
+
+#
+# Explicit path to ensure that we're using the correct commands
+PATH=/bin:/usr/bin:/usr/local/bin
+export PATH
+
+#
+# To avoid arg list too long errors, unset not essential environment variables
+unset T_SOURCE T_SYSTEM T_LOG T_SQL T_DATA T_SRC T_COM T_DATA T_SOSD
+unset MIGRATE_T_SOURCE MIGRATE_T_SQL CLASSES_12 CLASSPATH JDK_CLASSES
+unset CLASSES_111 EJBCLASSES_11 ORDIMCLASSPATH ORDIMCLASSPATHSHIP CLASSES_102
+
+#
+# Define a default TMPDIR location
+[ -z "$TMPDIR" ] && TMPDIR=/tmp
+
+#
+# Library names and locations
+CLNT_NAM=clntst					# (short) library name
+CUSMK=$ORACLE_HOME/rdbms/lib/env_rdbms.mk
+CLNT_VER=`grep '^LIBMAJORVSN *=' $CUSMK | cut -f2 -d=` # lib version number
+
+# lib. destination directory
+LIB_DIR=${ORACLE_HOME}/lib
+if [ ! -z "$SRCHOME" ]
+then
+	LIB_DIR=${SRCHOME}/rdbms/lib
+fi
+
+#
+# List of libraries explicitly merged into the static library
+EXTRA_STATIC_LIBS=
+if [ -r ${ORACLE_HOME}/lib/libnnzst${CLNT_VER}.a ]
+then
+EXTRA_STATIC_LIBS=" ${EXTRA_STATIC_LIBS} \
+                    ${ORACLE_HOME}/lib/libnnzst${CLNT_VER}.a"
+fi
+if [ -r ${ORACLE_HOME}/lib/libons.a ]
+then
+EXTRA_STATIC_LIBS=" ${EXTRA_STATIC_LIBS} \
+                    ${ORACLE_HOME}/lib/libons.a"
+fi
+
+if [ -r ${ORACLE_HOME}/lib/libmql1.a ]
+then
+EXTRA_STATIC_LIBS=" ${EXTRA_STATIC_LIBS} \
+                    ${ORACLE_HOME}/lib/libmql1.a"
+fi
+if [ -r ${ORACLE_HOME}/lib/libipc1.a ]
+then
+EXTRA_STATIC_LIBS=" ${EXTRA_STATIC_LIBS} \
+                    ${ORACLE_HOME}/lib/libipc1.a"
+fi
+
+#
+# Define the name of the map and list file
+MAPFILE=${LIB_DIR}/clntsh.map
+MAPFILE2=${LIB_DIR}/clntshcore.map
+LISFILE_1=${LIB_DIR}/${CLNT_NAM}_1.lis
+LISFILE_2=${LIB_DIR}/${CLNT_NAM}_2.lis
+LISFILE=${LIB_DIR}/${CLNT_NAM}.lis
+LIBNAME=${LIB_DIR}/lib${CLNT_NAM}${CLNT_VER}.a
+
+if [ ! -f ${MAPFILE} ]
+then
+	Error 1 "Could not locate ${MAPFILE}, please run genclntsh first"
+fi
+
+Remove_File ${LISFILE}
+Remove_File ${LISFILE_1}
+Remove_File ${LISFILE_2}
+#
+# Format the linker map file into a list of objs and library members
+cat ${MAPFILE} ${MAPFILE2} | egrep '^\/'  | grep -v DISCARD | sort -u > ${LISFILE_1}
+egrep '^ \.?(picdata|text|rodata|data)' ${MAPFILE} | grep -v "\/usr\/lib" | \
+	awk '{print $4}' | \
+	sort -u > ${LISFILE_2}
+cat ${LISFILE_1} ${LISFILE_2} | sed 's/[[:blank:]].*$//;' | sort -u | egrep -v '^[[:blank:]]*$' > ${LISFILE}
+
+#
+# Create the static client library using the object list from the
+# shared client library
+WRKDIR=$TMPDIR/clntst${CLNT_VER}.$$
+OBJDIR=$WRKDIR/objs
+mkdir -p $OBJDIR
+Check_Status $? "Failed to create $OBJDIR"
+cd $OBJDIR
+exec < ${LISFILE}
+while read objname
+do
+	case "$objname" in
+	*\(*\))
+		library=`expr $objname : '\(.*\)(.*)'`
+		object=`expr $objname : '.*(\(.*\))'`
+		libname=`basename $library`
+		echo $library > $WRKDIR/$libname.nm
+		echo $object >> $WRKDIR/$libname.objs
+		;;
+	*)
+		object=$objname
+		cp $object nolib_`basename $object`
+		;;
+	esac
+done
+#
+#
+# bug in some version of solaris linker causes files with only .bss section
+# not to be mentioned in .map file.  (When this is fixed, we should add .bss
+# to the list of sections we care about.)
+echo slxl.o   >> $WRKDIR/libnls$CLNT_VER.a.objs
+echo ncrfg.o  >> $WRKDIR/libnro$CLNT_VER.a.objs
+
+# Extract the objects for the libraries
+for lib in $WRKDIR/*.nm
+do
+	library=`cat $lib`
+	prefix=`basename $library| sed -e's/^lib//' -e's/\.a//'`
+	objects=`basename $lib .nm`.objs
+	ar x $library `sort $WRKDIR/$objects | uniq`
+	Check_Status $? "Failed to extract objects from $lib"
+	for file in `sort $WRKDIR/$objects | uniq`
+	do
+	  mv $file ${prefix}_$file
+	done
+done
+
+#
+# Extra the objects from the extra libraries
+for lib in $EXTRA_STATIC_LIBS
+do
+	prefix=`basename $lib| sed -e's/^lib//' -e's/\.a//'`
+	ar x $lib
+	Check_Status $? "Failed to extract objects from $lib"
+	for file in `ar t $lib | uniq`
+	do
+	  mv $file ${prefix}_$file
+	done
+done
+
+
+#
+# Create the library
+Remove_File ${LIBNAME}
+
+find $OBJDIR -name "*.o" | xargs ar r ${LIBNAME}
+
+Check_Status $? "Failed to archive into ${LIBNAME}"
+
+echo "Created ${LIBNAME}"
+
+cd $TMPDIR
+/bin/rm -rf $WRKDIR
+
+exit 0

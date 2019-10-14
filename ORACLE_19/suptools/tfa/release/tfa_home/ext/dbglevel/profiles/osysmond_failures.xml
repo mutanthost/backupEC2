@@ -1,0 +1,80 @@
+<?xml version="1.0"?>
+
+<!--  $Header: tfa/src/v2/ext/dbglevel/profiles/osysmond_failures.xml /main/2 2015/12/09 01:45:19 bibsahoo Exp $ -->
+
+<!-- 
+ Copyright (c) 2015, Oracle and/or its affiliates. All rights reserved.
+
+   NAME
+     osysmond_failures.xml - <one-line expansion of the name>
+
+   DESCRIPTION
+     <short description of component this file declares/defines>
+
+   NOTES
+     <other useful comments, qualifications, etc.>
+
+   MODIFIED   (MM/DD/YY)
+   bibsahoo    12/02/15 - FIX BUG 22301591 - TIMEOUTS MISSING FROM DBGLEVEL
+                          PROFILES
+   bibsahoo    09/22/15 - Creation
+
+-->
+<profile name="osysmond_failures" description="For debugging Cluster Health Monitor osysmond process failures if directed by Oracle Support." type="default" timeout="5m">
+<change>
+<command>crsctl</command>
+<command_location>GI_HOME</command_location>
+<command_type>log</command_type>
+<daemon>crf</daemon>
+<module>CRFCLI</module>
+<set>3</set>
+<unset>1</unset>
+</change>
+<change>
+<command>crsctl</command>
+<command_location>GI_HOME</command_location>
+<command_type>log</command_type>
+<daemon>crf</daemon>
+<module>CRFM</module>
+<set>3</set>
+<unset>1</unset>
+</change>
+<change>
+<command>crsctl</command>
+<command_location>GI_HOME</command_location>
+<command_type>log</command_type>
+<daemon>crf</daemon>
+<module>CRFMI</module>
+<set>3</set>
+<unset>1</unset>
+</change>
+<change>
+<command>crsctl</command>
+<command_location>GI_HOME</command_location>
+<command_type>log</command_type>
+<daemon>crf</daemon>
+<module>CRFMOND</module>
+<set>3</set>
+<unset>1</unset>
+</change>
+<change>
+<command>crsctl</command>
+<command_location>GI_HOME</command_location>
+<command_type>log</command_type>
+<daemon>crf</daemon>
+<module>CSSCLNT</module>
+<set>3</set>
+<unset>1</unset>
+</change>
+<change>
+<command>crsctl</command>
+<command_location>GI_HOME</command_location>
+<command_type>log</command_type>
+<daemon>ctss</daemon>
+<module>CLSINET</module>
+<set>3</set>
+<unset>1</unset>
+</change>
+</profile>
+
+

@@ -1,0 +1,217 @@
+#!/bin/sh
+#
+# $Header: network_src/utl/netmgr.sbs /st_network_19/1 2018/09/09 22:26:14 taoansar Exp $
+#
+# Copyright (c) 1997, 2018, Oracle and/or its affiliates. All rights reserved.
+#
+#    NAME
+#      netmgr - Shell script to run Net Assistant
+#
+#    DESCRIPTION
+#      Runs the Net Assistant Java Application.  This file comes in two
+#      forms its original, with a .sbs extension, and its final, without
+#      a .sbs extension.  The .sbs version is source for the final
+#      version which the Oracle Universal Installer creates by
+#      doing variable substitution at install time.
+#
+#    MODIFIED   (MM/DD/YY)
+#    taoansar    09/09/18 - Fixing ewtcompat and oemlt jars.
+#    taoansar    11/16/17 - Bug fix for 26734346.
+#    mperugu     04/08/13 - fix bug 14830912
+#    mperugu     10/28/12 - use s_ldapclnt12 to fix 13606024
+#    vdandu      09/05/12 - Adding fix of Bug 8932977 & Bug 8752532 to MAIN
+#    mperugu     07/25/12 - remove the dependency of environment oracle_home
+#                           and substitute oracle_home at install time
+#    mperugu     09/21/10 - work around for 10053695
+#    prapatil    04/24/08 - Bug fix for 6456117
+#    prapatil    04/24/07 - Fix for ldapjclnt11.jar file
+#    dkapoor     10/28/03 - use ice5 
+#    dkapoor     09/15/03 - add jewt 
+#    hasriniv    07/02/03 - Fix for bug 2605995
+#    rasundar    07/03/03 - increased memory limit 
+#    ktarkhan    03/04/03 - update classpath
+#    dkapoor     10/21/02 - jre1.3 changes
+#    ktarkhan    12/18/01 - add JNDI jar.
+#    hakali      12/10/01 - use oem lite
+#    hakali      12/07/01 - bug1692102
+#    mclose      10/01/01 - Add AIX specific test.
+#    npamnani    08/02/01 - fix for bug 1883328
+#    npamnani    05/16/01 - inserting OH/classes in classpath
+#    npamnani    04/17/01 - fix for bug 1711218
+#    npamnani    03/19/01 - LIPATH needed for AIX
+#    npamnani    03/12/01 - lib path change for HP-UX
+#    npamnani    01/30/01 - including OemCorbaVisi jar
+#    npamnani    01/19/01 - replace sysmanmaf with oembase
+#    hakali      08/11/00 - change asst to mgr
+#    mclose      07/10/00 - Change location of ewtcompat
+#    mclose      11/19/99 - Update to ewtcompat 3.3.6
+#    mclose      10/13/99 - 816 install variable changes
+#    mclose      09/22/99 - Remove JRE -native flag (990089)
+#    mclose      09/17/99 - add nls message jar
+#    rgiardin    07/22/99 - update dependency versions
+#    rgiardin    07/14/99 - remove extraneous header info.
+#    rgiardin    07/14/99 - add config jar dependency
+#    mclose      06/24/99 - fixed bug 882986
+#    mclose      01/14/99 - Update to ewt 3.1.10.
+#    mclose      12/30/98 - Add check for DISPLAY
+#    rgiardin    12/16/98 - stop changing to %TOOLS dir before running mgr
+#    rgiardin    12/07/98 - update ewt version to 3_1_9
+#    rgiardin    11/20/98 - update ewt ver to 3.1.8.1
+#    rgiardin    11/18/98 - update ewt version to 318 and remove reference to e
+#    mclose      11/13/98 - Change substitution variable names
+#    rgiardin    11/11/98 - add ewtcompat variable for sed replacement
+#    mclose      11/03/98 - Change for sbs to shell script processing
+#    mclose      10/28/98 - added missing HotJavaBean.jar
+#    mclose      09/02/98 - Update for 8.1.4
+#    mclose      07/01/98 - Set 8.1.3 location for maf,ewtcompat,ewtdev
+#    mclose      06/04/98 - add $ORACLE_HOME/lib to LD_LIBRARY_PATH
+#    mclose      06/04/98 - Fix possible classpath problem
+#    mclose      06/02/98 - fix Net Assistant schell script for 8.1
+#    skanjila    10/15/97 - Append current LD_LIBRARY_PATH
+#    skanjila    06/05/97 - Add i18n.jar in classpath
+#    skanjila    05/28/97 - Creation
+#
+
+ORACLE_HOME=$ORACLE_HOME
+export ORACLE_HOME;
+
+case $ORACLE_HOME in
+    "") echo "****ORACLE_HOME environment variable not set!"
+        echo "    ORACLE_HOME should be set to the main"
+        echo "    directory that contains Oracle products."
+        echo "    Set and export ORACLE_HOME, then re-run."
+        exit 1;;
+esac
+
+case $DISPLAY in
+    "") echo "****DISPLAY environment variable not set!"
+        echo "    Oracle Net Manager is a GUI tool which"
+        echo "    requires that DISPLAY specify a location"
+        echo "    where GUI tools can display."
+        echo "    Set and export DISPLAY, then re-run."
+        exit 1;;
+esac
+
+# Unset any existing JAVA_HOME variable to ensure that only
+# the JRE we want to use is used.
+unset JAVA_HOME
+
+# External Directory Variables set by the Installer
+JREDIR=$ORACLE_HOME/jdk/jre
+JLIBDIR=$ORACLE_HOME/jlib
+
+# External File Variables set by the Installer
+SHAREJAR=$JLIBDIR/share.jar
+SWINGJAR=$JLIBDIR/swingall-1_1_1.jar
+EWTJAR=$JLIBDIR/ewt3.jar
+EWTOTHER=$JLIBDIR/ewtcompat.jar:$JLIBDIR/ewtcompat-3_3_15.jar
+HELPJAR=$JLIBDIR/help4.jar:$JLIBDIR/jewt4.jar:$JLIBDIR/oracle_ice.jar:$JLIBDIR/oracle_ice5.jar
+NETCFGJAR=$JLIBDIR/netcfg.jar
+JNDIJAR=$JLIBDIR/jndi.jar
+LDAPCLNT=$JLIBDIR/ldapjclnt19.jar
+EMLTJAR=$JLIBDIR/oemlt.jar
+CLASSESROOT=$ORACLE_HOME/classes
+ADFHELPJAR=$ORACLE_HOME/jlib/ohj.jar:$ORACLE_HOME/jlib/help-share.jar:$ORACLE_HOME/oui/jlib/oracle_ice.jar
+# Net Assistant Directory Variables
+NETJLIBDIR=$ORACLE_HOME/network/jlib
+NETTOOLSDIR=$ORACLE_HOME/network/tools
+
+# Net Assistant File Variables
+NETMGRJAR=$NETJLIBDIR/netmgrm.jar:$NETJLIBDIR/netmgr.jar
+
+# JRE Executable and Class File Variables
+JRE=$JREDIR/bin/java
+JREJAR=$JREDIR/lib/rt.jar:$JREDIR/lib/i18n.jar
+
+# Set Classpath for Net Assistant
+CLASSPATH=$NETMGRJAR:$LDAPCLNT:$CLASSESROOT:$EMLTJAR:$EWTJAR:$HELPJAR:$SHAREJAR:$JREJAR:$EWTOTHER:$NETCFGJAR:$JNDIJAR:$SWINGJAR:$NETTOOLSDIR:$ADFHELPJAR
+
+# Set the shared library path for JNI shared libraries
+# A few platforms use an environment variable other than LD_LIBRARY_PATH 
+PLATFORM=`uname`
+# Some platform may need other JVM environment variables set
+# or unset as appropriate.
+case $PLATFORM in "AIX")
+   JAVA_COMPILER=NONE
+   export JAVA_COMPILER   
+esac
+case $PLATFORM in "Linux")
+   THREADS_FLAG=native
+   export THREADS_FLAG
+esac
+
+#set if invoking 64bit java requires flag
+JAVA64FLAG=
+
+case $PLATFORM in "HP-UX")
+   if [ `/bin/file $ORACLE_HOME/lib/nautab.o | /bin/awk '{print $2}'` = "ELF-64" ];
+   then
+     JAVA64FLAG="-d64"
+   fi
+   SHLIB_PATH=$ORACLE_HOME/lib:$ORACLE_HOME/network/lib:$SHLIB_PATH
+   export SHLIB_PATH
+esac
+case $PLATFORM in "AIX")
+   LIBPATH=$ORACLE_HOME/lib:$ORACLE_HOME/network/lib:$LIBPATH
+   export LIBPATH
+esac
+
+case $PLATFORM in "SunOS")
+   if [ `/bin/file $ORACLE_HOME/lib/nautab.o | /bin/awk '{print substr($3,0,2)}'` != "32" ];
+   then
+     JAVA64FLAG="-d64"
+   fi
+esac
+
+LD_LIBRARY_PATH=$ORACLE_HOME/lib:$ORACLE_HOME/network/lib:$LD_LIBRARY_PATH
+export LD_LIBRARY_PATH
+
+case $PLATFORM in "AIX")
+  SYSTEM_LOCK_FILE=$JREDIR/.systemPrefs/.system.lock
+  PERM_CHANGED_SYSTEM_LOCK_FILE=0
+  SYSTEM_ROOT_FILE=$JREDIR/.systemPrefs/.systemRootModFile
+  PERM_CHANGED_SYSTEM_ROOT_FILE=0
+  CHMOD=/bin/chmod
+
+  if [ -f $SYSTEM_LOCK_FILE ] && [ ! -w $SYSTEM_LOCK_FILE ]
+
+  then
+      $CHMOD u+w $SYSTEM_LOCK_FILE
+      PERM_CHANGED_SYSTEM_LOCK_FILE=1
+  fi
+
+  if [ -f $SYSTEM_ROOT_FILE ] && [ ! -w $SYSTEM_ROOT_FILE ]
+
+  then
+      $CHMOD u+w $SYSTEM_ROOT_FILE
+      PERM_CHANGED_SYSTEM_ROOT_FILE=1
+  fi
+  
+esac
+
+#ifdef LINUX
+#Use NATIVE thread
+#THREADS_FLAG=native
+#export THREADS_FLAG
+#endif
+
+# Run Net Manager
+$JRE $JAVA64FLAG -Dsun.java2d.font.DisableAlgorithmicStyles=true -Dice.pilots.html4.ignoreNonGenericFonts=true -mx100m -classpath $CLASSPATH oracle.net.mgr.container.NetApplication oracle.net.mgr.container.NetApplication
+
+case $PLATFORM in "AIX")
+
+   if [ $PERM_CHANGED_SYSTEM_LOCK_FILE -eq 1 ]
+
+   then
+      $CHMOD u-w $SYSTEM_LOCK_FILE      
+   fi
+
+   if [ $PERM_CHANGED_SYSTEM_ROOT_FILE -eq 1 ]
+
+   then
+      $CHMOD u-w $SYSTEM_ROOT_FILE  
+   fi
+
+esac
+
+exit $status

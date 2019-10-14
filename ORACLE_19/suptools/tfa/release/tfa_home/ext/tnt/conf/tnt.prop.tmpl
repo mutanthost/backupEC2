@@ -1,0 +1,32 @@
+# ------------------------
+# tnt logging configuration
+# ------------------------
+
+java.util.logging.ConsoleHandler.level = CONFIG
+java.util.logging.FileHandler.level = ALL
+oracle.rat.tfa.tnt.Toaster.level = ALL
+handlers = java.util.logging.FileHandler, java.util.logging.ConsoleHandler
+java.util.logging.FileHandler.pattern = %TNT_HOME%/log/java%u.log
+java.util.logging.FileHandler.formatter = java.util.logging.SimpleFormatter
+
+# ------------------------
+# tnt script configuration
+# ------------------------
+
+tnt.script.java.executable=%JAVAEXE%
+tnt.script.classpath=%TNT_HOME%/../../jlib/commons-io-2.6.jar:%TNT_HOME%/lib/xternal.jar:%TNT_HOME%/lib/tnt.jar:%TNT_HOME%/lib/commons-cli-1.4.jar:%TNT_HOME%/lib/xmlparserv2.jar:%TNT_HOME%/lib/commons-lang3-3.8.1.jar
+tnt.script.default.component=all
+tnt.script.component.list=db,asm,crs,acfs,os,osw,oswslabinfo,all
+tnt.script.component.description=DB Alert Logs,ASM Alert Logs,CRS Alert Logs,ACFS Message Logs,Unix System Logs,OSWatcher Top Data,OSWatcher Slabinfo data,Alert and Unix System Logs
+tnt.script.extra.help=Check documentation for more help.
+static.toaster.options= -i top -n 100
+
+# ------------------------
+# component configurations
+# ------------------------
+
+oracle.rat.tfa.tnt.parsers.CRSAlertLogParser.type.map.types=ERROR,WARNING,generic
+oracle.rat.tfa.tnt.parsers.CRSAlertLogParser.type.map.patterns=.*CRS-8011:.*,.*CRS-8013:.*,.*CRS-1607:.*,.*CRS-1615:.*,.*CRS-1714:.*,.*CRS-1656:.*,.*PRVF-5305:.*,.*CRS-1601:.*,.*CRS-1610:.*,.*PANIC. CRSD exiting:.*,.*Fatal Error from AGFW Proxy:.*~.*CRS-1603:.*,.*CRS-10051:.*,.*CRS-2409:.*,.*CRS-1625:.*
+
+oracle.rat.tfa.tnt.parsers.DBAlertLogParser.type.map.types=ERROR,WARNING,generic
+oracle.rat.tfa.tnt.parsers.DBAlertLogParser.type.map.patterns=.*ORA-00600:.*,.*ORA-07445:.*,.*ORA-031(13|37):.*,.*ORA-00603:.*,.*ORA-0035(3|5|6):.*,.*ORA-00700:.*,.*ORA-040(20|36):.*,.*ORA-0403(0|1):.*,.*ORA-002(27|39|40|55):.*,.*ORA-01578:.*,.*ORA-2(5319|4982):.*,.*ORA-56729:.*,.*ORA-00445:.*,.*IPC Send timeout detected. Sender: ospid.*,.*Direct NFS: channel id .* path .* to filer .* PING timeout.*,.*Direct NFS: channel id .* path .* to filer .* is DOWN.*,.*ospid: .* has not called a wait for .* secs.*,.*IPC Send timeout to .* inc .* for msg type .* from opid.*,.*IPC Send timeout: Terminating pid.*,.*Receiver: inst .* binc .* ospid.*,.* terminating instance due to error.*,.*: terminating the instance due to error.*,.*Global Enqueue Services Deadlock detected~NOTE: process .* initiating offline of disk .*,.*WARNING: cache read a corrupted block group.*,.*NOTE: a corrupted block from group FRA was dumped to .*

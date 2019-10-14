@@ -1,0 +1,77 @@
+<?xml version="1.0"?>
+
+<!--  $Header: tfa/src/v2/tfa_home/resources/srdc_dbpreupgrade.xml /main/2 2018/08/08 23:01:02 recornej Exp $ -->
+
+<!-- 
+ Copyright (c) 2017, 2018, Oracle and/or its affiliates. All rights reserved.
+
+   NAME
+     srdc_dbpreupgrade.xml - <one-line expansion of the name>
+
+   DESCRIPTION
+     <short description of component this file declares/defines>
+
+   NOTES
+     <other useful comments, qualifications, etc.>
+
+   MODIFIED   (MM/DD/YY)
+   recornej    08/02/18 - Add validate dbversion
+   bburton     10/05/17 - Fix orachk and remove hcheck
+   bburton     09/22/17 - SRDC for database preupgrade problems
+   bburton     09/22/17 - Creation
+
+-->
+<collections>
+  <collection id="dbpreupgrade">
+    <description>SRDC for database preupgrade problems.</description>
+    <alias>dbupgrade</alias>
+    <user_inputs>
+        <user_input cmdline="" default="" showprompt="1" setenv="REPLACE" validate="" prompt="Enter the Database Name">USERINPUT-DATABASE_NAME</user_input>
+        <user_input cmdline="" default="" showprompt="1" setenv="REPLACE" validate="dbversion:noDots" prompt="Enter the version you are upgrading to : Example for database 12.2.0.1 type 12201">USERINPUT-UPGVERS</user_input>
+    </user_inputs>
+    <onevents>
+    </onevents>
+    <duration>48h</duration>
+    <clusterwide>no</clusterwide>
+    <filter_files>
+        <types>
+        </types>
+        <filter_file_patterns>
+            <filter_file_pattern>alert_.*\.log</filter_file_pattern>
+            <filter_file_pattern>trc</filter_file_pattern>
+            <filter_file_pattern>log</filter_file_pattern>
+            <filter_file_pattern>\.xml</filter_file_pattern>
+            <filter_file_pattern>messages</filter_file_pattern>
+            <filter_file_pattern>archive\/osw</filter_file_pattern>
+            <filter_file_pattern>ExaWatcher\/archive</filter_file_pattern>
+        </filter_file_patterns>
+        <filter_file_exclude_patterns>
+            <filter_file_exclude_pattern>cdmp_.*_bucket\.tr[cm]</filter_file_exclude_pattern>
+        </filter_file_exclude_patterns>
+    </filter_files>
+
+    <filter_files>
+      <types>
+      </types>
+      <filter_file_patterns>
+      </filter_file_patterns>
+      <filter_file_exclude_patterns>
+      </filter_file_exclude_patterns>
+    </filter_files>
+    <components>
+      <component>DATABASE</component>
+      <component>NOCHMOS</component>
+    </components>
+    <commands>
+       <script type="SQLSCRIPT" name="srdc_dbupgdiag.sql" timeout="300" validfor="" platform="" version="">
+       </script>
+       <script type="OS" name="orachk_db_upgrade" timeout="300" validfor="" platform="allux" version="">
+       FROMSRDC=TRUE
+       export FROMSRDC
+       tfactl orachk -u -o pre -dbnames %DATABASE_NAME% -t %UPGVERS% -silentforce
+      </script>
+   </commands>
+   <runtime_flags>
+   </runtime_flags>
+  </collection>
+</collections>

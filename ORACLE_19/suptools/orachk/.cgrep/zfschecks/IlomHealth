@@ -1,0 +1,32 @@
+printf("==========START_OF_REPORT_chkIlomHealth.aksh==========\n");
+
+var founderrors = false;
+var report_command = "There is no fault in ZFS ILOM";
+var output = '';
+
+getHostname();
+
+run("cd /");
+output=run("confirm shell ipmitool sunoem cli 'show -o table -level all /SP/faultmgmt' | grep -v 'show' | grep '/SP/faultmgmt'");
+if ( output != '' ) {
+    report_command="confirm shell ipmitool sunoem cli 'show -o table -level all /SP/faultmgmt' | grep -v 'show' | grep '/SP/faultmgmt'\n";
+    report_command+=run("confirm shell ipmitool sunoem cli 'show -o table -level all /SP/faultmgmt' | grep -v 'show' | grep '/SP/faultmgmt'");
+    founderrors = true;
+}
+
+if ( founderrors == false ) {
+    printf("There is no fault in ZFS ILOM");
+}
+else {
+    printf("%s\n",report_command)
+}
+
+printf("==========END_OF_REPORT_chkIlomHealth.aksh==========\n");
+printf("==========START_OF_AUDIT_CHECK_chkIlomHealth.aksh==========\n");
+if ( founderrors == false ) {
+        printf("ilom_health_status = 0\n");
+}
+else {
+        printf("ilom_health_status = 1\n");
+}
+printf("==========END_OF_AUDIT_CHECK_chkIlomHealth.aksh==========\n");

@@ -1,0 +1,126 @@
+#!/usr/bin/bash
+#
+# Copyright (c) 2016, Oracle and/or its affiliates. All rights reserved.
+#
+# ident "@(#)cluster_check_os_collect.sh 1.3     16/06/28"
+#
+# This script is intended to be run by the ORAchk health-check tool
+# to perform the OS COLLECT task of running "cluster check" for the
+# specified checks, and storing the output file in a location from
+# where it can be processed by OS CHECK commands.
+#
+# This script ships with both ORAchk and Solaris Cluster. ORAchk will
+# always invoke the script it ships, but in case the installed cluster
+# software has a more recent version we check, and will use the cluster
+# one if it is newer.
+#
+# Note that this "version" variable *must* always be incremented
+# if this script is changed, and a copy of the new script supplied to
+# the ORAchk team. See the README in the cluster source directory for
+# details.
+
+version=10
+ 
+# Takes either one parameter:
+# $1 = the lowercase string "version", the script will exit with
+#      the current version number, or:
+# or two:
+# $1 = ${OUTPUTDIR} from ORAchk
+# $2 = comma-separated list of checks
+#      Never put Functional (Fxxxxx) in Interactive (Ixxxxx) checks here
+#
+# The script will print a text status to stdout, either the result
+# of cluster check, or some other error information. This must be
+# caught and assigned to a variable by the OS Command part of the
+# ORAchk code.
+# No other output to stdout is permitted.
+#
+# Normal exit status:
+#     0 = success
+# non-0 = fail
+#
+# The exit status from the script will be used to generate a pass
+# or fail status message in the ORAchk code.
+#
+
+if [[ "$1" == "version" ]]; then
+        exit $version
+fi
+ 
+#
+# Check to see if there's a more recent script in the cluster directory.
+#
+osc_ver=1
+CLUSTER_SCRIPT="/usr/cluster/lib/sc/cluster_check_os_collect"
+if [[ -x ${CLUSTER_SCRIPT}  && "$0" != ${CLUSTER_SCRIPT} ]]; then
+        ${CLUSTER_SCRIPT} "version" > /dev/null 2>&1
+        osc_ver=$?
+fi
+# If so, use it instead.
+if (( $osc_ver > $version)); then
+        exec ${CLUSTER_SCRIPT} $@
+fi
+#
+# Main code
+#
+if [[ -z "$1" || -z "$2" ]]
+then
+    CLUSTER_CHECK_OUTPUT="Missing args. Usage: $0 outputdir list_of-checks"
+    # 22 is "EINVAL"
+    CC_STATUS=22
+else
+    # Check to see if we're in cluster mode, with Cacao (Common Agent
+    # Container) running. If so we use it,  else we run the tests in
+    # "install" (single-node) mode.
+
+    CHECK_LIST="$2"
+
+    # Test for cluster binary and global zone, cluster checks can't be
+    # run in non-global zones.
+    OSC_ZNAME=`/usr/bin/zonename`
+    if [[ -x /usr/cluster/bin/cluster && "$OSC_ZNAME" == "global" ]]
+    then
+        CACAOSVC="svc:/application/management/common-agent-container-1:default"
+        CC_OUTPUT="$1/outfiles/cluster_check"
+
+        # Extract the service state
+        CACAO_STATE=$( /usr/bin/svcs -H -o state ${CACAOSVC} )
+
+        # Is the node booted in cluster mode?
+        /usr/sbin/clinfo > /dev/null 2>&1
+        CLUSTER_MODE=$?
+
+        if [[ ${CLUSTER_MODE} -eq 0 && "${CACAO_STATE}" == "online" ]]; then
+            # yes, so we can run in multi-node format
+            CC_OPTIONS=""
+        else
+            # No, so run in single-node install mode, without Cacao
+            CC_OPTIONS="-X -n `/usr/bin/hostname`"
+        fi
+
+        # Now run cluster check with all the given options, store the log data
+        # and results in a subdirectory of the ORAchk report and make sure
+        # it's readable. 
+        CLUSTER_CHECK_OUTPUT=$(/usr/cluster/bin/cluster check ${CC_OPTIONS} \
+		-o ${CC_OUTPUT} -C ${CHECK_LIST} )
+        CC_STATUS=$?
+        /usr/bin/chmod -R o+r ${CC_OUTPUT}
+    else
+        CLUSTER_CHECK_OUTPUT="The Solaris Cluster software is not installed on this system"
+        # 36 is "no such object"
+        CC_STATUS=36
+    fi
+fi
+
+# Cluster check will return 0 if the command itself executed successfully,
+# but that doesn't mean it gave useful output. If the node is not booted
+# in cluster mode it can also return 110, so count that as success.
+
+if [[ $CC_STATUS -eq 110 ]]; then
+	CC_STATUS=0
+fi
+
+# Output text, for ORAchk report.
+echo "$CLUSTER_CHECK_OUTPUT"
+
+exit ${CC_STATUS}

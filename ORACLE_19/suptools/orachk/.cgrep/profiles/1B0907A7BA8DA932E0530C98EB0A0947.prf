@@ -1,0 +1,81 @@
+138E6F45C5A12F46E05313C0E50AB16A|Verifying JDK vendor and version
+138E6F45C5A22F46E05313C0E50AB16A|Verifying XClock run
+138F30498D5846B1E05312C0E50ABDCC|Verifying Kernel Parameters
+138F30498D5946B1E05312C0E50ABDCC|Verifying Path Permissions
+138F30498D5A46B1E05312C0E50ABDCC|Checks servers are running
+138F348B133C6B74E05312C0E50ABCB6|Verifying Packages Installed
+138F8DA7A29C3D70E05313C0E50A298D|Verifying IDSTORE Configuration
+138FA731DAD61AA8E05313C0E50AF31A|Check Reachability of hosts
+138FAB00A0DC793AE05312C0E50AC052|Verifying available Disk space
+138FAD9252F97C32E05313C0E50AAB15|Verify Weblogic Server Configuration
+138FB91319D4760CE05312C0E50A7458|Verifying Operating system and release
+138FB91319D5760CE05312C0E50A7458|Verifying DB Parameter
+138FBE81CB88426AE05313C0E50A2C94|Verifying DB Schema Connection
+138FBE81CB89426AE05313C0E50A2C94|Verifying Data Sources Authentication
+138FF63D2E084C5DE05313C0E50AB506|Verifying available Physical Memory
+139D28576A4B0962E05312C0E50A7CDF|Verify Certification Configuration
+139DE70566202B22E05313C0E50A7510|Verifying the MessageBufferSize and MessagesMaximum property of OIMJMSServer
+139E3A9C1D27049EE05313C0E50A4CDE|Verifying OIMFrontEndURL and OIMExternalFrontEndURL
+139E3A9C1D28049EE05313C0E50A4CDE|Verify if DB indexes are created for all the searchable UDFs of OIM User entity
+139FB78246CB3B40E05312C0E50AD9E4|Verifying UMS configuration
+139FB78246CC3B40E05312C0E50AD9E4|Verify if the authorization policies or application stripe is seeded correctly during the RCU run
+139FD2ED30A72ECBE05313C0E50A91D1|Verifying DB patches
+139FFED770004C02E05312C0E50A0E17|Verifying the SOA configuration
+139FFF3583A2106BE05313C0E50A9EC4|Verifying OIM Cache Config is clustered
+13A238B26CC2779CE05312C0E50A65E0|Verifying the MessageBufferSize and MessagesMaximum property of OIMJMSServer
+13A2CFC683E06FF5E05313C0E50A5274|Verifying the OIM JDBC connection pool params
+13A360FE1B320A88E05313C0E50A4D9F|Verifying the maximum constraint of the Work Managers OIMDBWorkManager and OIMUIWorkManager
+13A360FE1B330A88E05313C0E50A4D9F|Verifying Processor
+13A39F15D0706076E05312C0E50A674D|Verify that the Catalog is synchronized with base entities
+1A33259F5A2BC578E0530E98EB0A981D|Validating if Reloading is enabled for Plugin and Adapter configuration
+1A7E491BE8DE44F9E0530C98EB0AD341|Verifying if OIM Scheduler config is clustered
+1A8081FC892490F3E0530D98EB0A67B9|Verifying OIM BackOfficeURL
+1A8119EDAAABF7A9E0530A98EB0AAE8E|Validating DomainLogBroadcastSeverity configuration for OIM server
+1A828DE05CDEBBD9E0530C98EB0AF6EC|Verifying status and periodicity of OIM Data Purge Job
+1AF51D39076B80D6E0530E98EB0A9BA8|Check for Securefile DB parameter value.
+1AF653FE4757055FE0530C98EB0A26F3|Check for Invalid objects in CTXSYS schema used for Oracle Text feature.
+1AF706665C3512A8E0530D98EB0A9FAD|Check for Invalid objects in XDB schema used for Catalog Hierarchical feature.
+1AF73BFB0D7C76E1E0530E98EB0AF7BF|Check for Compatible DB parameter value.
+1AFA2715B04EB2FFE0530B98EB0A4185|Check if Oracle Text is installed on OIMDB
+1AFC1A0176E37ECEE0530C98EB0A83AC|Check for existence of XDB component in OIM DB.
+1AFC8369FCE6FE03E0530A98EB0A45FF|Check value of OPEN_CURSORS DB parameter.
+1B6069E2C0BF12C2E0530E98EB0A801D|Check whether OIM schema has been installed on the DB or not.
+1BFB8A42AD7B96BEE0530C98EB0A93EF|Verifying JVM args Xms,Xmx,XX:PermSize,XX:MaxPermSize
+1C2297D38BBF47A9E0530E98EB0A08F4|Verify Reconciliation profiles
+1C2401D74FC067DFE0530D98EB0A67E7|Verify IDM patches
+1C2B3E0E98CB013DE0530C98EB0A2CA5|Verify OIM Notification Configuration
+1C2B92FDC15BD359E0530D98EB0A27AF|Validating if OIM public resources are configured as EXCLUDED in OAM.
+1C2C00C9A86E4BBDE0530C98EB0AC813|Verify if the Service Accounts used for connectivity has rights to perform operations on the target
+1C2C158888C983CAE0530D98EB0A70AD|Verify the failed messages count for catalog in AUD_JMS table is not high
+1C2C2B89F7DBA6B7E0530A98EB0AA4FD|Verify OIM Provisioning Configuration
+1C62088A08E15E06E0530E98EB0A7D6C|Verify OIM-OAM Integration configurations
+1C673445F0C3C7B4E0530A98EB0A260A|Check for any OIM Process task adapters which are uncompiled.
+1C7641A84B44C91EE0530C98EB0A373C|Check for any OIM Process task adapters with unmapped variables.
+1C7A2AC3069CDF3DE0530E98EB0AC5C8|Check the Number of OIM Application instances which are not associated with UI form.
+1C8AE2972043D057E0530C98EB0AE382|Check if "Allow Multiple Instances" and "Conditional" flags are set for OIM Process tasks.
+1CAF0BFB38BFB29EE0530C98EB0AEC95|Validate Access Policy Harvesting configuration
+1D04622FE0B8C238E0530B98EB0A5348|Check OIM Version
+1D408892182EB36DE0530A98EB0A5306|Verifying open file descriptor limits for OIM and SOA server
+1E1E51ADCD0F9D49E0530D98EB0ACE1E|IDM HC Check Verifying Data Sources Authentication
+1E3157D0DBF2A90EE0530A98EB0A9123|IDMHC Collect Verify Certification Configuration
+1E9897AD977ED83EE0530E98EB0AAE88|Verifying Log level
+1EBE635E1043B992E0530C98EB0A5643|Check password expiration policies for OIM database schema
+2107EAE4E571193BE0530E98EB0A3E15|Verifying if OIM Authentication Provider is configured when OIM is SSO enabled
+215338F10E77A02BE0530B98EB0A2AFB|Verify the deployment status of OIM Provisioning callback service
+21539B2F384ACF73E0530E98EB0AD681|Verify if OIM User profile audit data collection level property is correctly configured
+2154CC23C1F5CF86E0530E98EB0A656C|Verify the status of OIM Scheduler service
+2156C779E9BF076EE0530E98EB0A959F|Verifies if OIM specific credentials are seeded in OPSS Credential store
+21E07F3D61ED6802E0530D98EB0A3E2C|Check whether SQL Profile is present and being used in DB for OIM objects.
+21E15EAD0D339C3BE0530B98EB0A25CA|Check Online Data Purge job settings for Reconciliation, Provisioning and Request.
+21E52CED50BECDA4E0530A98EB0A906C|Check whether SQL baseline is present and being used in DB for OIM objects.
+21E82940BA1A40C1E0530B98EB0AC42F|Check Redo Log member size.
+249F68756B2061D2E0530B98EB0A2AD3|Verifying weblogic admin username and password is same across all configurations
+249FA2438592F52DE0530D98EB0A90A1|Verifying TapEndpointURL
+24A9789D75839923E0530B98EB0A4D62|Verifying JVM param UseLargepages
+24B41F31F366D012E0530E98EB0AC66E|Verify OIM SoD configuration
+24B41F31F367D012E0530E98EB0AC66E|Verifying SOA Human Task URI Configuration
+33000B8FA3E4E069E0530E98EB0A9AEE|Check OIM Version
+3338F5B116A3110EE0530E98EB0AA731|Check for Compatible DB parameter value.
+333CB33BA9DF6828E0530A98EB0AFC0D|Check for Invalid objects in XDB schema used for Catalog Hierarchical feature.
+33456654A49B4D84E0530D98EB0A9C11|Check OIM Version
+5AF2C2184BB0D4C5E0401490CACF2A2E|sysctl

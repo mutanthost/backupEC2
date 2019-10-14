@@ -1,0 +1,23 @@
+<?xml version="1.0"?>
+
+<!--  $Header: gitools/src/racassurance/tfa/v2/tfa_home/resources/scanFileList.xml /main/2 2012/08/08 21:37:30 sowsingh Exp $ -->
+
+<!-- 
+ Copyright (c) 2012, Oracle and/or its affiliates. All rights reserved. 
+
+   NAME
+     scanFileList.xml - <one-line expansion of the name>
+
+   DESCRIPTION
+     <short description of component this file declares/defines>
+
+   NOTES
+     <other useful comments, qualifications, etc.>
+
+   MODIFIED   (MM/DD/YY)
+   bburton     07/30/12 - Creation
+
+-->
+<files>
+<file>ALL</file>
+</files>

@@ -1,0 +1,327 @@
+#!/bin/sh
+##############################################################################
+# Copyright (c) 1996, 2017, Oracle and/or its affiliates. All rights reserved.
+#
+# genorasdksh.sh (SDK = Software Development Kit) -- Linux version
+#
+#    Creates single shared client library for OCI, Pro*C, and XA.
+#
+# Makes either the base SDK library or full library depending on the
+# arguments given.  Default (no arguments) is to make the full library.
+# If invoked with "-base", makes the base library.
+#
+#  MODIFIED   (MM/DD/YY)
+#  bhshanmu    05/04/17 - bhshanmu_bug-26003322_linux
+#  ekarichk    01/20/12 - bug/13517928: use ld for relnking
+#  nmuthukr    08/04/10 - x86-x64 unification
+#  nmuthukr    04/07/10 - add ld-linux.so in linkline
+#  mlfallon    01/12/09 - Adding -m32 to link line
+#  rchahal     08/26/08 - Add NZ lib to liborasdkbase.so linkline.
+#  mlfallon    04/09/07 - Change C++ runtime library to be
+#                         compatible with Gcc 3.4
+#  jboyce      02/13/07 - 10->11
+#  tnallath    01/19/07 - add gssapi lib
+#  garnaiz     12/12/06 - establish dependency on skgxp unconditionally
+#  bsthanik    03/09/06 - libn10.a dependency for xdk 
+#  jboyce      11/04/05 - bom2def changes on linux
+#  mchengjr    03/02/05 - Add code snippet to fix issue with bom2def on Linux
+#  mchengjr    02/15/05 - cleanup and add changes for new CRS symbols
+#  imacky      01/25/05 - tweak for new syms 
+#  imacky      10/29/04 - remove pctina.o 
+#  imacky      10/07/04 - cleanup; addl syms; merge with base script
+#  jboyce      07/09/04 - cleanup; xdk issues
+#  jboyce      05/28/04 - Created genorasdksh.sh based on genclntsh.sh
+###############################################################################
+
+echo '$Id: genorasdksh.sh /linuxamd64/20 2017/09/13 10:16:33 jboyce Exp $'
+
+PROGRAM=$0					# name of program (or symlink)
+CUSMK=$ORACLE_HOME/rdbms/lib/env_rdbms.mk
+MAJOR=`grep '^LIBMAJORVSN *=' $CUSMK | cut -f2 -d=`  # major version#
+MINOR=1						# minor version#
+
+OLIB=$ORACLE_HOME/lib				# dir for Oracle libraries
+
+# Explicit path to ensure that we're using the correct commands
+###
+PATH=/bin:/usr/bin:/usr/local/bin; export PATH
+
+# Print archive table of contents
+###
+ARPRINT="/usr/bin/ar t"
+
+#------------------------------------------------------------------------------
+# Process arguments
+#------------------------------------------------------------------------------
+
+OSDK_BASE=
+while [ x"$1" != x ]; do
+    case $1 in
+        -x)    set -x; shift ;;
+        -base) OSDK_BASE=1; shift ;;
+        *)     echo "Unknown argument $1"; exit 1 ;;
+    esac
+done
+
+#------------------------------------------------------------------------------ 
+# OraSDK client library names and locations
+#------------------------------------------------------------------------------ 
+
+# Library to generate
+###
+OSDK_NAM=orasdk					# (short) library name
+OSDK_BASE_NAM=${OSDK_NAM}base			# (short) base library name
+
+if [ "$OSDK_BASE" ]; then
+    echo "Generating BASE ORASDK library..."
+    OSDK_NAM=$OSDK_BASE_NAM
+else
+    echo "Generating FULL ORASDK library..."
+fi
+
+OSDK_VER=$MAJOR.$MINOR				# library version number
+OSDK_LNK=lib$OSDK_NAM.so			# name of symlink to library
+OSDK_LIB=$OSDK_LNK.$OSDK_VER			# actual library file name
+
+# OraSDK base library name and locations (used to build full library)
+##
+OSDK_BASE_LNK=lib$OSDK_BASE_NAM.so		# library version number
+OSDK_BASE_LIB=$OSDK_BASE_LNK.$OSDK_VER		# actual library file name
+
+# Base library symbols list (NLSRTL, ORACORE, XDK)
+###
+OSDK_BASE_SHREPT_FILE=orasdkbase_shrept.lst
+OSDK_BASE_SHREPT=$ORACLE_HOME/rdbms/admin/$OSDK_BASE_SHREPT_FILE
+
+# Additional symbol list for full library
+###
+OSDK_SHREPT_FILE=orasdk_shrept.lst
+OSDK_SHREPT=$ORACLE_HOME/rdbms/admin/$OSDK_SHREPT_FILE
+
+# Base library map file 
+OSDK_BASE_DEF_FILE=liborasdkbase.def
+OSDK_BASE_DEF=$ORACLE_HOME/rdbms/admin/$OSDK_BASE_DEF_FILE
+
+# Destination directory for produced library
+###
+LIB_DIR=$OLIB
+
+# If there's a SRCHOME home, look there instead of ORACLE_HOME
+###
+if [ "$SRCHOME" ]; then
+    OSDK_BASE_SHREPT=$SRCHOME/rdbms/admin/$OSDK_BASE_SHREPT_FILE
+    OSDK_SHREPT=$SRCHOME/rdbms/admin/$OSDK_SHREPT_FILE
+    OSDK_BASE_DEF=$SRCHOME/rdbms/admin/$OSDK_BASE_DEF_FILE
+    LIB_DIR=$SRCHOME/rdbms/lib
+fi
+
+#------------------------------------------------------------------------------ 
+# Linker options and system libraries
+#------------------------------------------------------------------------------ 
+
+# Initialize arch specific variables, default for x86.
+case `uname -m` in  
+"x86_64")          
+  LD_MACH_OPT=-m64
+  LIB_RT_LOADER="/lib64/ld-linux-x86-64.so.2"
+  LIB_GCC_S="/lib64/libgcc_s.so.1"
+  LIB_STDCPP="/usr/lib64/libstdc++.so.6"
+  ;;
+*)
+  LD_MACH_OPT=-m32
+  LIB_RT_LOADER="/lib/ld-linux.so.2"
+  LIB_GCC_S="/lib/libgcc_s.so.1"
+  LIB_STDCPP="/usr/lib/libstdc++.so.6"
+  ;;
+esac
+
+# Linker command and options
+###
+
+if [ -z ${LDOBJSZ} ]
+then
+  LDOBJSZ=${LD_MACH_OPT}
+fi
+
+LDCOM="${ORACLE_HOME}/bin/orald"
+test -x "${LDCOM}" || LDCOM=gcc
+
+LD="${LDCOM} -shared -Wl,-relax ${LDOBJSZ} -L$OLIB -L$OLIB/stubs"
+LD_RUNTIME="-Wl,-R$OLIB"
+LD_OPT="-Wl,-h$OSDK_LIB"			# name inserted into library
+LD_DEST="$LIB_DIR/$OSDK_LIB"			# output library
+LD_OUT="-o $LD_DEST"				# output specification
+LD_SELF_CONTAINED="-z defs"
+
+if [ "$OSDK_BASE" ]; then
+    LD_OPT="$LD_OPT -Wl,--version-script=$OSDK_BASE_DEF"
+    BASE_LIB=
+else
+    BASE_LIB=$LIB_DIR/$OSDK_BASE_LIB
+fi
+
+# Required system libraries
+###
+SYSLIBS="-Wl,-relax `cat $OLIB/sysliblist` $LIB_RT_LOADER -lc"
+
+#  Add C++ standard template and runtime libraries to base library
+###
+if [ "$OSDK_BASE" ]; then
+    SYSLIBS="$SYSLIBS $LIB_GCC_S $LIB_STDCPP"
+fi
+
+
+#------------------------------------------------------------------------------ 
+# Oracle library definitions
+#------------------------------------------------------------------------------ 
+
+LNLSRTL="-lnls$MAJOR"		# NLSRTL (National Language)
+LUNLSRTL="-lunls$MAJOR"
+LSNLSRTL="-lsnls$MAJOR"
+
+LCORE="-lcore$MAJOR"		# CORE
+
+LXDK="-lxml$MAJOR"		# XML
+
+LSQL="-lsql$MAJOR"		# Precomp
+
+LPLSQL="-lpls$MAJOR"		# PL/SQL
+LSLAX="-lslax$MAJOR"
+LPLP="-lplp$MAJOR"
+
+LMM="-lmm"			# RDBMS
+LCLIENT="-lclient$MAJOR"
+LCOMMON="-lcommon$MAJOR"
+LGENERIC="-lgeneric$MAJOR"
+LVSN="-lvsn$MAJOR"
+
+LLDAP="-lldapclnt$MAJOR"	# LDAP
+
+LNNET_ON="-lnnet$MAJOR"		# Native Net
+LNNET_OFF="-lnnetd$MAJOR"
+LSKGXP="-lskgxp$MAJOR"
+
+LZTGSS="-lztkg$MAJOR"
+LNENT=				# Network
+[ -r $OLIB/libnent$MAJOR.a ] && LNENT="-lnent$MAJOR"
+LNZ=				# NZ
+[ -r $OLIB/libnnz$MAJOR.so ] && LNZ="-lnnz$MAJOR -lzt$MAJOR"
+LNCRYPT="-lnsslb$MAJOR -lncrypt$MAJOR -ln$MAJOR -lnl$MAJOR -lnro$MAJOR $LZTGSS"
+LNETONLY="-ln$MAJOR"
+LNETWORK="`cat $OLIB/ldflags` $LNENT $LNZ $LNCRYPT"
+
+#------------------------------------------------------------------------------ 
+# Utility functions
+#------------------------------------------------------------------------------ 
+
+# Error: Print an error message and exit
+###
+Error () {
+    Status=$1
+    Msg="$2"
+    echo "$PROGRAM: $Msg" 1>&2
+    exit $Status
+}
+
+# Check_Status: Check an exit status, if non-zero, raise an error
+###
+Check_Status () {
+    Status=$1
+    Msg="$2"
+    [ $Status -ne 0 ] && Error $Status "$Msg"
+}
+
+# Remove_File: Remove a file verifying it has been removed
+###
+Remove_File () {
+    File=$1
+    /bin/rm -f $File
+    [ ! -r $File ]
+    Check_Status $? "Failed to remove $File"
+}
+
+# listf2: List the required symbols from the given shrept.lst file
+###
+listf2 () {
+    entryList=$1
+    product=$2
+    grep -v '#' $entryList | grep "$product  *:" | \
+	    awk '{ printf (" -u %s", $3); }'
+}
+
+# listf: List the required symbols from a product's shrept.lst file
+###
+listf () {
+    listf2 $ORACLE_HOME/$1/admin/shrept.lst $1
+}
+
+#------------------------------------------------------------------------------ 
+# Main program starts here
+#------------------------------------------------------------------------------ 
+
+# Each product *must* provide a $PRODUCT/admin/shrept.lst
+###
+ErrFiles=
+for product in rdbms precomp plsql ldap network; do
+    SHREPT=$ORACLE_HOME/$product/admin/shrept.lst
+    [ ! -f $SHREPT ] && ErrFiles="$ErrFiles $SHREPT"
+done
+[ "$ErrFiles" ] && Error 1 "$PROGRAM: Could not locate $ErrFiles"
+
+# Create lists of symbols to pass to ld
+###
+if [ "$OSDK_BASE" ]; then
+    SYMS_NLS="-Wl,--whole-archive $LNLSRTL $LUNLSRTL $LSNLSRTL -Wl,--no-whole-archive"
+    SYMS_CORE="-Wl,--whole-archive $LCORE -Wl,--no-whole-archive"
+    SYMS_XDK="`listf2 $OSDK_BASE_SHREPT xdk` $LXDK"
+
+    LD_OBJS=""
+    LD_SYMS="$SYMS_NLS $SYMS_CORE $SYMS_XDK"
+    OLIBS="$LNETONLY -lnnz$MAJOR"
+else
+    # Oracle library dependencies
+    ###
+    NAUTAB="$OLIB/nautab.o"
+    NAETAB="$OLIB/naeet.o $OLIB/naect.o"
+    NAEDHS="$OLIB/naedhs.o" 
+    XAONDY="$ORACLE_HOME/rdbms/lib/xaondy.o"
+
+    SYMS_OCIC="`listf rdbms` `listf2 $OSDK_SHREPT rdbms` $LCLIENT $LGENERIC"
+    SYMS_SQL="`listf precomp` `listf2 $OSDK_SHREPT precomp` $LSQL"
+    SYMS_PLSQL="`listf plsql` `listf2 $OSDK_SHREPT plsql` $LPLSQL"
+    SYMS_SLAX="`listf2 $OSDK_SHREPT slax` $LSLAX"
+    SYMS_LDAP="`listf ldap` `listf2 $OSDK_SHREPT ldap` $LLDAP"
+    SYMS_NETWORK="`listf network` `listf2 $OSDK_SHREPT network` $LNETWORK"
+    SYMS_XDK="`listf2 $OSDK_BASE_SHREPT xdkjni` \
+		`listf2 $OSDK_SHREPT xdkjni` $LXDK"
+
+    LD_OBJS="$NAUTAB $NAETAB $NAEDHS"
+    LD_SYMS="$SYMS_XDK $SYMS_SQL $SYMS_PLSQL $SYMS_SLAX\
+	     $SYMS_OCIC $SYMS_LDAP $SYMS_NETWORK"
+    OLIBS="$LCLIENT $LSQL $LVSN $LNETWORK $LCLIENT \
+	   $LCOMMON $LGENERIC $LMM $XAONDY $LNETWORK $LCLIENT $LCOMMON \
+	   $LGENERIC $LTRACE $LNNET_ON $LSKGXP"
+
+fi
+
+# Create library
+###
+echo "Creating $LD_DEST"
+Remove_File $LIB_DIR/$OSDK_LIB
+$LD $LD_RUNTIME $LD_OPT $LD_OUT $LD_SELF_CONTAINED $BASE_LIB \
+	$LD_OBJS $LD_SYMS $OLIBS $SYSLIBS $USRLIBS
+Check_Status $? "Failed to link $OSDK_LIB"
+(cd $LIB_DIR; ls -l $OSDK_LIB)
+
+# Create ".so" link to library in a non-development environment only
+# and generate the client static library
+###
+if [ -z "$SRCHOME" -a -s $LIB_DIR/$OSDK_LIB ]; then
+    cd $LIB_DIR
+    Remove_File $OSDK_LNK
+    ln -s $OSDK_LIB $OSDK_LNK
+    Check_Status $? "Failed to create $OSDK_LNK"
+    ls -l $OSDK_LNK
+fi
+
+exit 0

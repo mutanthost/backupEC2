@@ -1,0 +1,50 @@
+#! /bin/sh
+#
+# %W% %E%
+#
+unset JAVA_HOME
+JAVA_HOME=/u01/app/oracle/product/19.0.0/dbhome_1/jdk/jre/
+export JAVA_HOME
+JAVA64FLAG=
+if [ "`uname -s`" = "HP-UX" -a "`uname -m`" = "9000/800" ];then
+    JAVA64FLAG=-d64
+fi
+if [ "`uname -s`" = "HP-UX" -a "`uname -m`" = "ia64" ];then
+    JAVA64FLAG=-d64
+fi
+if [ "`uname -s`" = "SunOS" ]; then
+    MACHINE=`isainfo -n`
+    if [ "$MACHINE" = "sparcv9"  -o "$MACHINE" = "amd64" ]; then
+        JAVA64FLAG=-d64
+    fi        
+fi
+JAVAIPV6=
+if [ ! -z "$SRCHOME" ]
+then
+  if [ "x$ENABLETEST_IPV6" = "xtrue" ]
+  then
+    JAVAIPV6="-Djava.net.preferIPv4Stack=false"
+  fi
+fi
+JRECLASSPATH=/u01/app/oracle/product/19.0.0/dbhome_1/jdk/jre//lib/rt.jar:/u01/app/oracle/product/19.0.0/dbhome_1/jdk/jre//lib/i18n.jar:$ORACLE_HOME/jdbc/lib/ojdbc8.jar:$ORACLE_HOME/javavm/lib/aurora.zip
+export JRECLASSPATH
+THREADS_FLAG=native
+export THREADS_FLAG
+LD_LIBRARY_PATH=$ORACLE_HOME/lib:$ORACLE_HOME/lib32:$JAVA_HOME/lib
+export LD_LIBRARY_PATH
+#Need to remove the user/password connection string
+while [ $# -gt 0 ]
+do
+  if [ "$1" = "-server" ];  then
+    TCSERV="$1"
+    if [ $# -ge 2 ]; then
+      shift
+      TCSERV="$TCSERV $1";
+    fi
+    export TCSERV
+  else
+    args="$args $1"
+  fi
+shift
+done
+exec $JAVA_HOME/bin/java $JAVA64FLAG $JAVAIPV6 -classpath $JRECLASSPATH oracle.aurora.server.tools.ojvmtc.OjvmTcMain $args

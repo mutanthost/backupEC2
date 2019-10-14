@@ -1,0 +1,74 @@
+<?xml version="1.0"?>
+
+<!--  $Header: tfa/src/v2/tfa_home/resources/srdc_emdbsys.xml /main/1 2018/05/28 15:06:26 bburton Exp $ -->
+
+<!-- 
+ Copyright (c) 2016, 2018, Oracle and/or its affiliates. All rights reserved.
+
+   NAME
+     srdc_emdbsys.xml - <one-line expansion of the name>
+
+   DESCRIPTION
+     <short description of component this file declares/defines>
+
+   NOTES
+     <other useful comments, qualifications, etc.>
+
+   MODIFIED   (MM/DD/YY)
+   manuegar   09/28/17 - Creation
+
+-->
+<collections>
+<collection id="emdbsys">
+        <description>EM SRDC - Database system target is not discovered/detected/removed/renamed correctly.</description>
+        <user_inputs>
+            <user_input cmdline="" default="" showprompt="1" setenv="NO" validate="" prompt="Is the EM Repository Database running locally?">USERINPUT-REPODB_LOCAL</user_input>
+            <user_input cmdline="" default="" showprompt="1" setenv="NO" validate="" prompt="Enter the EM Repository Database Name. You can get the repository connect details from EM using the following navigation: Setup -&gt; Manage Cloud Control -&gt; Health Overview -&gt; Repository Details.">USERINPUT-REPOSITORY_DBNAME</user_input>
+            <user_input cmdline="" default="" showprompt="1" setenv="REPLACE" validate="" prompt="Enter the sysman credential for Repository DB">USERINPUT-SYSMAN_PWD</user_input>
+        </user_inputs>
+        <onevents>
+                <event>
+                </event>
+        </onevents>
+        <duration>12h</duration>
+        <clusterwide>no</clusterwide>
+        <filter_files>
+                <types>
+                </types>
+                <filter_file_patterns>
+                    <filter_file_pattern>alert_.*\.log</filter_file_pattern>
+                    <filter_file_pattern>trc</filter_file_pattern>
+                    <filter_file_pattern>log</filter_file_pattern>
+                    <filter_file_pattern>archive\/osw</filter_file_pattern>
+                    <filter_file_pattern>ExaWatcher\/archive</filter_file_pattern>
+                </filter_file_patterns>
+        </filter_files>
+        <components>
+            <component>OS</component>
+        </components>
+        <commands>
+            <script type="EMSQL" name="sql_dbsys" timeout="300" validfor="REPOSITORYDB" platform="" version="">
+                conn sysman/%SYSMAN_PWD%;
+                set mark html on
+                spool dbsys.html
+                SELECT assoc_target.target_name,assoc_target.target_type,SOURCE_ME_GUID,
+                       DEST_ME_GUID,sysman.mgmt_targets.target_name dbname
+                FROM sysman.GC$ASSOC_INSTANCES assoc,sysman.mgmt_targets assoc_target,sysman.mgmt_targets
+                where assoc.source_me_guid = assoc_target.target_guid and
+                      dest_me_guid=mgmt_targets.target_guid AND
+                      assoc.assoc_type = 'relies_on_key_component' AND
+                      assoc_target.target_type = 'oracle_dbsys';
+
+                select target_name, target_type,host_name
+                from sysman.mgmt_targets
+                where host_name like '%EMHOSTNAME%';
+
+                spool off
+                set mark html off
+                exit;
+            </script>
+        </commands>
+        <runtime_flags>
+        </runtime_flags>
+</collection>
+</collections>

@@ -1,0 +1,142 @@
+#!/bin/ksh
+#================================================================
+# HEADER
+#================================================================
+#% SYNOPSIS
+#+    Usage: . ${SCRIPT_NAME} [-hsv] [SID]
+#%
+#% DESCRIPTION
+#%    This script does little enhancement on top of the oraenv script.
+#%    If no SID specified, it will show a list of all available databases
+#%        on your machine to choose from.
+#%    If dot(.) is specified, it will automaticaly select $ORACLE_SID
+#%        if invalid SID, it will select the first SID in /etc/oratab
+#%
+#% OPTIONS
+#%    -h            Print this help
+#%    -s            Silent mode
+#%    -v            Print script information
+#%
+#% EXAMPLES
+#%    . ${SCRIPT_NAME} oraclesid
+#%    source ${SCRIPT_NAME} -s oraclesid
+#%
+#================================================================
+#- IMPLEMENTATION
+#-    version         ${SCRIPT_NAME} 0.0.1
+#-    author          Michel VONGVILAY (https://www.uxora.com)
+#-    license         CC-BY-SA Creative Commons License
+#-    script_id       0
+#-    based on        http://www.orafaq.com/scripts/unix/oraenv2.txt
+#-
+#================================================================
+# END_OF_HEADER
+#================================================================
+
+  #== usage function ==#
+scriptinfo() { headFilter="^#+"
+[[ "$1" = "ful" ]] && headFilter="^#[%+]"
+[[ "$1" = "ver" ]] && headFilter="^#-"
+head -${SCRIPT_HEADSIZE:-99} ${SCRIPT_CALL} | grep -e "${headFilter}" | sed -e "s/${headFilter}//g" -e "s/\${SCRIPT_NAME}/${SCRIPT_NAME}/g"; }
+fecho() { [[ $flagOptSilent -eq 1 ]] || echo -e ${*};}
+error() { echo -e "ERROR: ${SCRIPT_NAME}: ${*}" 1>&2; }
+clean() { unset SCRIPT_HEADSIZE SCRIPT_NAME SCRIPT_CALL DEFAULT_SID ORATAB_FILE ORASID_LIST flagOptSilent;
+	unset -f scriptinfo error fecho clean; return 0;}
+
+  #== general variables ==#
+SCRIPT_CALL="${BASH_SOURCE:-${.sh.file}}" # Get script file when being sourced
+SCRIPT_NAME="$(basename ${SCRIPT_CALL})"
+SCRIPT_HEADSIZE=$(grep -sn "^# END_OF_HEADER" ${SCRIPT_CALL} | head -1 | cut -f1 -d: 2>/dev/null)
+
+  #== manage options ==#
+flagOptSilent=0
+case "$1" in
+	-h ) scriptinfo ful; clean; return 0;
+	;;
+	-s ) flagOptSilent=1; shift;
+	;;
+	-v ) scriptinfo ver; clean; return 0;
+	;;
+	-* ) error "OPT: $1: unknown option"; scriptinfo; clean; return 1;
+	;;
+esac
+
+  #== Check/Set arguments ==#
+[[ $# -gt 1 ]] && error "Too many arguments" && scriptinfo 1>&2 && clean && return 2
+
+  #== main script ==#
+ORATAB_FILE="/etc/oratab"
+[[ ! -e $ORATAB_FILE ]] && error "Cannot find $ORATAB_FILE" && clean && return 3
+
+ORAENV_FILE="$(which oraenv 2>/dev/null)"
+[[ "x$ORAENV_FILE" == "x" ]] && error "Cannot find oraenv" && clean && return 3
+
+ORASID_LIST=$(cat $ORATAB_FILE | grep -v "^#" | cut -d: -f1 -s | tr -s "[:blank:]" 2>/dev/null)
+DEFAULT_SID=$(echo $ORASID_LIST" " | cut -d' ' -f1 -s 2>/dev/null)
+if [[ "x$DEFAULT_SID" == "x" ]]; then
+	error "No SID found in $ORATAB_FILE"
+	clean; return 4
+elif [[ "x$ORACLE_SID" != "x" ]]; then
+	ORACLE_SID=$(printf "\n$ORASID_LIST" | grep -i "^${ORACLE_SID}$" 2>/dev/null)
+	[[ "x$ORACLE_SID" != "x" ]] && DEFAULT_SID=$ORACLE_SID
+	ORACLE_SID=
+fi
+
+if [[ "x$1" == "x." ]]; then
+	ORACLE_SID=$DEFAULT_SID
+elif [[ "x$1" != "x" ]]; then
+	ORACLE_SID=$(printf "\n$ORASID_LIST" | grep -i "^${1}$" 2>/dev/null)
+fi
+
+[ "x${1}" != "x" ] && [ "x${ORACLE_SID}" = "x" ] \
+	&& error "ARG: ${1}: Invalid Oracle SID"
+
+if [ -t 0 ]; then	# Command executed from a terminal
+	while [ "x${ORACLE_SID}" = "x" ]; do
+		echo
+		fecho "$(tput rev)Valid Oracle SIDs are :$(tput rmso)"
+		for osid in $ORASID_LIST; do
+			osidActive="offline"
+			[[ "x$( ps -ef | grep "_pmon_$osid" | grep -v "grep" 2>/dev/null)" != "x" ]] && osidActive="online"
+			echo -e "$osid\t($osidActive)"
+		done | cat -ub -
+		#printf "\n$ORASID_LIST" | awk 'NF' | cat -ub -
+		echo -e "\nORACLE_SID = [$DEFAULT_SID] ? \c"
+		read ANSWER
+		echo
+		
+		ANSWER=$(echo $ANSWER | tr -s "[:blank:]")
+		if [ "x${ANSWER}" = "x" ]; then #Empty Answer
+			ANSWER=$DEFAULT_SID
+		elif [ -z "${ANSWER//[0-9]}" ]; then # Number Answer
+			ANSWER_TMP=$(echo $ORASID_LIST" " | cut -d' ' -f${ANSWER} -s 2>/dev/null)
+			[ "x${ANSWER_TMP}" != "x" ] && ANSWER=$ANSWER_TMP
+			unset ANSWER_TMP
+		fi
+
+		ORACLE_SID=$(printf "\n$ORASID_LIST" | grep -i "^${ANSWER}$" 2>/dev/null)
+		[ "x${ORACLE_SID}" = "x" ] && error "ANSWER: ${ANSWER}: Invalid Oracle SID"
+	done
+elif [ "x$ORACLE_SID" = "x" ]; then	# Set to first entry in oratab
+	ORACLE_SID=$DEFAULT_SID
+fi
+
+ORACLE_HOME=$(grep "^${ORACLE_SID}:" $ORATAB_FILE | cut -d: -f2 -s 2>/dev/null)
+
+[[ "x$(echo ${PATH} | grep "${ORACLE_HOME}/bin")" = "x" ]] \
+	&& PATH=${PATH}:${ORACLE_HOME}/bin
+
+export ORACLE_SID
+export ORACLE_HOME
+export PATH
+
+ORAENV_ASK=NO
+[[ $flagOptSilent -eq 1 ]] \
+	&& . ${ORAENV_FILE} > /dev/null \
+	|| . ${ORAENV_FILE}
+ORAENV_ASK=
+
+fecho "\nORACLE_SID is $(tput rev)$ORACLE_SID$(tput rmso)"
+fecho "ORACLE_HOME is $(tput rev)$ORACLE_HOME$(tput rmso)\n"
+
+clean; return 0;

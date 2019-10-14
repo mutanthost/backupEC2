@@ -1,0 +1,171 @@
+#!/bin/sh
+#
+# $Id: genoccish.sh /linuxamd64/17 2017/10/09 23:13:18 avnandak Exp $
+#
+# genoccish.sh
+#
+# Copyright (c) 2002, 2017, Oracle and/or its affiliates. All rights reserved.
+#
+#    NAME
+#      genoccish.sh - Generate the occi shared object
+#
+#    DESCRIPTION
+#      Script to generate the occi shared object
+#      Assumes that the .a file has already been created
+#
+#    MODIFIED   (MM/DD/YY)
+#    avnandak    09/11/17 - Bug 26735564: Remove hard coding of version values
+#    bhshanmu    05/04/17 - bhshanmu_bug-26003322_linux
+#    vlakkund    05/14/13 - Bug 16604236 : use ipgo only during
+#                           profile_on=collect phase
+#    ekarichk    01/20/12 - bug/13517928: use ld for relnking
+#    nmuthukr    08/04/10 - x86-x64 unification
+#    kkverma     10/11/09 - BUG 8745190 Remove reference of gcc 2.96
+#    mlfallon    04/17/09 - Generate shared library using PIC versions of Intel
+#                           runtimes
+#    mlfallon    01/12/09 - Adding -m32 to link line
+#    ashrives    04/29/08 - 6804631: Add -lipr for Linux IA64
+#    jboyce      02/13/08 - 10->11
+#    mlfallon    02/20/07 - adding libipgo.a
+#    jboyce      09/21/06 - #5551059: fix typo: -m31 -> -m32
+#    pmagapu     12/27/05 - 4765143: Check if g++ is in the path (3403600) 
+#    shiyer      09/26/05 - #4586893:add libirc
+#    shiyer      01/31/05 - OCCI gcc 2.96 support 
+#    jboyce      10/11/04 - Remove irrelevant instantiation of soft-linked file
+#    mkrohan     03/31/03 - Update version to 10.1
+#    vvinay      03/05/02 - vvinay_fix2141259
+#    vvinay      02/26/02 - Creation
+#
+
+ULIB="lib"
+CALL32=
+LDFLAGS_ARCH=
+
+CUSMK=$ORACLE_HOME/rdbms/lib/env_rdbms.mk
+LIBMAJORVSN=`grep '^LIBMAJORVSN *=' $CUSMK | cut -f2 -d=`
+LIBMINORVSN=1
+
+if [ "`uname -m`" = "s390x" ] ; then
+  if [ "$1" = "32" -o "$1" = "-32" -o `basename $0` = "genclntst32" ] ; then
+    ULIB="lib32"
+  else
+    if [ -d "${ORACLE_HOME}/lib32" ] ; then
+      CALL32=1
+    fi
+  fi
+
+  #
+  # If linking 32 bit in install environment or linking 32 bit in src environment
+  #
+  if [ "${ULIB}" = "lib32" ] || [ -n "${SRCHOME}" -a -z "$BUILD64" ] ; then
+    LDFLAGS_ARCH=-m32
+  else
+    LDFLAGS_ARCH=-m64
+  fi
+fi
+
+#
+# library definitions
+OLIB=${ORACLE_HOME}/${ULIB}
+
+#
+# Library names and locations
+OCCI_NAM=occi                                   # (short) library name
+OCCI_VER=${LIBMAJORVSN}.${LIBMINORVSN}                  # library version number
+OCCI_VERS=${LIBMAJORVSN}
+OCCI_LNK=lib${OCCI_NAM}.so                      # name of symlink to library
+OCCI_LIB=${OCCI_LNK}.${OCCI_VER}                # actual library file name
+OCCI_ARC=lib${OCCI_NAM}${OCCI_VERS}.a
+LIB_DIR=${ORACLE_HOME}/${ULIB}                  # lib. destination directory
+
+# stub libraries for compatibility with higher versions of glibc
+STUBS=-L${LIB_DIR}/stubs
+
+if [ ! -z "$SRCHOME" ]
+then
+        LIB_DIR=${SRCHOME}/rdbms/${ULIB}        # lib. destination directory
+fi
+
+GPLUSPLUS="${ORACLE_HOME}/bin/orald"
+test -x "${GPLUSPLUS}" || GPLUSPLUS=`/usr/bin/which g++ 2>&1`
+
+LD_MACH_OPT=-m32
+
+# Initialize/override arch specific variables, default for x86.
+case `uname -m` in  
+"x86_64")          
+  LD_MACH_OPT=-m64
+  if [ "$PROFILE_ON" = "collect" ]
+  then
+    INTEL_IPGO="-lipgo"
+  else
+    INTEL_IPGO=""
+  fi
+  SYSLIBLIST="-lirc ${INTEL_IPGO} -lsvml"
+  ;;
+"ia64")  
+  if [ "$PROFILE_ON" = "collect" ]
+  then
+    INTEL_IPGO="-lipgo"
+  else
+    INTEL_IPGO=""
+  fi
+  SYSLIBLIST="-lirc ${INTEL_PGO} -lipr"  
+  ;;
+*)
+  if [ "$PROFILE_ON" = "collect" ]
+  then
+    INTEL_IPGO="-lipgo_pic"
+  else
+    INTEL_IPGO=""
+  fi
+  SYSLIBLIST="-lirc_pic ${INTEL_PGO}"
+  ;;
+esac
+
+# libstdc++ and libm are added so that orald (and gcc) can be used for linking
+SYSLIBLIST="${SYSLIBLIST} -lstdc++ -lm"
+
+[ ! -f "${GPLUSPLUS}" ] && echo "libocci.so.$OCCI_VER not regenerated. g++ not found" && exit;
+
+#
+# If in ADE, the library may be a symlink to the label server.  If so,
+# pull it over...
+# jeb: NO! We delete it later, so the copy is a waste.  
+#      (And cp -p hangs on RHEL 3)
+
+#
+# Linker command and options
+
+if [ -z ${LDOBJSZ} ]
+then
+    if [ -z ${LDFLAGS_ARCH} ]
+    then
+        LDOBJSZ=${LD_MACH_OPT}
+    fi
+fi
+
+LD="${GPLUSPLUS} -Wl,-soname=${OCCI_LIB} ${LDOBJSZ} ${LDFLAGS_ARCH} ${STUBS} \
+    -o ${LIB_DIR}/${OCCI_LIB} -shared \
+    -Wl,--whole-archive ${LIB_DIR}/${OCCI_ARC} -L${OLIB} -Wl,--no-whole-archive ${SYSLIBLIST}"
+
+# Create library
+/bin/rm -f ${LIB_DIR}/${OCCI_LIB}
+${LD}
+
+# Create ".so" link to library in a non-development environment only
+if [ -z "${SRCHOME}" ]
+then
+        if [ -s ${LIB_DIR}/${OCCI_LIB} ]
+        then
+                cd ${LIB_DIR}
+                rm -f ${OCCI_LNK}
+                ln -s ${OCCI_LIB} ${OCCI_LNK}
+        fi
+fi
+
+if [ "$CALL32" = "1" ] ; then
+  ${ORACLE_HOME}/bin/genoccish 32
+fi
+
+exit 0

@@ -1,0 +1,55 @@
+#!/bin/sh
+###############################################################################
+# $Header: rdbms/src/common/java/oracle/security/eus/eusmpre.sbs /main/9 2017/10/10 11:48:48 risgupta Exp $
+#
+# Copyright (c) 2006, 2017, Oracle and/or its affiliates. All rights reserved.
+#
+#  NAME
+#    eusm.sbs - Shell script for EUS admin tool (command line)
+#
+#  DESCRIPTION
+#    <short description of directory changes this template file performs>
+#
+#  OID VERSION DEPENDENCY
+#    The instantiated version of this template file will only work with OID versions 
+#    <version#, e.g. 2.0.5> and above.
+#
+#  SUBSTITUTION VARIABLES
+#    %s_VarName%: <Variable description>
+#
+#  NOTES
+#    <useful information about this file>
+#
+#  REVISION HISTORY
+#  MODIFIED   (MM/DD/YY)
+#  risgupta    09/28/17 - Bug 26734445: Remove hardcoded reference
+#  aanverma    04/08/17 - Bug 25439710 - Add classpath to support PKCS12 wallet
+#  msoudaga    10/28/15 - Bug #22101620: correcting the path of ldapjclnt12.jar
+#  msoudaga    07/01/15 - Lrg 16560201: Update classpath with ldapjclnt12.jar
+#  risgupta    11/18/14 - Bug 20031696: Remove hardcoding of ojdbc6.jar
+#  skayoor     03/28/11 - Bug 11842192 : migration from jdk5 to jdk6
+#  swkannan    02/02/07 - Changing ojdbc14 to ojdbc5
+#  nmanappa    04/21/06 - Moving from LDAP_CLIENTMAIN to RDBMS_MAIN
+#  srtata      05/25/04 - srtata_13248_esmapi
+#  srtata      05/10/04 - Creation
+#
+###############################################################################
+# Unset any existing JAVA_HOME variable to ensure that only
+# the JRE we want to use is used.
+unset JAVA_HOME
+
+# External Directory Variables set by the Installer
+JRE_HOME=/u01/app/oracle/product/19.0.0/dbhome_1/jdk/jre/
+RDBMSJLIBDIR=/u01/app/oracle/product/19.0.0/dbhome_1/rdbms/jlib
+JDBCLIBDIR=/u01/app/oracle/product/19.0.0/dbhome_1/jdbc/lib
+OJDBC=ojdbc8.jar
+LDAPJLIBDIR=/u01/app/oracle/product/19.0.0/dbhome_1/jlib
+RDBMSVER=19
+
+$JRE_HOME/bin/java -classpath $ORACLE_HOME/jlib/oraclepki.jar:$ORACLE_HOME/jlib/osdt_cert.jar:$ORACLE_HOME/jlib/osdt_core.jar:$JRE_HOME/lib/rt.jar:$JDBCLIBDIR/$OJDBC:$RDBMSJLIBDIR/eusm.jar:$LDAPJLIBDIR/ldapjclnt$RDBMSVER.jar oracle.security.eus.util.ESMdriver "$@"
+
+
+###############################################################################
+## End of file eusm.sbs
+###############################################################################
+

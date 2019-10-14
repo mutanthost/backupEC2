@@ -1,0 +1,29 @@
+printf("==========START_OF_REPORT_chkBlockSize.aksh==========\n");
+
+var minRecordSize = 131072;
+var founderrorsBlocksize = false;
+var report = 1;
+
+getHostname();
+
+if(!isExalogicNode()) {
+    printreport("OK: " + host_name + " Block Size Check Completed: Passive Header\n");
+}
+else {
+    checkBlockSize(minRecordSize);
+
+    if ( founderrorsBlocksize == false ) {
+        printreport("OK: " + host_name + " Block Size Check Completed: Block size on all ZFS shares are at least " + minRecordSize + " bytes\n");
+    }
+    else {
+        printreport("WARNING: " + host_name + " Block Size Check Completed: Block size on one or more ZFS shares are not at least " + minRecordSize + " bytes\n");
+    }
+
+}
+
+printf("==========END_OF_REPORT_chkBlockSize.aksh==========\n");
+
+printf("==========START_OF_AUDIT_CHECK_chkBlockSize.aksh==========\n");
+printf("block_size_check_status = %d\n", founderrorsBlocksize);
+printf("==========END_OF_AUDIT_CHECK_chkBlockSize.aksh==========\n");
+

@@ -1,0 +1,166 @@
+<?xml version="1.0"?>
+
+<!--  $Header: tfa/src/v2/tfa_home/resources/srdc_dbfs.xml /main/2 2018/08/15 16:55:52 bburton Exp $ -->
+
+<!-- 
+ Copyright (c) 2018, Oracle and/or its affiliates. All rights reserved.
+
+   NAME
+     srdc_dbfs.xml 
+
+   DESCRIPTION
+     SRDC collection for Enh 26183060 - SRDC AUTOMATION: ENHANCE ASM/DBFS/DNFS/ACFS COLLECTIONS.
+
+
+   MODIFIED   (MM/DD/YY)
+   xiaodowu    06/28/18 - Implement Enh 28262528 - ADD CHMOS COMPONENT TO
+                          DBFS/DNFS COLLECTIONS
+   xiaodowu    03/28/18 - Enh 26183060 - SRDC AUTOMATION: ENHANCE
+                          ASM/DBFS/DNFS/ACFS COLLECTIONS
+   xiaodowu    03/28/18 - Creation
+
+-->
+<collections>
+<collection id="dbfs">
+    <description>SRDC for dbfs.</description>
+    <user_inputs>
+	        <user_input cmdline="" default="" showprompt="1" setenv="NO" validate="" prompt="Enter the value for the DBFS Database">USERINPUT-DATABASE_NAME</user_input>
+        <user_input cmdline="" default="" showprompt="1" setenv="REPLACE" validate="" prompt="Enter the dbfs username for DBFS database">USERINPUT-DBFS_USER</user_input>
+        <user_input cmdline="" default="" showprompt="1" setenv="REPLACE" validate="" prompt="Enter the dbfs username password for DBFS database">USERINPUT-DBFS_PWD</user_input>
+    </user_inputs>
+    <onevents>
+        <event>
+        </event>
+    </onevents>
+    <duration>12h</duration>
+    <clusterwide>yes</clusterwide>
+    <filter_files>
+        <types>
+        </types>
+        <filter_file_patterns>
+            <filter_file_pattern>alert_.*\.log</filter_file_pattern>
+            <filter_file_pattern>trc</filter_file_pattern>
+            <filter_file_pattern>log</filter_file_pattern>
+            <filter_file_pattern>archive\/osw</filter_file_pattern>
+            <filter_file_pattern>ExaWatcher\/archive</filter_file_pattern>
+        </filter_file_patterns>
+    </filter_files>
+    <components>
+  <component>DATABASE</component>
+      <component>CRS</component>
+      <component>ASM</component>
+      <component>OS</component>
+      <component>CHMOS</component>
+    </components>
+    <commands>
+	<script type="DB" name="sql_sys_dbfs.sql" timeout="300" validfor="" platform="" version="">
+<![CDATA[
+            conn / as sysdba
+			define SRDCNAME='DBFS_SYS_INFORMATION'
+			SET MARKUP HTML ON PREFORMAT ON
+			set TERMOUT off FEEDBACK off VERIFY off TRIMSPOOL on HEADING off
+			COLUMN SRDCSPOOLNAME NOPRINT NEW_VALUE SRDCSPOOLNAME
+			select 'SRDC_'||upper('&&SRDCNAME')||'_'||upper(instance_name)||'_'||
+			to_char(sysdate,'YYYYMMDD_HH24MISS') SRDCSPOOLNAME from v$instance;
+			set TERMOUT on MARKUP html preformat on
+			SET ECHO ON
+			SET PAGESIZE 200
+			ALTER SESSION SET NLS_DATE_FORMAT='DD-MON-YYYY HH24:MI:SS';
+			set HEADING on MARKUP html preformat off
+			set sqlprompt "#"
+			spool &&SRDCSPOOLNAME..htm
+/*------------------------------------------------------------------------------------------------------------------*/
+/*                                     ORACLE DBFS COLLECTION                                      */
+/*------------------------------------------------------------------------------------------------------------------*/
+
+/*------------------------------------------------------------------------------------------------------------------*/
+/*CONTENT*/
+/*------------------------------------------------------------------------------------------------------------------*/
+/*Section 1: DBFS STATS */
+/*Section 2: DATAFILE/TEMPFILE */
+/*Section 3: LOGFILE */
+/*------------------------------------------------------------------------------------------------------------------*/
+select 'THIS DBFS REPORT WAS GENERATED AT: ==)> ' , sysdate " "  from dual;
+select * from v$version;
+/*------------------------------------------------------------------------------------------------------------------*/
+/* SECTION 1 : DBFS STATS*/
+/*------------------------------------------------------------------------------------------------------------------*/
+select * from table(dbms_dbfs_sfs.listTables);
+select * from table(dbms_dbfs_sfs.listFilesystems);
+select * from table(dbms_dbfs_content.listStores);
+select * from table(dbms_dbfs_content.listMounts);
+/*------------------------------------------------------------------------------------------------------------------*/
+/* SECTION 2 : DATAFILE/TEMPFILE*/
+/*------------------------------------------------------------------------------------------------------------------*/
+select * from v$datafile;
+select * from dba_data_files;
+select * from DBA_TEMP_FILES;
+
+/*------------------------------------------------------------------------------------------------------------------*/
+/* SECTION 3 : LOGFILE*/
+/*------------------------------------------------------------------------------------------------------------------*/
+select * from v$logfile;
+select * from v$log;
+			SPOOL OFF
+			set sqlprompt "SQL>"
+			set mark html off;
+]]>
+            </script>
+        <script type="DB" name="sql_dbfs.sql" timeout="300" validfor="" platform="" version="">
+<![CDATA[
+            conn %DBFS_USER%/%DBFS_PWD%;
+        define SRDCNAME='DBFS_DBFSUSER_INFORMATION'
+			SET MARKUP HTML ON PREFORMAT ON
+			set TERMOUT off FEEDBACK off VERIFY off TRIMSPOOL on HEADING off
+			COLUMN SRDCSPOOLNAME NOPRINT NEW_VALUE SRDCSPOOLNAME
+			select 'SRDC_'||upper('&&SRDCNAME')||'_'||upper(instance_name)||'_'||
+			to_char(sysdate,'YYYYMMDD_HH24MISS') SRDCSPOOLNAME from v$instance;
+			set TERMOUT on MARKUP html preformat on
+			SET ECHO ON
+			SET PAGESIZE 200
+			ALTER SESSION SET NLS_DATE_FORMAT='DD-MON-YYYY HH24:MI:SS';
+			set HEADING on MARKUP html preformat off
+			set sqlprompt "#"
+			spool &&SRDCSPOOLNAME..htm
+/*------------------------------------------------------------------------------------------------------------------*/
+/*                                     ORACLE DBFS COLLECTION                                      */
+/*------------------------------------------------------------------------------------------------------------------*/
+
+/*------------------------------------------------------------------------------------------------------------------*/
+/*CONTENT*/
+/*------------------------------------------------------------------------------------------------------------------*/
+/*Section 1: DBFS STATS */
+/*Section 2: DATAFILE/TEMPFILE */
+/*Section 3: LOGFILE */
+/*------------------------------------------------------------------------------------------------------------------*/
+select 'THIS DBFS REPORT WAS GENERATED AT: ==)> ' , sysdate " "  from dual;
+select * from v$version;
+/*------------------------------------------------------------------------------------------------------------------*/
+/* SECTION 1 : DBFS STATS*/
+/*------------------------------------------------------------------------------------------------------------------*/
+select * from table(dbms_dbfs_sfs.listTables);
+select * from table(dbms_dbfs_sfs.listFilesystems);
+select * from table(dbms_dbfs_content.listStores);
+select * from table(dbms_dbfs_content.listMounts);
+/*------------------------------------------------------------------------------------------------------------------*/
+/* SECTION 2 : DATAFILE/TEMPFILE*/
+/*------------------------------------------------------------------------------------------------------------------*/
+select * from v$datafile;
+select * from dba_data_files;
+select * from DBA_TEMP_FILES;
+
+/*------------------------------------------------------------------------------------------------------------------*/
+/* SECTION 3 : LOGFILE*/
+/*------------------------------------------------------------------------------------------------------------------*/
+select * from v$logfile;
+select * from v$log;
+			SPOOL OFF
+			set sqlprompt "SQL>"
+			set mark html off;
+]]>
+            </script>
+        </commands>
+        <runtime_flags>
+        </runtime_flags>
+</collection>
+</collections>

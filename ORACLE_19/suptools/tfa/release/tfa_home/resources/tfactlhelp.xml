@@ -1,0 +1,1375 @@
+<?xml version="1.0"?>
+
+<!--  $Header: tfa/src/v2/tfa_home/resources/tfactlhelp.xml /main/41 2018/08/15 16:55:53 bburton Exp $ -->
+
+<!-- 
+ Copyright (c) 2016, 2018, Oracle and/or its affiliates. All rights reserved.
+
+   NAME
+     tfactlhelp.xml - <one-line expansion of the name>
+
+   DESCRIPTION
+     <short description of component this file declares/defines>
+
+   NOTES
+     <other useful comments, qualifications, etc.>
+
+   MODIFIED   (MM/DD/YY)
+   manuegar    08/05/18 - XbranchMerge manuegar_dbutils16 from main
+   manuegar    07/31/18 - manuegar_dbutils16.
+   manuegar    07/31/18 - manuegar_dbutils16.
+   bibsahoo    06/22/18 - FIX BUG 28226244
+   bibsahoo    05/31/18 - Removing events and search from tfa external tools
+                          and fix bug 27908189
+   recornej    05/25/18 - Adding dbcheck.
+   manuegar    05/17/18 - manuegar_adrbasechk.
+   cnagur      05/10/18 - Notification using smtp.properties
+   manuegar    04/19/18 - Bug 27437499 - WS2016_18.1_TFA: USAGE FOR TFACTL
+                          DIAGCOLLECT INCORRECT.
+   migmoren    02/22/18 - 27405566 - SOLSP-181-TFA: INVALID ARGUMENT "SQLT"
+                          SHOULD BE REMOVED FROM HELP MESSAGE
+   migmoren    11/30/17 - Bug 27169539 - UNMATCHED BRACKET IN THE SYNTAX OF
+                          "TFACTL ANALYZE -HELP
+   manuegar    07/20/17 - Bug 26270696 - LNX64-12.2-TFA:NON ROOT INSTALL,
+                          DIAGCOLLECT -ALL DID NOT COLLECT CRS/ASM FILES.
+   chchoudh    06/27/17 - adding help message for receiver info
+   cnagur      01/29/17 - Help for tfactl set port
+   manuegar    01/05/17 - Bug 25296592 - WS2012_122_TFA: INCOMPLETE DESCRIPTION
+                          FOR 'TFACTL DIAGCOLLECT -EXAMPLE'.
+   manuegar    11/28/16 - Bug 25161703 - SOLSP-12.2-TFA: DID NOT SHOW SYNCNODES
+                          IN TFACTL HELP MSGS.
+   manuegar    11/11/16 - manuegar_srdc_15.
+   manuegar    10/31/16 - Bug 24948455 - WS2012_122_TFA: 'TFACTL RUN EXACHK'
+                          DOES NOT WORK.
+   manuegar    10/24/16 - manuegar_srdc_14.
+   chchoudh    09/15/16 - fixed bug BUG 24381809 - LNX64-12.2-TFA:USAGE HELP
+                          ABOUT TIME PATTERN WAS INCORRECT
+   cnagur      07/19/16 - Added help for publicip
+   arupadhy    07/04/16 - Added managelogs autopurge support
+   manuegar    06/20/16 - Dynamic help part 4.
+   manuegar    06/10/16 - Dynamic help part 3.
+   manuegar    06/03/16 - Bug 23510330 - WS2012_122_TFA: HELP INFORMATION FOR
+                          TFACTL SET NEEDS TO BE OPTIMIZED.
+   manuegar    06/03/16 - Bug 23519760 - WS2012_122_TFA: HELP INFORMATION FOR
+                          TFACTL SET NEEDS TO BE AMENDED.
+   manuegar    05/20/16 - Bug 23304188 - WS2012_122_TFA: INCORRECT PARAMETER ON
+                          TFACTL SET.
+   arupadhy    05/13/16 - Added support for disk usage monitor and it's
+                          interval
+   amchaura    04/21/16 - Fix Bug 20459386 - LNX64-12.2-TFA:UNEXPECTED RESULT
+                          WITH TFACTL HOST ADD/REMOVE
+   manuegar    01/11/16 - Creation
+
+-->
+<commands>
+  <command cmdName="diagcollect" cmdLevel="0" cmdCategory="Collection" rootOnly="false" isCloud="true" cloudRootOnly="false" cmdSeq="1">
+     <description>_begindesc_Collect logs from across nodes in cluster_enddesc_ newline</description>
+     <usage>_begindef_diagcollect [ [component_name1] [component_name2] ... [component_nameN] | [-srdc &lt;srdc_profile&gt;] | [-defips]] [-sr &lt;SR#&gt;] [-node &lt;all|local|n1,n2,..&gt;] [-tag &lt;tagname&gt;] [-z &lt;filename&gt;] [-last &lt;n&gt;&lt;h|d&gt;| -from &lt;time&gt; -to &lt;time&gt; | -for &lt;time&gt;] [-nocopy] [-notrim] [-silent] [-nocores][-collectalldirs][-collectdir &lt;dir1,dir2..&gt;][-examples]_enddef_ _begincloud_diagcollect [ [component_name1] [component_name2] ... [component_nameN] | [-srdc &lt;srdc_profile&gt;] | [-defips]]  [-node &lt;all|local|n1,n2,..&gt;] [-tag &lt;tagname&gt;] [-z &lt;filename&gt;] [-last &lt;n&lt;h|d&gt;| -from &lt;time&gt; -to &lt;time&gt; | -for &lt;time&gt;] [-nocopy] [-notrim] [-silent] [-collectalldirs][-examples]_endcloud_ _beginexadata_diagcollect [ [component_name1] [component_name2] ... [component_nameN] | [-srdc &lt;srdc_profile&gt;] | [-defips]]  [-node &lt;all|local|n1,n2,..&gt;] [-cell &lt;all|cel1,cel2,..&gt; | -nocell] [-tag &lt;tagname&gt;] [-z &lt;filename&gt;] [ -last &lt;n&gt;&lt;h|d&gt;| -from &lt;time&gt; -to &lt;time&gt; | -for &lt;time&gt;] [-nocopy] [-notrim] [-silent] [-nocores][-collectalldirs] [-collectdir &lt;dir1,dir2..&gt;][-examples]_endexadata_ _beginodadom0_diagcollect [-tag &lt;tagname&gt;] [-z &lt;filename&gt;] [-last &lt;n&gt;&lt;h|d&gt;| -from &lt;time&gt; -to &lt;time&gt; | -for &lt;time&gt;] [-silent] [-nocores][-collectalldirs] [-collectdir &lt;dir1,dir2..&gt;][-examples]_endodadom0_ _beginoda_diagcollect [ [component_name1] [component_name2] ... [component_nameN] | [-srdc &lt;srdc_profile&gt;] | [-defips]]  [-node &lt;all|local|n1,n2,..&gt;] [-tag &lt;tagname&gt;] [-z &lt;filename&gt;] [-last &lt;n&lt;h|d&gt;| -from &lt;time&gt; -to &lt;time&gt; | -for &lt;time&gt;] [-nocopy] [-notrim] [-silent] [-nocores][-collectalldirs][-collectdir &lt;dir1,dir2..&gt;][-sanitize|-mask][-examples]_endoda_ _beginracdbcloud_diagcollect [ [component_name1] [component_name2] ... [component_nameN] | [-srdc &lt;srdc_profile&gt;] | [-defips]]  [-node &lt;all|local|n1,n2,..&gt;] [-tag &lt;tagname&gt;] [-z &lt;filename&gt;] [-last &lt;n&lt;h|d&gt;| -from &lt;time&gt; -to &lt;time&gt; | -for &lt;time&gt;] [-nocopy] [-notrim] [-silent] [-collectalldirs][-collectdir &lt;dir1,dir2..&gt;][-examples]_endracdbcloud_</usage>
+     <options>
+          _beginopt_-srdc           Service Request Data Collection (SRDC)._endopt_ newline
+          _beginopt_-defips         Include in the default collection the IPS Packages for:_endopt_ newline
+          _beginopt_                ASM, CRS and Databases_endopt_ newline
+          _beginopt_-sr             Enter SR number to which the collection will be uploaded_endopt_ newline
+          _beginopt_-node           Specify comma separated list of host names for collection_endopt_ newline
+          _beginopt_-tag &lt;tagname&gt;  The files will be collected into tagname directory inside_endopt_ newline
+          _beginopt_                repository_endopt_ newline
+          _beginopt_-z &lt;zipname&gt;    The collection zip file will be given this name within the_endopt_ newline
+          _beginopt_                TFA collection repository_endopt_ newline
+          _beginopt_-last  &lt;n&gt;&lt;h|d&gt; Files from last 'n' [d]ays or 'n' [h]ours_endopt_ newline
+          _beginopt_-since Same as -last. Kept for backward compatibility._endopt_ newline
+          _beginopt_-from           "Mon/dd/yyyy hh:mm:ss"    From &lt;time&gt;_endopt_ newline
+          _beginopt_                or "yyyy-mm-dd hh:mm:ss"_endopt_ newline
+          _beginopt_                or "yyyy-mm-ddThh:mm:ss"_endopt_ newline
+          _beginopt_                or "yyyy-mm-dd"_endopt_ newline
+          _beginopt_-to             "Mon/dd/yyyy hh:mm:ss"    To &lt;time&gt;_endopt_ newline
+          _beginopt_                or "yyyy-mm-dd hh:mm:ss"_endopt_ newline
+          _beginopt_                or "yyyy-mm-ddThh:mm:ss"_endopt_ newline
+          _beginopt_                or "yyyy-mm-dd"_endopt_ newline
+          _beginopt_-for            "Mon/dd/yyyy"             For &lt;date&gt;._endopt_ newline
+          _beginopt_                or "yyyy-mm-dd"_endopt_ newline
+          _beginopt_-nocopy         Does not copy back the zip files to initiating node from all nodes_endopt_ newline
+          _beginopt_-notrim         Does not trim the files collected_endopt_ newline
+          _beginopt_-silent         This option is used to submit the diagcollection as a background_endopt_ newline
+          _beginopt_                process_endopt_ newline
+          _beginopt_-nocores        Do not collect Core files when it would normally have been_endopt_ newline
+          _beginopt_                collected_endopt_ newline
+          _beginopt_-collectalldirs Collect all files from a directory marked "Collect All"_endopt_ newline
+          _beginopt_                flag to true_endopt_ newline
+          _beginopt_-collectdir     Specify comma separated list of directories and collection will_endopt_ newline
+          _beginopt_                include all files from these irrespective of type and time constraints_endopt_ newline
+          _beginopt_                in addition to components specified_endopt_ newline
+          _beginopt_-examples       Show diagcollect usage examples_endopt_ newline
+
+          _beginexadataopt_-srdc           Service Request Data Collection (SRDC)._endexadataopt_ newline
+          _beginexadataopt_-defips         Include in the default collection the IPS Packages for:_endexadataopt_ newline
+          _beginexadataopt_                ASM, CRS and Databases_endexadataopt_ newline
+          _beginexadataopt_-node           Specify comma separated list of host names for collection_endexadataopt_ newline
+          _beginexadataopt_-cell           Specify comma separated list of cell names for collection_endexadataopt_ newline
+          _beginexadataopt_-nocell         Do not run collections on Storage Cells_endexadataopt_ newline
+          _beginexadataopt_-tag &lt;tagname&gt;  The files will be collected into tagname directory inside_endexadataopt_ newline
+          _beginexadataopt_               repository_endexadataopt_ newline
+          _beginexadataopt_-z &lt;zipname&gt;    The collection zip file will be given this name within the_endexadataopt_ newline
+          _beginexadataopt_                TFA collection repository_endexadataopt_ newline
+          _beginexadataopt_-last  &lt;n&gt;&lt;h|d&gt; Files from last 'n' [d]ays or 'n' [h]ours_endexadataopt_ newline
+          _beginexadataopt_-since Same as -last. Kept for backward compatibility._endexadataopt_ newline
+          _beginexadataopt_-from           "Mon/dd/yyyy hh:mm:ss"    From &lt;time&gt;_endexadataopt_ newline
+          _beginexadataopt_                or "yyyy-mm-dd hh:mm:ss"_endexadataopt_ newline
+          _beginexadataopt_                or "yyyy-mm-ddThh:mm:ss"_endexadataopt_ newline
+          _beginexadataopt_                or "yyyy-mm-dd"_endexadataopt_ newline
+          _beginexadataopt_-to             "Mon/dd/yyyy hh:mm:ss"    To &lt;time&gt;_endexadataopt_ newline
+          _beginexadataopt_                or "yyyy-mm-dd hh:mm:ss"_endexadataopt_ newline
+          _beginexadataopt_                or "yyyy-mm-ddThh:mm:ss"_endexadataopt_ newline
+          _beginexadataopt_                or "yyyy-mm-dd"_endexadataopt_ newline
+          _beginexadataopt_-for            "Mon/dd/yyyy"             For &lt;date&gt;._endexadataopt_ newline
+          _beginexadataopt_                or "yyyy-mm-dd"_endexadataopt_ newline
+          _beginexadataopt_-nocopy         Does not copy back the zip files to initiating node from all nodes_endexadataopt_ newline
+          _beginexadataopt_-notrim         Does not trim the files collected_endexadataopt_ newline
+          _beginexadataopt_-silent         This option is used to submit the diagcollection as a background_endexadataopt_ newline
+          _beginexadataopt_                process_endexadataopt_ newline
+          _beginexadataopt_-nocores        Do not collect Core files when it would normally have been_endexadataopt_ newline
+          _beginexadataopt_                collected_endexadataopt_ newline
+          _beginexadataopt_-collectalldirs Collect all files from a directory marked "Collect All"_endexadataopt_ newline
+          _beginexadataopt_                flag to true_endexadataopt_ newline
+          _beginexadataopt_-collectdir     Specify comma separated list of directories and collection will_endexadataopt_ newline
+          _beginexadataopt_                include all files from these irrespective of type and time constraints_endexadataopt_ newline
+          _beginexadataopt_                in addition to components specified_endexadataopt_ newline
+          _beginexadataopt_-examples       Show diagcollect usage examples_endexadataopt_ newline
+
+          _beginodadom0opt_-tag &lt;tagname&gt;  The files will be collected into tagname directory inside_endodadom0opt_ newline
+          _beginodadom0opt_               repository_endodadom0opt_ newline
+          _beginodadom0opt_-z &lt;zipname&gt;    The collection zip file will be given this name within the_endodadom0opt_ newline
+          _beginodadom0opt_                TFA collection repository_endodadom0opt_ newline
+          _beginodadom0opt_-last  &lt;n&gt;&lt;h|d&gt; Files from last 'n' [d]ays or 'n' [h]ours_endodadom0opt_ newline
+          _beginodadom0opt_-since Same as -last. Kept for backward compatibility._endodadom0opt_ newline
+          _beginodadom0opt_-from           "Mon/dd/yyyy hh:mm:ss"    From &lt;time&gt;_endodadom0opt_ newline
+          _beginodadom0opt_                or "yyyy-mm-dd hh:mm:ss"_endodadom0opt_ newline
+          _beginodadom0opt_                or "yyyy-mm-ddThh:mm:ss"_endodadom0opt_ newline
+          _beginodadom0opt_                or "yyyy-mm-dd"_endodadom0opt_ newline
+          _beginodadom0opt_-to             "Mon/dd/yyyy hh:mm:ss"    To &lt;time&gt;_endodadom0opt_ newline
+          _beginodadom0opt_                or "yyyy-mm-dd hh:mm:ss"_endodadom0opt_ newline
+          _beginodadom0opt_                or "yyyy-mm-ddThh:mm:ss"_endodadom0opt_ newline
+          _beginodadom0opt_                or "yyyy-mm-dd"_endodadom0opt_ newline
+          _beginodadom0opt_-for            "Mon/dd/yyyy"             For &lt;date&gt;._endodadom0opt_ newline
+          _beginodadom0opt_                or "yyyy-mm-dd"_endodadom0opt_ newline
+          _beginodadom0opt_-silent         This option is used to submit the diagcollection as a background_endodadom0opt_ newline
+          _beginodadom0opt_                process_endodadom0opt_ newline
+          _beginodadom0opt_-nocores        Do not collect Core files when it would normally have been_endodadom0opt_ newline
+          _beginodadom0opt_                collected_endodadom0opt_ newline
+          _beginodadom0opt_-collectalldirs Collect all files from a directory marked "Collect All"_endodadom0opt_ newline
+          _beginodadom0opt_                flag to true_endodadom0opt_ newline
+          _beginodadom0opt_-collectdir     Specify comma separated list of directories and collection will_endodadom0opt_ newline
+          _beginodadom0opt_                include all files from these irrespective of type and time constraints_endodadom0opt_ newline
+          _beginodadom0opt_                in addition to components specified_endodadom0opt_ newline
+          _beginodadom0opt_-examples       Show diagcollect usage examples_endodadom0opt_ newline
+
+          _beginodaopt_-srdc           Service Request Data Collection (SRDC)._endodaopt_ newline
+          _beginodaopt_-defips         Include in the default collection the IPS Packages for:_endodaopt_ newline
+          _beginodaopt_                ASM, CRS and Databases_endodaopt_ newline
+          _beginodaopt_-node           Specify comma separated list of host names for collection_endodaopt_ newline
+          _beginodaopt_-tag &lt;tagname&gt;  The files will be collected into tagname directory inside_endodaopt_ newline
+          _beginodaopt_               repository_endodaopt_ newline
+          _beginodaopt_-z &lt;zipname&gt;    The collection zip file will be given this name within the_endodaopt_ newline
+          _beginodaopt_                TFA collection repository_endodaopt_ newline
+          _beginodaopt_-last  &lt;n&gt;&lt;h|d&gt; Files from last 'n' [d]ays or 'n' [h]ours_endodaopt_ newline
+          _beginodaopt_-since Same as -last. Kept for backward compatibility._endodaopt_ newline
+          _beginodaopt_-from           "Mon/dd/yyyy hh:mm:ss"    From &lt;time&gt;_endodaopt_ newline
+          _beginodaopt_                or "yyyy-mm-dd hh:mm:ss"_endodaopt_ newline
+          _beginodaopt_                or "yyyy-mm-ddThh:mm:ss"_endodaopt_ newline
+          _beginodaopt_                or "yyyy-mm-dd"_endodaopt_ newline
+          _beginodaopt_-to             "Mon/dd/yyyy hh:mm:ss"    To &lt;time&gt;_endodaopt_ newline
+          _beginodaopt_                or "yyyy-mm-dd hh:mm:ss"_endodaopt_ newline
+          _beginodaopt_                or "yyyy-mm-ddThh:mm:ss"_endodaopt_ newline
+          _beginodaopt_                or "yyyy-mm-dd"_endodaopt_ newline
+          _beginodaopt_-for            "Mon/dd/yyyy"             For &lt;date&gt;._endodaopt_ newline
+          _beginodaopt_                or "yyyy-mm-dd"_endodaopt_ newline
+          _beginodaopt_-nocopy         Does not copy back the zip files to initiating node from all nodes_endodaopt_ newline
+          _beginodaopt_-notrim         Does not trim the files collected_endodaopt_ newline
+          _beginodaopt_-silent         This option is used to submit the diagcollection as a background_endodaopt_ newline
+          _beginodaopt_                process_endodaopt_ newline
+          _beginodaopt_-nocores        Do not collect Core files when it would normally have been_endodaopt_ newline
+          _beginodaopt_                collected_endodaopt_ newline
+          _beginodaopt_-collectalldirs Collect all files from a directory marked "Collect All"_endodaopt_ newline
+          _beginodaopt_                flag to true_endodaopt_ newline
+          _beginodaopt_-collectdir     Specify comma separated list of directories and collection will_endodaopt_ newline
+          _beginodaopt_                include all files from these irrespective of type and time constraints_endodaopt_ newline
+          _beginodaopt_                in addition to components specified_endodaopt_ newline
+          _beginodaopt_-sanitize       Sanitize sensitive values in the collection using ACR_endodaopt_ newline
+          _beginodaopt_-mask           Mask sensitive values in the collection using ACR_endodaopt_ newline
+          _beginodaopt_-examples       Show diagcollect usage examples_endodaopt_ newline
+
+          _beginracdbcloudopt_-srdc           Service Request Data Collection (SRDC)._endracdbcloudopt_ newline
+          _beginracdbcloudopt_-defips         Include in the default collection the IPS Packages for:_endracdbcloudopt_ newline
+          _beginracdbcloudopt_                ASM, CRS and Databases_endracdbcloudopt_ newline
+          _beginracdbcloudopt_-node           Specify comma separated list of host names for collection_endracdbcloudopt_ newline
+          _beginracdbcloudopt_-tag &lt;tagname&gt;  The files will be collected into tagname directory inside_endracdbcloudopt_ newline
+          _beginracdbcloudopt_               repository_endracdbcloudopt_ newline
+          _beginracdbcloudopt_-z &lt;zipname&gt;    The files will be collected sub directory with in_endracdbcloudopt_ newline
+          _beginracdbcloudopt_                TFA collection repository_endracdbcloudopt_ newline
+          _beginracdbcloudopt_-last  &lt;n&gt;&lt;h|d&gt; Files from last 'n' [d]ays or 'n' [h]ours_endracdbcloudopt_ newline
+          _beginracdbcloudopt_-since Same as -last. Kept for backward compatibility._endracdbcloudopt_ newline
+          _beginracdbcloudopt_-from           "Mon/dd/yyyy hh:mm:ss"    From &lt;time&gt;_endracdbcloudopt_ newline
+          _beginracdbcloudopt_                or "yyyy-mm-dd hh:mm:ss"_endracdbcloudopt_ newline
+          _beginracdbcloudopt_                or "yyyy-mm-ddThh:mm:ss"_endracdbcloudopt_ newline
+          _beginracdbcloudopt_                or "yyyy-mm-dd"_endracdbcloudopt_ newline
+          _beginracdbcloudopt_-to             "Mon/dd/yyyy hh:mm:ss"    To &lt;time&gt;_endracdbcloudopt_ newline
+          _beginracdbcloudopt_                or "yyyy-mm-dd hh:mm:ss"_endracdbcloudopt_ newline
+          _beginracdbcloudopt_                or "yyyy-mm-ddThh:mm:ss"_endracdbcloudopt_ newline
+          _beginracdbcloudopt_                or "yyyy-mm-dd"_endracdbcloudopt_ newline
+          _beginracdbcloudopt_-for            "Mon/dd/yyyy"             For &lt;date&gt;._endracdbcloudopt_ newline
+          _beginracdbcloudopt_                or "yyyy-mm-dd"_endracdbcloudopt_ newline
+          _beginracdbcloudopt_-nocopy         Does not copy back the zip files to initiating node from all nodes_endracdbcloudopt_ newline
+          _beginracdbcloudopt_-notrim         Does not trim the files collected_endracdbcloudopt_ newline
+          _beginracdbcloudopt_-silent         This option is used to submit the diagcollection as a background_endracdbcloudopt_ newline
+          _beginracdbcloudopt_                process_endracdbcloudopt_ newline
+          _beginracdbcloudopt_-collectalldirs Collect all files from a directory marked "Collect All"_endracdbcloudopt_ newline
+          _beginracdbcloudopt_                flag to true_endracdbcloudopt_ newline
+          _beginracdbcloudopt_-collectdir     Specify comma separated list of directories and collection will_endracdbcloudopt_ newline
+          _beginracdbcloudopt_                include all files from these irrespective of type and time constraints_endracdbcloudopt_ newline
+          _beginracdbcloudopt_                in addition to components specified_endracdbcloudopt_ newline
+          _beginracdbcloudopt_-examples       Show diagcollect usage examples_endracdbcloudopt_ newline
+
+          _begincloudopt_-srdc           Service Request Data Collection (SRDC)._endcloudopt_ newline
+          _begincloudopt_-defips         Include in the default collection the IPS Packages for:_endcloudopt_ newline
+          _begincloudopt_                ASM, CRS and Databases_endcloudopt_ newline
+          _begincloudopt_-node           Specify comma separated list of host names for collection_endcloudopt_ newline
+          _begincloudopt_-tag &lt;tagname&gt;  The files will be collected into tagname directory inside_endcloudopt_ newline
+          _begincloudopt_               repository_endcloudopt_ newline
+          _begincloudopt_-z &lt;zipname&gt;    The collection zip file will be given this name within the_endcloudopt_ newline
+          _begincloudopt_                TFA collection repository_endcloudopt_ newline
+          _begincloudopt_-last  &lt;n&gt;&lt;h|d&gt; Files from last 'n' [d]ays or 'n' [h]ours_endcloudopt_ newline
+          _begincloudopt_-since Same as -last. Kept for backward compatibility._endcloudopt_ newline
+          _begincloudopt_-from           "Mon/dd/yyyy hh:mm:ss"    From &lt;time&gt;_endcloudopt_ newline
+          _begincloudopt_                or "yyyy-mm-dd hh:mm:ss"_endcloudopt_ newline
+          _begincloudopt_                or "yyyy-mm-ddThh:mm:ss"_endcloudopt_ newline
+          _begincloudopt_                or "yyyy-mm-dd"_endcloudopt_ newline
+          _begincloudopt_-to             "Mon/dd/yyyy hh:mm:ss"    To &lt;time&gt;_endcloudopt_ newline
+          _begincloudopt_                or "yyyy-mm-dd hh:mm:ss"_endcloudopt_ newline
+          _begincloudopt_                or "yyyy-mm-ddThh:mm:ss"_endcloudopt_ newline
+          _begincloudopt_                or "yyyy-mm-dd"_endcloudopt_ newline
+          _begincloudopt_-for            "Mon/dd/yyyy"             For &lt;date&gt;._endcloudopt_ newline
+          _begincloudopt_                or "yyyy-mm-dd"_endcloudopt_ newline
+          _begincloudopt_-nocopy         Does not copy back the zip files to initiating node from all nodes_endcloudopt_ newline
+          _begincloudopt_-notrim         Does not trim the files collected_endcloudopt_ newline
+          _begincloudopt_-silent         This option is used to submit the diagcollection as a background_endcloudopt_ newline
+          _begincloudopt_                process_endcloudopt_ newline
+          _begincloudopt_-collectalldirs Collect all files from a directory marked "Collect All"_endcloudopt_ newline
+          _begincloudopt_                flag to true_endcloudopt_ newline
+          _begincloudopt_-examples       Show diagcollect usage examples_endcloudopt_ newline
+     </options> 
+     <examples>
+          _begineg_tfacmd diagcollect_endeg_ newline
+          _begineg_  Trim and Zip all files updated in the last DIAG_TIME hours as well as chmos/osw data_endeg_ newline
+          _begineg_  from across the cluster and collect at the initiating node_endeg_ newline
+          _begineg_  Note: This collection could be larger than required but is there as the_endeg_ newline 
+          _begineg_  simplest way to capture diagnostics if an issue has recently occurred._endeg_ newline newline
+          _begineg_tfacmd diagcollect -last 8h_endeg_ newline
+          _begineg_  Trim and Zip all files updated in the last 8 hours as well as chmos/osw data_endeg_ newline
+          _begineg_  from across the cluster and collect at the initiating node_endeg_ newline newline
+          _begineg_tfacmd diagcollect -database hrdb,fdb -last 1d -z foo_endeg_ newline
+          _begineg_  Trim and Zip all files from databases hrdb &amp; fdb in the last 1 day and_endeg_ newline
+          _begineg_  collect at the initiating node_endeg_ newline newline
+          _begineg_tfacmd diagcollect -crs -os -node node1,node2 -last 6h_endeg_ newline
+          _begineg_  Trim and Zip all crs files, o/s logs and chmos/osw data from node1 &amp; node2_endeg_ newline
+          _begineg_  updated in the last 6 hours and collect at the initiating node_endeg_ newline newline
+          _begineg_tfacmd diagcollect -asm -node node1 -from START_TIME -to END_TIME_endeg_ newline
+          _begineg_  Trim and Zip all ASM logs from node1 updated between from and to time and_endeg_ newline
+          _begineg_  collect at the initiating node_endeg_ newline newline
+          _begineg_tfacmd diagcollect -for START_TIME_endeg_ newline
+          _begineg_  Trim and Zip all log files updated on START_TIME and collect at the_endeg_ newline
+          _begineg_  collect at the initiating node_endeg_ newline newline
+          _begineg_tfacmd diagcollect -for END_TIME_endeg_ newline
+          _begineg_  Trim and Zip all log files updated from 09:00 on START_TIME to 09:00 on CURRENT_TIME_endeg_ newline
+          _begineg_  (i.e. 12 hours before and after the time given) and collect at the initiating node_endeg_ newline newline
+          _begineg_nonwindowsplattfacmd diagcollect -crs -collectdir /tmp_dir1,/tmp_dir2_endeg_ newline
+          _begineg_nonwindowsplat  Trim and Zip all crs files updated in the last DIAG_TIME hours_endeg_ newline
+          _begineg_nonwindowsplat  Also collect all files from /tmp_dir1 and /tmp_dir2 at the initiating node_endeg_ newline newline
+          _begineg_windowsplattfacmd diagcollect -crs -collectdir C:\tmp_dir1,C:\tmp_dir2_endeg_ newline
+          _begineg_windowsplat  Trim and Zip all crs files updated in the last DIAG_TIME hours_endeg_ newline
+          _begineg_windowsplat  Also collect all files from C:\tmp_dir1 and C:\tmp_dir2 at the initiating node_endeg_ newline newline
+
+          _beginexadataeg_tfacmd diagcollect_endexadataeg_ newline
+          _beginexadataeg_  Trim and Zip all files updated in the last DIAG_TIME hours as well as chmos/osw data_endexadataeg_ newline
+          _beginexadataeg_  from across the cluster and collect at the initiating node_endexadataeg_ newline
+          _beginexadataeg_  Note: This collection could be larger than required but is there as the_endexadataeg_ newline
+          _beginexadataeg_  simplest way to capture diagnostics if an issue has recently occurred._endexadataeg_ newline newline
+          _beginexadataeg_tfacmd diagcollect -last 8h_endexadataeg_ newline
+          _beginexadataeg_  Trim and Zip all files updated in the last 8 hours as well as chmos/osw data_endexadataeg_ newline
+          _beginexadataeg_  from across the cluster and collect at the initiating node_endexadataeg_ newline newline
+          _beginexadataeg_tfacmd diagcollect -database hrdb,fdb -last 1d -z foo_endexadataeg_ newline
+          _beginexadataeg_  Trim and Zip all files from databases hrdb &amp; fdb in the last 1 day and_endexadataeg_ newline
+          _beginexadataeg_  collect at the initiating node_endexadataeg_ newline newline
+          _beginexadataeg_tfacmd diagcollect -crs -os -node node1,node2 -last 6h_endexadataeg_ newline
+          _beginexadataeg_  Trim and Zip all crs files, o/s logs and chmos/osw data from node1 &amp; node2_endexadataeg_ newline
+          _beginexadataeg_  updated in the last 6 hours and collect at the initiating node_endexadataeg_ newline newline
+          _beginexadataeg_tfacmd diagcollect -crs -os -cell cell1,cell2 -last 6h_endexadataeg_ newline
+          _beginexadataeg_  Trim and Zip all crs files, o/s logs and chmos/osw data from cell1 &amp; cell2_endexadataeg_ newline
+          _beginexadataeg_  updated in the last 6 hours and collect at the initiating node_endexadataeg_ newline newline
+          _beginexadataeg_tfacmd diagcollect -asm -node node1 -from START_TIME -to END_TIME_endexadataeg_ newline
+          _beginexadataeg_  Trim and Zip all ASM logs from node1 updated between from and to time and_endexadataeg_ newline
+          _beginexadataeg_  collect at the initiating node_endexadataeg_ newline newline
+          _beginexadataeg_tfacmd diagcollect -for START_TIME_endexadataeg_ newline
+          _beginexadataeg_  Trim and Zip all log files updated on START_TIME and collect at the_endexadataeg_ newline
+          _beginexadataeg_  collect at the initiating node_endexadataeg_ newline newline
+          _beginexadataeg_tfacmd diagcollect -for END_TIME_endexadataeg_ newline
+          _beginexadataeg_  Trim and Zip all log files updated from 09:00 on START_TIME to 09:00 on CURRENT_TIME_endexadataeg_ newline
+          _beginexadataeg_  (i.e. 12 hours before and after the time given) and collect at the initiating node_endexadataeg_ newline newline
+          _beginexadataeg_tfacmd diagcollect -crs -collectdir /tmp_dir1,/tmp_dir2_endexadataeg_ newline
+          _beginexadataeg_  Trim and Zip all crs files updated in the last DIAG_TIME hours_endexadataeg_ newline
+          _beginexadataeg_  Also collect all files from /tmp_dir1 and /tmp_dir2 at the initiating node_endexadataeg_ newline newline
+
+          _beginracdbcloudeg_tfacmd diagcollect_endracdbcloudeg_ newline
+          _beginracdbcloudeg_  Trim and Zip all files updated in the last DIAG_TIME hours_endracdbcloudeg_ newline newline
+          _beginracdbcloudeg_tfacmd diagcollect -last 8h_endracdbcloudeg_ newline
+          _beginracdbcloudeg_  Trim and Zip all files updated in the last 8 hours_endracdbcloudeg_ newline newline
+          _beginracdbcloudeg_tfacmd diagcollect -5242_endracdbcloudeg_ newline
+          _beginracdbcloudeg_  Trim and Zip all files updated in the last DIAG_TIME hours for Web Logic Server all domains_endracdbcloudeg_ newline newline
+          _beginracdbcloudeg_tfacmd diagcollect -5242 -5242_fmw_domain mydom1_endracdbcloudeg_ newline
+          _beginracdbcloudeg_  Trim and Zip all files updated in the last DIAG_TIME hours for Web Logic Server selected domain_endracdbcloudeg_ newline newline
+          _beginracdbcloudeg_tfacmd diagcollect -5242 -5242_fmw_domain mydom1 -5242_appserver myserver1_endracdbcloudeg_ newline
+          _beginracdbcloudeg_  Trim and Zip all files updated in the last DIAG_TIME hours for Web Logic Server selected domain and server_endracdbcloudeg_ newline
+
+          _begincloudeg_tfacmd diagcollect_endcloudeg_ newline
+          _begincloudeg_  Trim and Zip all files updated in the last DIAG_TIME hours_endcloudeg_ newline newline
+          _begincloudeg_tfacmd diagcollect -last 8h_endcloudeg_ newline
+          _begincloudeg_  Trim and Zip all files updated in the last 8 hours_endcloudeg_ newline newline
+          _begincloudeg_tfacmd diagcollect -5242_endcloudeg_ newline
+          _begincloudeg_  Trim and Zip all files updated in the last DIAG_TIME hours for Web Logic Server all domains_endcloudeg_ newline newline
+          _begincloudeg_tfacmd diagcollect -5242 -5242_fmw_domain mydom1_endcloudeg_ newline
+          _begincloudeg_  Trim and Zip all files updated in the last DIAG_TIME hours for Web Logic Server selected domain_endcloudeg_ newline newline
+          _begincloudeg_tfacmd diagcollect -5242 -5242_fmw_domain mydom1 -5242_appserver myserver1_endcloudeg_ newline
+          _begincloudeg_  Trim and Zip all files updated in the last DIAG_TIME hours for Web Logic Server selected domain and server_endcloudeg_ newline
+
+          _beginodaeg_tfacmd diagcollect_endodaeg_ newline
+          _beginodaeg_  Trim and Zip all files updated in the last DIAG_TIME hours as well as chmos/osw data_endodaeg_ newline
+          _beginodaeg_  from across the cluster and collect at the initiating node_endodaeg_ newline
+          _beginodaeg_  Note: This collection could be larger than required but is there as the_endodaeg_ newline
+          _beginodaeg_  simplest way to capture diagnostics if an issue has recently occurred._endodaeg_ newline newline
+          _beginodaeg_tfacmd diagcollect -last 8h_endodaeg_ newline
+          _beginodaeg_  Trim and Zip all files updated in the last 8 hours as well as chmos/osw data_endodaeg_ newline
+          _beginodaeg_  from across the cluster and collect at the initiating node_endodaeg_ newline newline
+          _beginodaeg_tfacmd diagcollect -database hrdb,fdb -last 1d -z foo_endodaeg_ newline
+          _beginodaeg_  Trim and Zip all files from databases hrdb &amp; fdb in the last 1 day and_endodaeg_ newline
+          _beginodaeg_  collect at the initiating node_endodaeg_ newline newline
+          _beginodaeg_tfacmd diagcollect -crs -os -node node1,node2 -last 6h_endodaeg_ newline
+          _beginodaeg_  Trim and Zip all crs files, o/s logs and chmos/osw data from node1 &amp; node2_endodaeg_ newline
+          _beginodaeg_  updated in the last 6 hours and collect at the initiating node_endodaeg_ newline newline
+          _beginodaeg_tfacmd diagcollect -asm -node node1 -from START_TIME -to END_TIME_endodaeg_ newline
+          _beginodaeg_  Trim and Zip all ASM logs from node1 updated between from and to time and_endodaeg_ newline
+          _beginodaeg_  collect at the initiating node_endodaeg_ newline newline
+          _beginodaeg_tfacmd diagcollect -for START_TIME_endodaeg_ newline
+          _beginodaeg_  Trim and Zip all log files updated on START_TIME and collect at the_endodaeg_ newline
+          _beginodaeg_  collect at the initiating node_endodaeg_ newline newline
+          _beginodaeg_tfacmd diagcollect -for END_TIME_endodaeg_ newline
+          _beginodaeg_  Trim and Zip all log files updated from 09:00 on START_TIME to 09:00 on CURRENT_TIME_endodaeg_ newline
+          _beginodaeg_  (i.e. 12 hours before and after the time given) and collect at the initiating node_endodaeg_ newline newline
+          _beginodaeg_nonwindowsplattfacmd diagcollect -crs -collectdir /tmp_dir1,/tmp_dir2_endodaeg_ newline
+          _beginodaeg_nonwindowsplat  Trim and Zip all crs files updated in the last DIAG_TIME hours_endodaeg_ newline
+          _beginodaeg_nonwindowsplat  Also collect all files from /tmp_dir1 and /tmp_dir2 at the initiating node_endodaeg_ newline newline
+
+          _beginodadom0eg_tfacmd diagcollect_endodadom0eg_ newline
+          _beginodadom0eg_  Trim and Zip all files updated in the last DIAG_TIME hours as well as chmos/osw data_endodadom0eg_ newline
+          _beginodadom0eg_tfacmd -last 8h_endodadom0eg_ newline
+          _beginodadom0eg_  Trim and Zip all files updated in the last 8 hours as well as chmos/osw data_endodadom0eg_ newline
+          _beginodadom0eg_tfacmd diagcollect -from START_TIME -to END_TIME_endodadom0eg_ newline
+          _beginodadom0eg_  Trim and Zip all files updated between from and to time_endodadom0eg_ newline
+          _beginodadom0eg_tfacmd diagcollect -for START_TIME_endodadom0eg_ newline
+          _beginodadom0eg_  Trim and Zip all log files updated on START_TIME_endodadom0eg_ newline
+          _beginodadom0eg_tfacmd diagcollect -for END_TIME_endodadom0eg_ newline
+          _beginodadom0eg_  Trim and Zip all log files updated from 09:00 on START_TIME to 09:00 on CURRENT_TIME_endodadom0eg_ newline
+          _beginodadom0eg_  (i.e. 12 hours before and after the time given)_endodadom0eg_ newline
+
+     </examples>
+     <commands>
+       <command cmdName="-ips" cmdLevel="1" cmdCategory="Collection" cmdParent="diagcollect" rootOnly="false" cmdSeq="1">
+          <description>Collect Incident Packaging Service.</description>
+          <usage>diagcollect [ -ips [-oraclehome &lt;oracle_home&gt;] [-adrbasepath &lt;adr_basepath&gt;] [-adrhomepath &lt;adr_homepath&gt;] [-level &lt;corr_level&gt;] [-manageips | -resumeips &lt;collectionid&gt;] ]  [componentName1] [componentName2] ... [componentNameN] [options]</usage>
+          <options>
+             _beginopt_-oraclehome ORACLE_HOME to be used for the ADRCI binary_endopt_ newline
+             _beginopt_-adrbasepath ADR basepath(s) to be used for the IPS command_endopt_ newline
+             _beginopt_-adrhomepath ADR home(s) to be used for the IPS command_endopt_ newline
+             _beginopt_-level       ADR correlation level (basic,typical,all)_endopt_ newline
+             _beginopt_-incident    ADR incident number_endopt_ newline
+             _beginopt_-problem     ADR problem number_endopt_ newline
+             _beginopt_-problemkey  ADR problemkey_endopt_ newline
+             _beginopt_-manageips   Pause TFA IPS collection for package manipulation_endopt_ newline
+             _beginopt_-resumeips   Continue TFA IPS collection after a pause for package manipulation_endopt_ newline
+             _beginifopt_noindentExamples:_endifopt_ newline
+             _beginifopt_tfacmd diagcollect -ips -incident 1025 -manageips_endifopt_ newline
+             _beginifopt_  Collect ADRCI incident 1025 and pause for IPS package manipulation_endifopt_ newline
+             _beginifopt_tfacmd diagcollect -ips -resumeips 20151201134128ipscoll_hostname_endifopt_ newline
+             _beginifopt_  Resume collection 20151201134128ipscoll_hostname after a pause for package manipulation_endifopt_ newline
+          </options>
+       </command>
+       <command cmdName="-srdc" cmdLevel="1" cmdCategory="Collection" cmdParent="diagcollect" rootOnly="false" cmdSeq="2">
+          <description>Service Request Data Collection (SRDC).</description>
+          <usage>diagcollect -srdc &lt;srdc_profile&gt; [-tag &lt;tagname&gt;] [-z &lt;filename&gt;] [-last &lt;n&gt;&lt;h|d&gt;| -from &lt;time&gt; -to &lt;time&gt; | -for &lt;time&gt;] -database &lt;database&gt;</usage>
+          <options>
+             _beginopt_-tag &lt;tagname&gt;  The files will be collected into tagname directory inside_endopt_ newline
+             _beginopt_               repository_endopt_ newline
+             _beginopt_-z &lt;zipname&gt;    The collection zip file will be given this name within the_endopt_ newline
+             _beginopt_                 TFA collection repository_endopt_ newline
+             _beginopt_-last  &lt;n&gt;&lt;h|d&gt; Files from last 'n' [d]ays or 'n' [h]ours_endopt_ newline
+             _beginopt_-since Same as -last. Kept for backward compatibility._endopt_ newline
+             _beginopt_-from           "Mon/dd/yyyy hh:mm:ss"    From &lt;time&gt;_endopt_ newline
+             _beginopt_                or "yyyy-mm-dd hh:mm:ss"_endopt_ newline
+             _beginopt_                or "yyyy-mm-ddThh:mm:ss"_endopt_ newline
+             _beginopt_                or "yyyy-mm-dd"_endopt_ newline
+             _beginopt_-to             "Mon/dd/yyyy hh:mm:ss"    To &lt;time&gt;_endopt_ newline
+             _beginopt_                or "yyyy-mm-dd hh:mm:ss"_endopt_ newline
+             _beginopt_                or "yyyy-mm-ddThh:mm:ss"_endopt_ newline
+             _beginopt_                or "yyyy-mm-dd"_endopt_ newline
+             _beginopt_-for            "Mon/dd/yyyy"             For &lt;date&gt;._endopt_ newline
+             _beginopt_                or "yyyy-mm-dd"_endopt_ newline newline
+             _beginopt_&lt;srdc_profile&gt; can be any of the following,_endopt_ newline
+          </options>
+       </command>
+     </commands>
+  </command>
+
+  <command cmdName="collection" cmdLevel="0" cmdCategory="Collection" rootOnly="false" isCloud="true" cloudRootOnly="true" cmdSeq="2">
+     <description>_begindesc_Manage TFA Collections_enddesc_ newline</description>
+     <usage>_begindef_collection stop &lt;collectionid&gt;_enddef_            _begincloud_collection stop &lt;collectionid&gt;_endcloud_</usage>
+     <options>
+            _beginopt_stop            Stop the requested collection_endopt_ newline
+            _begincloudopt_stop            Stop the requested collection_endcloudopt_ newline
+     </options>
+  </command>
+
+  <command cmdName="analyze" cmdLevel="0" cmdCategory="Collection" rootOnly="false" isCloud="true" cloudRootOnly="true" cmdSeq="3">
+     <description>_begindesc_List events summary and search strings in alert logs._enddesc_ newline</description>
+     <usage>_begindef_analyze [-search "pattern"] [-comp &lt;db|asm|crs|acfs|os|osw|oswslabinfo|oratop|all&gt;] [-type &lt;error|warning|generic&gt;] [-last &lt;n&gt;[h|d]] [-from "MMM/DD/YYYY HH24:MI:SS"] [-to "MMM/DD/YYYY HH24:MI:SS"] [-for "MMM/DD/YYYY HH24:MI:SS"] [-node &lt;all|local|n1,n2,..&gt;] [-verbose] [-o &lt;file&gt;] [-examples]_enddef_</usage>
+     <options>
+          _beginopt_-search   Search for "pattern" in DB and CRS alert logs in past &lt;n&gt; [h]ours or [d]ays._endopt_ newline
+          _beginopt_          Default value of &lt;n&gt; is 1h_endopt_ newline
+          _beginopt_-comp     Components to analyze. Default is all._endopt_ newline
+          _beginopt_-type     Analyze messages of specified type. Default is error._endopt_ newline
+          _beginopt_-last     Analyze for specified duration before current time._endopt_ newline
+          _beginopt_-since    Same as -last. Kept for backward compatibility._endopt_ newline
+          _beginopt_-from,-to Analyze for specified time period_endopt_ newline
+          _beginopt_-for      Analyze for specified time_endopt_ newline
+          _beginopt_-node     Specify comma separated list of host names. Default is all_endopt_ newline
+          _beginopt_-verbose  Show verbose output._endopt_ newline
+          _beginopt_-o        Write the output to &lt;file&gt; instead of printing on screen._endopt_ newline
+          _beginopt_-examples tfactl analyze examples._endopt_ newline newline
+          _beginifopt_noindentOratop Options: Below options are available when using -comp oratop_endifopt_ newline
+          _beginifopt_noindent                -database &lt;dbname&gt; &lt;oratop options&gt; &lt;logon&gt;_endifopt_ newline
+          _beginifopt_&lt;logon&gt; : default will be / as sysdba. Specify a different user using_endifopt_ newline
+          _beginifopt_          {username[/password][@connect_identifier] | / }_endifopt_ newline
+          _beginifopt_          [AS {SYSDBA|SYSOPER}]_endifopt_ newline
+          _beginifopt_          connect_identifier: host[:port]/[service_name]_endifopt_ newline
+          _beginifopt_-database &lt;dbname&gt; Database name to run oratop_endifopt_ newline newline
+          _beginifopt_noindent&lt;oratop options&gt;:_endifopt_ newline
+          _beginifopt_-d : real-time (RT) wait events, section 3 (default is Cumulative)_endifopt_ newline
+          _beginifopt_-k : FILE#:BLOCK#, section 4 lt is (EVENT/LATCH)_endifopt_ newline
+          _beginifopt_-m : MODULE/ACTION, section 4 (default is USERNAME/PROGRAM)_endifopt_ newline
+          _beginifopt_-s : SQL mode, section 4 (default is process mode)_endifopt_ newline
+          _beginifopt_-c : database service mode (default is connect string)_endifopt_ newline
+          _beginifopt_-f : detailed format, 132 columns (default: standard, 80 columns)_endifopt_ newline
+          _beginifopt_-b : batch mode (default is text-based user interface)_endifopt_ newline
+          _beginifopt_-n : maximum number of iterations (requires number)_endifopt_ newline
+          _beginifopt_-i : interval delay, requires value in seconds (default: 5s)_endifopt_ newline
+     </options>
+     <examples>
+          _begineg_tfacmd analyze -since 5h_endeg_ newline
+          _begineg_  Show summary of events from alert logs, system messages in last 5 hours._endeg_ newline newline
+          _begineg_tfacmd analyze -comp os -since 1d_endeg_ newline
+          _begineg_  Show summary of events from system messages in last 1 day._endeg_ newline newline
+          _begineg_tfacmd analyze -search "ORA-" -since 2d_endeg_ newline
+          _begineg_  Search string ORA- in alert and system logs in past 2 days._endeg_ newline newline
+          _begineg_tfacmd analyze -search "/Starting/c" -since 2d_endeg_ newline
+          _begineg_  Search case sensitive string "Starting" in past 2 days._endeg_ newline newline
+          _begineg_tfacmd analyze -comp osw -since 6h_endeg_ newline
+          _begineg_  Show OSWatcher Top summary in last 6 hours._endeg_ newline newline
+          _begineg_tfacmd analyze -comp oswslabinfo -from "Feb/26/2014 05:00:01" -to "Feb/26/2014 06:00:01"_endeg_ newline
+          _begineg_  Show OSWatcher slabinfo summary for specified time period._endeg_ newline newline
+          _begineg_tfacmd analyze -since 1h -type generic_endeg_ newline
+          _begineg_  Analyze all generic messages in last one hour._endeg_ newline newline
+          _begineg_tfacmd analyze -comp oratop -database dbname -bn1_endeg_ newline
+          _begineg_  Runs oratop in batch mode for database 'dbname'._endeg_ newline newline
+          _begineg_tfacmd analyze -comp oratop -database dbname -d_endeg_ newline
+          _begineg_  Runs oratop in interactive mode for database 'dbname' if instance is running on localnode._endeg_ newline
+     </examples>
+  </command>
+
+  <command cmdName="ips" cmdLevel="0" cmdCategory="Collection" rootOnly="false" isCloud="true" cloudRootOnly="true" cmdSeq="4">
+     <description>_begindesc_Execute IPS (Incident Package Service) commands_enddesc_ newline</description>
+  </command>
+
+  <command cmdName="run" cmdNameMod=" &lt;tool&gt;" cmdLevel="0" cmdCategory="Collection" rootOnly="false" isCloud="true" cloudRootOnly="true" cmdSeq="5">
+     <description>_begindesc_Run requested action._enddesc_ newline</description>
+     <usage>_begindef_[run [inventory | scan | &lt;tool&gt;]] | [&lt;tool&gt;]_enddef_            _begincloud_[run [inventory | scan | &lt;tool&gt;]] | [&lt;tool&gt;]_endcloud_</usage>
+     <options>
+          _beginopt_inventory  Inventory all trace file directories_endopt_ newline
+          _beginopt_scan       Run a one off Scan_endopt_ newline
+          _beginifopt_&lt;tool&gt;     Run the desired analysis tool_endifopt_ newline newline
+          _beginifopt_noindentnonwindowsplatDevelopment Tools:_endifopt_ newline newline
+          _beginifopt_nonwindowsplatexachk       : Invoke Exachk tool_endifopt_ newline
+          _beginifopt_nonwindowsplatorachk       : Invoke Orachk tool_endifopt_ newline
+          _beginifopt_nonwindowsplatoratop       : Invoke Oratop tool_endifopt_ newline newline
+          _beginifopt_noindentnonwindowsplatSupport Tools Bundle:_endifopt_ newline newline
+          _beginifopt_nonwindowsplatoswbb        : Invoke OSWatcher Analyzer_endifopt_ newline
+          _beginifopt_nonwindowsplatprw          : Invoke Procwatcher tool_endifopt_ newline newline
+          _beginifopt_noindentTFA Utilities:_endifopt_ newline newline
+          _beginifopt_alertsummary : Prints summary of important events in database/ASM alert logs_endifopt_ newline
+          _beginifopt_calog        : Prints Clusterware activity logs_endifopt_ newline
+          _beginrootifopt_dbglevel     : Set CRS log/trace levels using profiles_endrootifopt_ newline
+          _beginifopt_nonwindowsplatgrep         : Grep for input string in logs_endifopt_ newline
+          _beginifopt_windowsplatfindstr      : Searches for input string in logs_endifopt_ newline
+          _beginifopt_history      : Lists commands executed in current TFA shell session_endifopt_ newline
+          _beginifopt_nonwindowsplatls           : Lists all files matching input pattern in ls_endifopt_ newline
+          _beginifopt_windowsplatdir          : Lists all files matching input pattern in dir_endifopt_ newline
+          _beginifopt_managelogs   : Purge logs_endifopt_ newline
+          _beginifopt_menu         : Trace File Analyzer Collector Menu System_endifopt_ newline
+          _beginifopt_param        : Prints parameter value_endifopt_ newline
+          _beginifopt_nonwindowsplatps           : Find a process_endifopt_ newline
+          _beginifopt_windowsplattasklist     : Find a process_endifopt_ newline
+          _beginifopt_pstack       : Run pstack on a process_endifopt_ newline
+          _beginifopt_srdc         : Service request diagnostic collection_endifopt_ newline
+          _beginifopt_summary      : Prints system summary_endifopt_ newline
+          _beginifopt_nonwindowsplattail         : Tail log files_endifopt_ newline
+          _beginifopt_triage       : Summarize oswatcher/exawatcher data_endifopt_ newline
+          _beginifopt_nonwindowsplatvi           : Search and open files in vi editor_endifopt_ newline newline
+          _beginifopt_windowsplatnotepad      : Search and open files in notepad editor_endifopt_ newline newline
+          _beginifopt_noindentRun tfactl &lt;tool&gt; -h for detailed help on each tool_endifopt_ newline
+
+          _begincloudopt_inventory  Inventory all trace file directories_endcloudopt_ newline
+          _begincloudopt_scan       Run a one off Scan_endcloudopt_ newline
+          _beginifcloudopt_&lt;tool&gt;     Run the desired analysis tool_endifcloudopt_ newline newline
+          _beginifcloudopt_noindentDevelopment Tools:_endifcloudopt_ newline newline
+          _beginifcloudopt_exachk       : Invoke Exachk tool_endifcloudopt_ newline
+          _beginifcloudopt_orachk       : Invoke Orachk tool_endifcloudopt_ newline
+          _beginifcloudopt_oratop       : Invoke Oratop tool_endifcloudopt_ newline newline
+          _beginifcloudopt_noindentSupport Tools Bundle:_endifcloudopt_ newline newline
+          _beginifcloudopt_oswbb        : Invoke OSWatcher Analyzer_endifcloudopt_ newline
+          _beginifcloudopt_prw          : Invoke Procwatcher tool_endifcloudopt_ newline newline
+          _beginifcloudopt_noindentTFA Utilities:_endifcloudopt_ newline newline
+          _beginifcloudopt_alertsummary : Prints summary of important events in database/ASM alert logs_endifcloudopt_ newline
+          _beginifcloudopt_calog        : Prints Clusterware activity logs_endifcloudopt_ newline           
+          _beginrootifcloudopt_dbglevel : Set CRS log/trace levels using profiles_endrootifcloudopt_ newline
+          _beginifcloudopt_grep         : Grep for input string in logs_endifcloudopt_ newline
+          _beginifcloudopt_history      : Lists commands executed in current TFA shell session_endifcloudopt_ newline
+          _beginifcloudopt_ls           : Search files in TFA_endifcloudopt_ newline
+          _beginifcloudopt_managelogs   : Purge logs_endifcloudopt_ newline
+          _beginifcloudopt_menu         : Trace File Analyzer Collector Menu System_endifcloudopt_ newline
+          _beginifcloudopt_param        : Prints parameter value_endifcloudopt_ newline
+          _beginifcloudopt_ps           : Find a process_endifcloudopt_ newline
+          _beginifcloudopt_pstack       : Run pstack on a process_endifcloudopt_ newline
+          _beginifcloudopt_srdc         : Service request diagnostic collection_endifcloudopt_ newline
+          _beginifcloudopt_summary      : Prints system summary_endifcloudopt_ newline
+          _beginifcloudopt_tail         : Tail log files_endifcloudopt_ newline
+          _beginifcloudopt_triage       : Summarize oswatcher/exawatcher data_endifcloudopt_ newline
+          _beginifcloudopt_vi           : Search and open files in vi editor_endifcloudopt_ newline newline
+          _beginifcloudopt_noindentRun tfactl &lt;tool&gt; -h for detailed help on each tool_endifcloudopt_ newline 
+     </options>
+  </command>
+
+  <command cmdName="start" cmdNameMod=" &lt;tool&gt;" cmdLevel="0" cmdCategory="Collection" rootOnly="false" isCloud="true" cloudRootOnly="true" cmdSeq="6">
+     <description>_begindesc_Start the desired support tool_enddesc_ newline
+                  _begindesc_Start TFA process_enddesc_ newline</description>
+     <usage>_begindef_start [ &lt;tool&gt; ]_enddef_            _begincloud_start [ &lt;tool&gt; ]_endcloud_</usage>
+     <options>
+                 _beginopt_       Starts TFAMain and the Scanner_endopt_ newline
+                 _beginopt_&lt;tool&gt; Starts the desired support tool_endopt_ newline
+                 _begincloudopt_       Starts TFAMain and the Scanner_endcloudopt_ newline
+                 _begincloudopt_&lt;tool&gt; Starts the desired support tool_endcloudopt_ newline
+</options>
+  </command> 
+
+  <command cmdName="stop" cmdNameMod=" &lt;tool&gt;" cmdLevel="0" cmdCategory="Collection" rootOnly="false" isCloud="true" cloudRootOnly="true" cmdSeq="7">
+     <description>_begindesc_Stop the desired support tool_enddesc_ newline
+                  _begindesc_Stop TFA process_enddesc_ newline</description>
+     <usage>_begindef_stop [ &lt;tool&gt; ]_enddef_            _begincloud_stop [ &lt;tool&gt; ]_endcloud_</usage>
+     <options>
+                 _beginopt_       Stops TFAMain and the Scanner_endopt_ newline
+                 _beginopt_&lt;tool&gt; Stops the desired support tool_endopt_ newline
+                 _begincloudopt_       Stops TFAMain and the Scanner_endcloudopt_ newline
+                 _begincloudopt_&lt;tool&gt; Stops the desired support tool_endcloudopt_ newline
+     </options>
+  </command>
+
+  <command cmdName="enable" cmdLevel="0" cmdCategory="Admin" rootOnly="true" isCloud="true" cloudRootOnly="true" cmdSeq="10">
+     <description>_begindesc_Enable TFA Auto restart_enddesc_ newline</description>
+     <usage>_begindef_enable_enddef_            _begincloud_enable_endcloud_</usage>
+  </command>
+
+  <command cmdName="disable" cmdLevel="0" cmdCategory="Admin" rootOnly="true" isCloud="true" cloudRootOnly="true" cmdSeq="11">
+     <description>_begindesc_Disable TFA Auto restart_enddesc_ newline</description>
+     <usage>_begindef_disable_enddef_            _begincloud_disable_endcloud_</usage>
+  </command>
+
+  <command cmdName="status" cmdLevel="0" cmdCategory="Admin" rootOnly="true" isCloud="true" cloudRootOnly="true" cmdSeq="12">
+     <description>_begindesc_Check run status of TFA process_enddesc_ newline</description>
+     <usage>_begindef_status_enddef_            _begincloud_status_endcloud_</usage>
+  </command>
+               
+  <command cmdName="print" cmdLevel="0" cmdCategory="Admin" rootOnly="false" isCloud="true" cloudRootOnly="false" cmdSeq="13">
+     <description>_begindesc_Print requested details._enddesc_ newline</description>
+     <usage>_begindef_print [status|components [[component_name1] [component_name2] ... [component_nameN]]|config|directories|hosts|receivers|actions|repository|runmode|suspendedips]_enddef_ _begincloud_print [status|components [[component_name1] [component_name2] ... [component_nameN]]|directories|hosts|repository]_endcloud_</usage>
+     <commands>
+       <command cmdName="status" cmdLevel="1" cmdCategory="Admin" cmdParent="print" rootOnly="false" cmdSeq="1">
+          <description>Print status of TFA across all nodes in cluster.</description>
+          <usage>print status</usage>
+       </command>
+       <command cmdName="components" cmdLevel="1" cmdCategory="Admin" cmdParent="print" rootOnly="false" cmdSeq="2">
+          <description>Print the desired components in the Configuration.</description>
+          <usage>print components [ [component_name1] [component_name2] ... [component_nameN] ]</usage>
+       </command>
+       <command cmdName="config" cmdLevel="1" cmdCategory="Admin" cmdParent="print" rootOnly="false" cmdSeq="3">
+          <description>Print current TFA config settings.</description>
+          <usage>print config [ -node &lt;all | local | n1,n2,..&gt;  -name &lt;param&gt;]</usage>
+       </command>
+       <command cmdName="directories" cmdLevel="1" cmdCategory="Admin" cmdParent="print" rootOnly="false" cmdSeq="4">
+          <description>Print all the directories to Inventory</description>
+          <usage>print directories [ -node &lt;all | local | n1,n2,..&gt; ] [ -comp component_name1,component_name2,.. ] [ -policy &lt; exclusions | noexclusions &gt; ] [ -permission &lt; public | private &gt; ]</usage>
+       </command>
+       <command cmdName="hosts" cmdLevel="1" cmdCategory="Admin" cmdParent="print" rootOnly="false" cmdSeq="5">
+          <description>Print all the Hosts in the Configuration.</description>
+          <usage>print hosts</usage>
+       </command>
+       <command cmdName="receivers" cmdLevel="1" cmdCategory="Admin" cmdParent="print" rootOnly="false" cmdSeq="6">
+          <description>Print all the Receivers in the Configuration.</description>
+          <usage>print receivers</usage>
+       </command>
+       <command cmdName="collectors" cmdLevel="1" cmdCategory="Admin" cmdParent="print" rootOnly="false" cmdSeq="7">
+          <description>Print all the Collectors in the Configuration.</description>
+          <usage>print collectors</usage>
+       </command>
+       <command cmdName="robjects" cmdLevel="1" cmdCategory="Admin" cmdParent="print" rootOnly="false" cmdSeq="8">
+          <description>Print all the R Objects in the Configuration.</description>
+          <usage>print robjects</usage>
+       </command>
+       <command cmdName="actions" cmdLevel="1" cmdCategory="Admin" cmdParent="print" rootOnly="false" cmdSeq="9">
+          <description>Print all the Actions requested and their status.</description>
+          <usage>print actions [ -status &lt;status&gt; ] [ -since &lt;n&gt;&lt;h|d&gt; ]</usage>
+          <options>
+             _beginopt_-status &lt;status&gt;    Action status can be one or more of_endopt_ newline
+             _beginopt_                    COMPLETE,RUNNING,FAILED,REQUESTED_endopt_ newline
+             _beginopt_                    Specify comma separated list of statuses_endopt_ newline
+             _beginopt_-since &lt;n&gt;&lt;h|d&gt;     Actions from past 'n' [d]ays or 'n' [h]our_endopt_
+          </options>
+       </command>
+       <command cmdName="repository" cmdLevel="1" cmdCategory="Admin" cmdParent="print" rootOnly="false" cmdSeq="10">
+          <description>Print the zip file repository information.</description>
+          <usage>print repository</usage>
+       </command>
+       <command cmdName="runmode" cmdLevel="1" cmdCategory="Admin" cmdParent="print" rootOnly="false" cmdSeq="11">
+          <description>Print TFA running mode ( Collector/Receiver etc ).</description>
+           <usage>print runmode</usage>
+       </command>
+       <command cmdName="suspendedips" cmdLevel="1" cmdCategory="Admin" cmdParent="print" rootOnly="false" cmdSeq="12">
+          <description>Print all paused TFA IPS collections.</description>
+          <usage>print suspendedips</usage>
+       </command>
+       <command cmdName="protocols" cmdLevel="1" cmdCategory="Admin" cmdParent="print" rootOnly="false" cmdSeq="13">
+          <description>Print available and restricted protocols in TFA.</description>
+         <usage>print protocols</usage>
+       </command>
+       <command cmdName="smtp" cmdLevel="1" cmdCategory="Admin" cmdParent="print" rootOnly="yes" cmdSeq="14">
+          <description>Print SMTP Configuration in TFA.</description>
+         <usage>print smtp</usage>
+       </command>
+     </commands>
+  </command>
+
+  <command cmdName="access" cmdLevel="0" cmdCategory="Admin" rootOnly="true" isCloud="true" cloudRootOnly="true" cmdSeq="14">
+     <description>_begindesc_Add or Remove or List TFA Users and Groups_enddesc_ newline</description>
+     <usage>_begindef__enddef_</usage>
+     <commands>
+        <command cmdName="lsusers" cmdLevel="1" cmdCategory="access" cmdParent="access" rootOnly="false" cmdSeq="1">
+           <description>List all the TFA Users</description>
+           <usage>access lsusers [ -local ]</usage>
+           <options>
+             _beginifopt_noindentExamples:_endifopt_ newline
+             _beginifopt_tfacmd access lsusers_endifopt_ newline
+             _beginifopt_tfacmd access lsusers -local_endifopt_ newline
+           </options>
+        </command>
+        <command cmdName="add" cmdLevel="1" cmdCategory="access" cmdParent="access" rootOnly="false" cmdSeq="2">
+           <description>Add user</description>
+           <usage>access add -user &lt;user_name&gt; [ -local ]</usage>
+           <options>
+             _beginifopt_noindentExamples:_endifopt_ newline
+             _beginifopt_tfacmd access add -user abc_endifopt_ newline
+             _beginifopt_  User 'abc' is able to access TFA across cluster_endifopt_ newline
+           </options>
+        </command>
+        <command cmdName="remove" cmdLevel="1" cmdCategory="access" cmdParent="access" rootOnly="false" cmdSeq="3">
+           <description>Remove user</description>
+           <usage>access remove -user &lt;user_name&gt; [ -all ] [ -local ]</usage>
+           <options>
+             _beginifopt_noindentExamples:_endifopt_ newline
+             _beginifopt_tfacmd access remove -user abc_endifopt_ newline
+             _beginifopt_  User 'abc' will not be able to access TFA_endifopt_ newline
+           </options>
+        </command>
+        <command cmdName="block" cmdLevel="1" cmdCategory="access" cmdParent="access" rootOnly="false" cmdSeq="4">
+           <description>Block TFA Access for Non-root user</description>
+           <usage>access block -user &lt;user_name&gt; [ -local ]</usage>
+           <options>
+             _beginifopt_noindentExamples:_endifopt_ newline
+             _beginifopt_tfacmd access block -user xyz_endifopt_ newline
+             _beginifopt_  Access to user 'xyz' will be blocked_endifopt_ newline
+           </options>
+        </command>
+        <command cmdName="unblock" cmdLevel="1" cmdCategory="access" cmdParent="access" rootOnly="false" cmdSeq="5">
+           <description>Unblock TFA Access for Non-root user who was blocked before</description>
+           <usage>access unblock -user &lt;user_name&gt; [ -local ]</usage>
+           <options>
+             _beginifopt_noindentExamples:_endifopt_ newline
+             _beginifopt_tfacmd access unblock -user xyz_endifopt_ newline
+             _beginifopt_  Access to user 'xyz' will be unblocked_endifopt_ newline
+           </options>
+        </command>
+        <command cmdName="enable" cmdLevel="1" cmdCategory="access" cmdParent="access" rootOnly="false" cmdSeq="6">
+           <description>Enable TFA access for Non-root users</description>
+           <usage>access enable [ -local ]</usage>
+           <options>
+             _beginifopt_noindentExamples:_endifopt_ newline
+             _beginifopt_tfacmd access enable_endifopt_ newline
+           </options>
+        </command>
+        <command cmdName="disable" cmdLevel="1" cmdCategory="access" cmdParent="access" rootOnly="false" cmdSeq="7">
+           <description>Disable TFA access for Non-root users</description>
+           <usage>access disable [ -local ]</usage>
+           <options>
+             _beginifopt_noindentExamples:_endifopt_ newline
+             _beginifopt_tfacmd access disable_endifopt_ newline
+           </options>
+        </command>
+        <command cmdName="reset" cmdLevel="1" cmdCategory="access" cmdParent="access" rootOnly="false" cmdSeq="8">
+           <description>Reset to default TFA Users</description>
+           <usage>access reset [ -local ]</usage>
+           <options>
+             _beginifopt_noindentExamples:_endifopt_ newline
+             _beginifopt_tfacmd access reset_endifopt_ newline
+           </options>
+        </command>
+        <command cmdName="removeall" cmdLevel="1" cmdCategory="access" cmdParent="access" rootOnly="false" cmdSeq="9">
+           <description>Remove All TFA Users</description>
+           <usage>access removeall [ -local ]</usage>
+           <options>             _beginifopt_noindentExamples:_endifopt_ newline
+             _beginifopt_tfacmd access removeall_endifopt_ newline
+           </options>
+        </command>
+     </commands>
+  </command>
+
+  <command cmdName="purge" cmdLevel="0" cmdCategory="Admin" rootOnly="true" isCloud="true" cloudRootOnly="true" cmdSeq="15">
+     <description>_begindesc_Delete collections from TFA repository_enddesc_ newline</description>
+     <usage>_begindef_purge -older x[h|d] [-force]_enddef_            _begincloud_purge -older x[h|d] [-force]_endcloud_</usage>
+     <options>
+       _beginifopt_noindentExamples:_endifopt_ newline
+       _beginifopt_tfacmd purge -older 30d    - To remove file(s) older than 30 days._endifopt_ newline
+       _beginifopt_tfacmd purge -older 10h    - To remove file(s) older than 10 hours._endifopt_ newline
+       _beginifcloudopt_noindentExamples:_endifcloudopt_ newline
+       _beginifcloudopt_tfacmd purge -older 30d    - To remove file(s) older than 30 days._endifcloudopt_ newline
+       _beginifcloudopt_tfacmd purge -older 10h    - To remove file(s) older than 10 hours._endifcloudopt_ newline
+     </options>
+  </command>
+
+  <command cmdName="directory" cmdLevel="0" cmdCategory="Admin" rootOnly="false" isCloud="true" cloudRootOnly="true" cmdSeq="16">
+     <description>_begindesc_Add or Remove or Modify directory in TFA_enddesc_ newline</description>
+     <usage>_begindef__enddef_</usage>
+     <commands>
+        <command cmdName="add" cmdLevel="1" cmdCategory="directory" cmdParent="directory" rootOnly="false" cmdSeq="1">
+           <description>Add directory in TFA</description>
+           <usage>directory add &lt;dir&gt; [ -public ] [ -exclusions | -noexclusions | -collectall ] [ -node &lt;all | n1,n2..&gt; ]</usage>
+           <options>
+              _beginopt_-public  The Oracle directories are public as this is the purpose of the tool_endopt_ newline
+              _beginopt_         to allow for collection of these files._endopt_ newline
+              _beginopt_-exclusions This flag implies that files in this directory are eligible for_endopt_ newline
+              _beginopt_            collection satisfying type and time range._endopt_ newline
+              _beginopt_-noexclusions This flag implies that files in this directory are eligible for_endopt_ newline
+              _beginopt_              collection satisfying time range._endopt_ newline
+              _beginopt_-collectall This flag implies that all files in this directory are eligible for_endopt_ newline
+              _beginopt_            collection irrespective of type and time range when -collectalldirs_endopt_ newline
+              _beginopt_            flag is specified in diagcollection. Without -collectalldirs_endopt_ newline
+              _beginopt_            in this directory will be restricted by type and time range for collection_endopt_ newline
+              _beginifopt_noindentExamples:_endifopt_ newline
+              _beginifopt_tfacmd directory add /u01/app/grid/diag/asm/+ASM1/trace_endifopt_ newline
+           </options>
+        </command>
+        <command cmdName="remove" cmdLevel="1" cmdCategory="directory" cmdParent="directory" rootOnly="false" cmdSeq="2">
+           <description>Remove directory in TFA</description>
+           <usage>directory remove &lt;dir&gt; [ -node &lt;all | n1,n2..&gt; ]</usage>
+           <options>
+              _beginifopt_noindentExamples:_endifopt_ newline
+              _beginifopt_tfacmd directory remove /u01/app/grid/diag/asm/+ASM1/trace_endifopt_ newline
+              _beginifopt_tfacmd directory remove /u01/app/grid/diag/asm/+ASM1/trace -node all_endifopt_ newline
+           </options>
+        </command>  
+        <command cmdName="modify" cmdLevel="1" cmdCategory="directory" cmdParent="directory" rootOnly="false" cmdSeq="3">
+           <description>Modify directory in TFA</description>
+           <usage>directory modify &lt;dir&gt; [ -private | -public ] [ -exclusions | -noexclusions | -collectall ] [ -node &lt;all | n1,n2..&gt; ]</usage>
+           <options>
+             _beginopt_-private This flag implies that if the person executing this command_endopt_ newline
+             _beginopt_         does not have privileges to see files in those underlying directories_endopt_ newline
+             _beginopt_         then they will not be able to collect those files._endopt_ newline
+             _beginopt_-public  The Oracle directories are public as this is the purpose of the tool_endopt_ newline
+             _beginopt_         to allow for collection of these files._endopt_ newline
+             _beginopt_-exclusions This flag implies that files in this directory are eligible for_endopt_ newline
+             _beginopt_            collection satisfying type and time range._endopt_ newline
+             _beginopt_-noexclusions This flag implies that files in this directory are eligible for_endopt_ newline
+             _beginopt_              collection satisfying time range._endopt_ newline
+             _beginopt_-collectall This flag implies that all files in this directory are eligible for_endopt_ newline
+             _beginopt_            collection irrespective of type and time range when -collectalldirs_endopt_ newline
+             _beginopt_            flag is specified in diagcollection. Without -collectalldirs_endopt_ newline
+             _beginopt_            in this directory will be restricted by type and time range for collection_endopt_ newline 
+             _beginifopt_noindentExamples:_endifopt_ newline 
+             _beginifopt_tfacmd directory modify /u01/app/grid/diag/asm/+ASM1/trace -private_endifopt_ newline
+             _beginifopt_tfacmd directory modify /u01/app/grid/diag/asm/+ASM1/trace -noexclusions_endifopt_ newline
+             _beginifopt_tfacmd directory modify /u01/app/grid/diag/asm/+ASM1/trace -private -noexclusions_endifopt_ newline
+             _beginifopt_tfacmd directory modify /tmp/for_support -private -collectall_endifopt_ newline
+           </options>                
+        </command>
+     </commands>
+  </command>
+
+  <command cmdName="host" cmdLevel="0" cmdCategory="Admin" rootOnly="true" isCloud="true" cloudRootOnly="true" cmdSeq="17">
+     <description>_begindesc_Add or Remove host in TFA_enddesc_ newline</description>
+     <usage></usage>
+     <commands>
+        <command cmdName="add" cmdLevel="1" cmdCategory="host" cmdParent="host" rootOnly="false" cmdSeq="1">
+           <description>Add a host in TFA</description>
+           <usage>host add &lt;hostname&gt;</usage>
+           <options>
+             _beginifopt_noindentExamples:_endifopt_ newline
+             _beginifopt_tfacmd host add myhost_endifopt_ newline
+           </options>
+        </command>
+        <command cmdName="remove" cmdLevel="1" cmdCategory="host" cmdParent="host" rootOnly="false" cmdSeq="2">
+           <description>Remove a host in TFA</description>
+           <usage>host remove &lt;hostname&gt;</usage>
+           <options>
+             _beginifopt_noindentExamples:_endifopt_ newline
+             _beginifopt_tfacmd host remove myhost_endifopt_ newline
+           </options>
+        </command>
+     </commands>
+  </command>
+
+  <command cmdName="receiver" cmdLevel="0" cmdCategory="Admin" rootOnly="true" isCloud="true" cloudRootOnly="true" cmdSeq="18">
+     <description>_begindesc_Add or Remove receiver in TFA_enddesc_ newline</description>
+  </command>
+
+  <command cmdName="set" cmdLevel="0" cmdCategory="Admin" rootOnly="true" isCloud="true" cloudRootOnly="true" cmdSeq="19">
+     <description>_begindesc_Turn ON/OFF or Modify various TFA features_enddesc_ newline</description>
+     <usage>_begindef_set [ autodiagcollect=&lt;ON|OFF&gt; | trimfiles=&lt;ON|OFF&gt; | tracelevel=&lt;COLLECT|SCAN|INVENTORY|OTHER&gt;:&lt;1|2|3|4&gt; | reposizeMB=&lt;n&gt; | repositorydir=&lt;dir&gt; [-force] | logsize=&lt;n&gt; [-local] | logcount=&lt;n&gt; [-local] | maxcorefilesize=&lt;n&gt; [-local] | maxcorecollectionsize=&lt;n&gt; [-local] autopurge=&lt;ON|OFF&gt; | publicip=&lt;ON|OFF&gt; | minSpaceForRTScan=&lt;n&gt; | rtscan=&lt;ON|OFF&gt; | diskUsageMon=&lt;ON|OFF&gt; | diskUsageMonInterval=&lt;n&gt; | manageLogsAutoPurge=&lt;ON|OFF&gt; | manageLogsAutoPurgeInterval=&lt;n&gt; | manageLogsAutoPurgePolicyAge=&lt;d|h&gt; | minagetopurge=&lt;n&gt; | tfaIpsPoolSize=&lt;n&gt; | tfaDbUtlPurgeAge=&lt;n&gt; | tfaDbUtlPurgeMode=&lt;simple|resource&gt; ] [-c]_enddef_            _begincloud_set tfa_base=&lt;dir&gt; | java_home=&lt;dir&gt; | threaddumpinterval=&lt;n&gt; | threaddumpfrequency=&lt;n&gt;_endcloud_</usage>
+     <options>
+        _begincloudopt_tfa_base=&lt;dir&gt;    set TFA_BASE to &lt;dir&gt;_endcloudopt_ newline
+        _begincloudopt_java_home=&lt;dir&gt;   set JAVA_HOME to &lt;dir&gt;_endcloudopt_ newline
+        _begincloudopt_threaddumpinterval=&lt;n&gt;   set Thread Dump Interval to &lt;n&gt; (default 60 sec)_endcloudopt_ newline
+        _begincloudopt_threaddumpfrequency=&lt;n&gt;  set Thread Dump Frequency to &lt;n&gt; (default 3)_endcloudopt_ newline
+        _beginopt__endopt_ newline
+
+        _beginopt_autodiagcollect     allow for automatic diagnostic collection when an event_endopt_ newline
+        _beginopt_                    is observed (default ON)_endopt_ newline
+        _beginopt_trimfiles           allow trimming of files during diagcollection (default ON)_endopt_ newline
+        _beginopt_tracelevel          control the trace level of log files in tfa_log_endopt_ newline
+        _beginopt_                    (default 1 for all facilities)_endopt_ newline
+        _beginopt_reposizeMB=&lt;n&gt;      set the maximum size of diagcollection repository to &lt;n&gt;MB_endopt_ newline
+        _beginopt_repositorydir=&lt;dir&gt; set the diagcollection repository to &lt;dir&gt;_endopt_ newline
+        _beginopt_-force              skip inital checks while changing repository (Not Recommended)_endopt_ newline
+        _beginopt_logsize=&lt;n&gt;         set the maximum size of each TFA log to &lt;n&gt;MB (default 50 MB)_endopt_ newline
+        _beginopt_logcount=&lt;n&gt;        set the maximum number of TFA logs to &lt;n&gt; (default 10)_endopt_ newline
+        _beginopt_port=&lt;n&gt;            set TFA Port to &lt;n&gt;_endopt_ newline
+        _beginopt_maxcorefilesize=&lt;n&gt; set the maximum size of Core File to &lt;n&gt;MB (default 20 MB )_endopt_ newline
+        _beginopt_maxcorecollectionsize=&lt;n&gt; set the maximum collection size of Core Files to &lt;n&gt;MB (default 200 MB )_endopt_ newline
+        _beginopt_autopurge           allow automatic purging of collections when less space_endopt_ newline
+        _beginopt_                    is observed in repository (default OFF)_endopt_ newline
+        _beginopt_publicip            allow TFA to run on public network_endopt_ newline
+        _beginopt_smtp                Update SMTP Configuration_endopt_ newline
+        _beginopt_minSpaceForRTScan=&lt;n&gt;     Minimun space required to run RT Scanning(default 500)_endopt_ newline
+        _beginopt_rtscan              allow Alert Log Scanning_endopt_ newline
+        _beginopt_diskUsageMon        allow Disk Usage Monitoring_endopt_ newline
+        _beginopt_diskUsageMonInterval=&lt;n&gt;  Time interval between consecutive Disk Usage Snapshot(default 60 minutes)_endopt_ newline
+        _beginopt_manageLogsAutoPurge allow Manage Log Auto Purging_endopt_ newline
+        _beginopt_manageLogsAutoPurgeInterval=&lt;n&gt;  Time interval between consecutive Managelogs Auto Purge(default 60 minutes)_endopt_ newline
+        _beginopt_manageLogsAutoPurgePolicyAge=&lt;d|h&gt;  Logs older than the time period will be auto purged(default 30 days)_endopt_ newline
+        _beginopt_minagetopurge       set the age in hours for collections to be skipped by_endopt_ newline
+        _beginopt_                    AutoPurge (default 12 Hours)_endopt_ newline
+        _beginopt_tfaIpsPoolSize      set the TFA IPS pool size_endopt_ newline
+        _beginopt_tfaDbUtlPurgeAge    set the TFA ISA Purge Age (in seconds)_endopt_ newline
+        _beginopt_tfaDbUtlPurgeMode   set the TFA ISA Purge Mode (simple/resource)_endopt_ newline
+        _beginopt_-c                  set the value on all nodes (Does not apply to repository_endopt_ newline
+        _beginopt_                    settings)_endopt_ newline
+        _beginopt_-local              set the value on the local node (if option is not included_endopt_ newline
+        _beginopt_                    the value will be set on all the nodes)_endopt_ newline
+        _beginifopt_noindentExamples:_endifopt_ newline
+        _beginifopt_tfacmd set autodiagcollect=ON_endifopt_ newline
+        _beginifopt_tfacmd set autopurge=ON_endifopt_ newline
+        _beginifopt_tfacmd set tracelevel=INVENTORY:3_endifopt_ newline
+        _beginifopt_tfacmd set reposizeMB=20480_endifopt_ newline
+        _beginifopt_tfacmd set logsize=100_endifopt_ newline
+        _beginifopt_tfacmd set port=5000_endifopt_ newline
+     </options>
+  </command>
+
+  <command cmdName="cell" cmdLevel="0" cmdCategory="Admin" rootOnly="true" isExadata="true" cmdSeq="20">
+     <description>_begindesc_Configure or Modify various Storage Cell features_enddesc_ newline</description>
+  </command>
+
+  <command cmdName="toolstatus" cmdLevel="0" cmdCategory="Admin" rootOnly="false" isCloud="true" cloudRootOnly="true" cmdSeq="21">
+     <description>_begindesc_Prints the status of TFA Support Tools across all nodes_enddesc_ newline</description>
+     <usage>_begindef_toolstatus_enddef_            _begincloud_toolstatus_endcloud_</usage>
+  </command>
+
+  <command cmdName="uninstall" cmdLevel="0" cmdCategory="Admin" rootOnly="true" isCloud="true" cloudRootOnly="true" cmdSeq="22">
+     <description>_begindesc_Uninstall TFA from this node_enddesc_ newline</description>
+     <usage>_begindef_uninstall_enddef_            _begincloud_uninstall_endcloud_</usage>
+     <options>
+       _beginopt_-  This will uninstall TFA from this node_endopt_ newline
+       _begincloudopt_-  This will uninstall TFA from this node_endcloudopt_ newline
+     </options>
+  </command>
+
+  <command cmdName="diagnosetfa" cmdLevel="0" cmdCategory="Admin" rootOnly="true" isCloud="true" cloudRootOnly="true" cmdSeq="23">
+     <description>_begindesc_This will collect TFA logs and other TFA related information for diagnostic_enddesc_ newline</description>
+  </command>
+
+  <command cmdName="syncnodes" cmdLevel="0" cmdCategory="Admin" rootOnly="true" isCloud="true" cloudRootOnly="true" cmdSeq="23.1">
+     <description>_begindesc_This will generate and copy TFA Certificates to other TFA Nodes._enddesc_ newline</description>
+  </command>
+
+  <command cmdName="deploy" cmdLevel="0" cmdCategory="Internal" rootOnly="false" isCloud="true" cloudRootOnly="true" cmdSeq="24">
+     <description>_begindesc_Deploy the desired support tool_enddesc_ newline</description>
+     <usage>_begindef_deploy [ &lt;tool&gt; ]_enddef_
+            _begincloud_deploy [ &lt;tool&gt; ]_endcloud_</usage>
+  </command>
+
+  <command cmdName="shutdown" cmdLevel="0" cmdCategory="Internal" rootOnly="false" isCloud="true" cloudRootOnly="true" cmdSeq="25">
+     <description>_begindesc_Stops TFAMain and removes entries from inittab_enddesc_ newline</description>
+     <usage>_begindef_shutdown_enddef_
+            _begincloud_shutdown_endcloud_</usage>
+  </command>
+
+  <command cmdName="restrictprotocol" cmdLevel="0" cmdCategory="Internal" rootOnly="true" isCloud="true" cloudRootOnly="true" cmdSeq="26">
+     <description>_begindesc_Restrict protocol from TFA Cluster_enddesc_ newline</description>
+     <usage>_begindef_restrictprotocol [-force] &lt;protocol&gt;_enddef_
+            _begincloud_restrictprotocol [-force] &lt;protocol&gt;_endcloud_</usage>
+  </command>
+
+  <command cmdName="change" cmdLevel="0" cmdCategory="Internal" rootOnly="false" isCloud="true" cloudRootOnly="true" cmdSeq="27">
+     <description>_begindesc_Change permission of directory in TFA_enddesc_ newline</description>
+     <usage>_begindef_change directory &lt;dir&gt; [-private | -public]_enddef_
+            _begincloud_change directory &lt;dir&gt; [-private | -public]_endcloud_</usage>
+     <options>
+       _beginifopt_noindentExample:_endifopt_ newline
+       _beginifopt_tfacmd change directory /var/log -private_endifopt_ newline
+       _beginifcloudopt_noindentExample:_endifcloudopt_ newline
+       _beginifcloudopt_tfacmd change directory /var/log -private_endifcloudopt_ newline
+     </options>
+  </command>
+
+  <command cmdName="receiver" cmdLevel="0" cmdCategory="Internal" rootOnly="false" isCloud="true" cloudRootOnly="true" cmdSeq="28">
+     <description>_begindesc_Manage a receiver in TFA_enddesc_ newline</description>
+     <usage>_begindef__enddef_</usage>
+     <commands>
+        <command cmdName="add" cmdLevel="1" cmdCategory="Internal" cmdParent="receiver" rootOnly="true" cmdSeq="1">
+           <description>Add a receiver in TFA</description>
+           <usage>receiver add &lt;receiver:receiverPort&gt;</usage>
+           <options>
+              _beginifopt_noindentExample:_endifopt_ newline
+              _beginifopt_tfacmd receiver add myreceiver.domain.com:9999_endifopt_ newline
+           </options>
+        </command>
+        <command cmdName="remove" cmdLevel="1" cmdCategory="Internal" cmdParent="receiver" rootOnly="true" cmdSeq="2">
+           <description>Remove a receiver in TFA</description>
+           <usage>receiver remove &lt;receiver&gt;</usage>
+           <options>
+              _beginifopt_tfacmd receiver remove myreceiver.domain.com_endifopt_ newline
+           </options>
+        </command>
+        <command cmdName="startweb" cmdLevel="1" cmdCategory="Internal" cmdParent="receiver" rootOnly="true" cmdSeq="3">
+           <description>Start the web component of the receiver in TFA</description>
+           <usage>receiver startweb -port &lt;Port Number&gt;</usage>
+           <options>
+              _beginifopt_noindentExample:_endifopt_ newline
+              _beginifopt_tfacmd receiver startweb -port &lt;Port Number&gt;_endifopt_ newline
+           </options>
+        </command>
+        <command cmdName="stopweb" cmdLevel="1" cmdCategory="Internal" cmdParent="receiver" rootOnly="true" cmdSeq="4">
+           <description>Stop the web component of the receiver in TFA</description>
+           <usage>receiver stopweb</usage>
+           <options>
+              _beginifopt_noindentExample:_endifopt_ newline
+              _beginifopt_tfacmd receiver stopweb_endifopt_ newline
+           </options>
+         </command>
+        <command cmdName="info" cmdLevel="1" cmdCategory="Internal" cmdParent="receiver" rootOnly="true" cmdSeq="5">
+           <description>Display information for TFA receiver</description>
+	   <usage>receiver info</usage>
+           <options>
+              _beginifopt_noindentExample:_endifopt_ newline
+              _beginifopt_tfacmd receiver info_endifopt_ newline
+           </options>
+	</command>
+     </commands>
+  </command>
+
+  <command cmdName="client" cmdLevel="0" cmdCategory="Internal" rootOnly="true" isCloud="true" cloudRootOnly="true" cmdSeq="29">
+     <description>_begindesc_Manage clients in TFA_enddesc_ newline</description>
+     <usage>_begindef_client &lt;command&gt; [options]_enddef_</usage>
+     <commands>
+        <command cmdName="add" cmdLevel="1" cmdCategory="Internal" cmdParent="client" rootOnly="true" cmdSeq="1">
+	   <description>Add a client in TFA</description>
+	   <usage>client add &lt;client&gt;</usage>
+           <options>
+             _beginifopt_noindentExample:_endifopt_ newline
+       	     _beginifopt_tfacmd client add myclient.domain.com_endifopt_ newline
+             _beginifcloudopt_noindentExample:_endifcloudopt_ newline
+             _beginifcloudopt_tfacmd client add myclient.domain.com_endifcloudopt_ newline
+     	   </options>
+    	 </command>
+	 <command cmdName="remove" cmdLevel="1" cmdCategory="Internal" cmdParent="client" rootOnly="true" cmdSeq="2">
+	   <description>Remove a client in TFA</description>
+	   <usage>client remove &lt;client&gt;</usage>
+           <options>
+             _beginifopt_noindentExample:_endifopt_ newline
+       	     _beginifopt_tfacmd client remove myclient.domain.com_endifopt_ newline
+             _beginifcloudopt_noindentExample:_endifcloudopt_ newline
+             _beginifcloudopt_tfacmd client remove myclient.domain.com_endifcloudopt_ newline
+     	   </options>
+       	 </command>
+	 <command cmdName="list" cmdLevel="1" cmdCategory="Internal" cmdParent="client" rootOnly="true" cmdSeq="3">
+	   <description>List all the registered clients in TFA</description>
+	   <usage>client list [ -details ]</usage>
+           <options>            
+       	     _beginifopt_-details  Lists only the Member Clusters(MCs)_endifopt_ newline
+	     _beginifopt__endifopt_ newline
+       	      _beginifopt_noindentExample_endifopt_ newline
+       	      _beginifopt_tfacmd client list -details_endifopt_ newline
+	     _beginifcloudopt_noindentExamples:_endifcloudopt_ newline
+       	     _beginifcloudopt_tfacmd client list -details_endifcloudopt newline
+     	   </options>
+	</command>
+     </commands>
+  </command>
+
+  <command cmdName="producer" cmdLevel="0" cmdCategory="Internal" rootOnly="true" isCloud="true" cloudRootOnly="true" cmdSeq="30">
+     <description>_begindesc_Manage the producer in TFA_enddesc_ newline</description>
+     <usage>_begindef__enddef_</usage>
+     <commands>
+        <command cmdName="start" cmdLevel="1" cmdCategory="Internal" cmdParent="producer" rootOnly="true" cmdSeq="1">
+           <description>Start sending data to receiver.Default action is clusterwide</description>
+           <usage>producer start [ -local ]</usage>
+           <options>
+              _beginifopt_noindentExample:_endifopt_ newline
+              _beginifopt_tfacmd producer start_endifopt_ newline
+</options>
+        </command>
+        <command cmdName="stop" cmdLevel="1" cmdCategory="Internal" cmdParent="producer" rootOnly="true" cmdSeq="2">
+           <description>Stop sending data to receiver.Default action is clusterwide</description>
+           <usage>producer stop [ -local ]</usage>
+           <options>
+              _beginifopt_noindentExample:_endifopt_ newline
+              _beginifopt_tfacmd producer stop_endifopt_ newline
+</options>
+        </command>
+	<command cmdName="status" cmdLevel="1" cmdCategory="Internal" cmdParent="producer" rootOnly="true" cmdSeq="3">
+           <description>Show producer status clusterwide.</description>
+           <usage>producer status</usage>
+           <options>
+              _beginifopt_noindentExample:_endifopt_ newline
+              _beginifopt_tfacmd producer status_endifopt_ newline
+           </options>
+        </command>
+     </commands>   
+  </command>
+
+  <command cmdName="dom0IP" cmdLevel="0" cmdCategory="Internal" rootOnly="true" isCloud="true" cloudRootOnly="true" cmdSeq="31">
+     <description>_begindesc_Manage a ODADom0 private network IPAddress in TFA_enddesc_ newline</description>
+     <usage>_begindef__enddef_</usage>
+     <commands>
+        <command cmdName="add" cmdLevel="1" cmdCategory="Internal" cmdParent="dom0IP" rootOnly="true" cmdSeq="1">
+           <description>Add a ODADom0 private network IPAddress in TFA</description>
+           <usage>add &lt;ipaddress&gt;</usage>
+           <options>
+              _beginifopt_noindentExample:_endifopt_ newline
+              _beginifopt_tfacmd dom0IP add 192.168.16.24_endifopt_ newline
+           </options>
+        </command>
+        <command cmdName="remove" cmdLevel="1" cmdCategory="Internal" cmdParent="dom0IP" rootOnly="true" cmdSeq="2">
+           <description>Remove a ODADom0 private network IPAddress in TFA</description>
+           <usage>remove &lt;ipaddress&gt;</usage>
+           <options>
+              _beginifopt_noindentExample:_endifopt_ newline
+              _beginifopt_tfacmd dom0IP remove 192.168.16.24_endifopt_ newline
+           </options>
+        </command>
+     </commands>   
+  </command>
+
+  <command cmdName="deletedb" cmdLevel="0" cmdCategory="Internal" rootOnly="true" isCloud="true" cloudRootOnly="true" cmdSeq="32">
+     <description>_begindesc_Delete the tfa database._enddesc_ newline</description>
+     <usage>_begindef_deletedb_enddef_
+            _begincloud_deletedb_endcloud_</usage>
+     <options>
+        _beginifopt_noindentExample:_endifopt_ newline
+        _beginifopt_tfacmd client add myclient.domain.com_endifopt_ newline
+        _beginifcloudopt_noindentExample:_endifcloudopt_ newline
+        _beginifcloudopt_tfacmd client add myclient.domain.com_endifcloudopt_ newline
+     </options>
+  </command>
+
+  <command cmdName="removecollection" cmdLevel="0" cmdCategory="Internal" rootOnly="true" isCloud="true" cloudRootOnly="true" cmdSeq="33">
+     <description>_begindesc_Manages TFA Collections._enddesc_ newline</description>
+     <usage>_begindef_collection [stop &lt;collectionid&gt;]_enddef_
+            _begincloud_collection [stop &lt;collectionid&gt;]_endcloud_</usage>
+     <options>
+         _beginifopt_noindentOptions:_endifopt_ newline
+         _beginifopt_stop            Stop the requested collection_endifopt_ newline
+         _beginifcloudopt_noindentOptions:_endifcloudopt_ newline
+         _beginifcloudopt_stop            Stop the requested collection_endifcloudopt_ newline
+     </options>
+  </command>
+
+  <command cmdName="zipfiles" cmdLevel="0" cmdCategory="Internal" rootOnly="true" isCloud="true" cloudRootOnly="true" cmdSeq="34">
+     <description>_begindesc_Generate zips for the given date and time range._enddesc_ newline</description>
+     <usage>_begindef_zipfiles [-since &lt;n&gt;&lt;h|d&gt;| -from &lt;time&gt; -to &lt;time&gt; | -for &lt;day&gt;] [-c] [-o &lt;file&gt;]_enddef_
+            _begincloud_zipfiles [-since &lt;n&gt;&lt;h|d&gt;| -from &lt;time&gt; -to &lt;time&gt; | -for &lt;day&gt;] [-c] [-o &lt;file&gt;]_endcloud_
+     </usage> 
+     <options>
+         _beginifopt_noindentOptions:_endifopt_ newline
+         _beginifopt_-since &lt;n&gt;&lt;h|d&gt;  Files from past 'n' days or 'n' hours_endifopt_ newline
+         _beginifopt_-from &lt;time&gt;     From time_endifopt_ newline
+         _beginifopt_-to &lt;time&gt;       To time_endifopt_ newline
+         _beginifopt_-for &lt;day&gt;       Specify a day_endifopt_ newline
+         _beginifopt_-c               Zip files from all nodes of the cluster_endifopt_ newline
+         _beginifopt_-o &lt;file&gt;        Output file name_endifopt_ newline
+         _beginifopt_noindentExamples:_endifopt_ newline
+         _beginifopt_tfacmd zipfiles -since 1d -o foo -c_endifopt_ newline
+         _beginifopt_ Zip all files from last 1 day across cluster_endifopt_ newline
+         _beginifopt_tfacmd zipfiles -since 6h_endifopt_ newline
+         _beginifopt_ Zip all files from last 6 hours on local node_endifopt_ newline
+         _beginifopt_tfacmd zipfiles -from Mar/4/2012 -to "Mar/5/2012 21:00:00"_endifopt_ newline
+         _beginifopt_ Zip all files between from and to time_endifopt_ newline
+         _beginifopt_tfacmd zipfiles -for Mar/2/2012_endifopt_ newline
+         _beginifopt_ Zip all files for the day Mar/2/2012_endifopt_ newline
+
+         _beginifcloudopt_noindentOptions:_endifcloudopt_ newline
+         _beginifcloudopt_-since &lt;n&gt;&lt;h|d&gt;  Files from past 'n' days or 'n' hours_endifcloudopt_ newline
+         _beginifcloudopt_-from &lt;time&gt;     From time_endifcloudopt_ newline
+         _beginifcloudopt_-to &lt;time&gt;       To time_endifcloudopt_ newline 
+         _beginifcloudopt_-for &lt;day&gt;       Specify a day_endifcloudopt_ newline
+         _beginifcloudopt_-c               Zip files from all nodes of the cluster_endifcloudopt_ newline
+         _beginifcloudopt_-o &lt;file&gt;        Output file name_endifcloudopt_ newline
+         _beginifcloudopt_noindentExamples:_endifcloudopt_ newline
+         _beginifcloudopt_tfacmd zipfiles -since 1d -o foo -c_endifcloudopt_ newline
+         _beginifcloudopt_ Zip all files from last 1 day across cluster_endifcloudopt_ newline
+         _beginifcloudopt_tfacmd zipfiles -since 6h_endifcloudopt_ newline
+         _beginifcloudopt_ Zip all files from last 6 hours on local node_endifcloudopt_ newline
+         _beginifcloudopt_tfacmd zipfiles -from Mar/4/2012 -to "Mar/5/2012 21:00:00"_endifcloudopt_ newline
+         _beginifcloudopt_ Zip all files between from and to time_endifcloudopt_ newline
+         _beginifcloudopt_tfacmd zipfiles -for Mar/2/2012_endifcloudopt_ newline
+         _beginifcloudopt_ Zip all files for the day Mar/2/2012_endifcloudopt_ newline
+    </options>
+  </command>
+
+  <command cmdName="deployext" cmdLevel="0" cmdCategory="Internal" rootOnly="true" isCloud="true" cloudRootOnly="true" cmdSeq="35">
+     <description>_begindesc_This will deploy TFA support tools._enddesc_ newline</description>
+     <usage>_begindef_deployext_enddef_
+            _begincloud_deployext_endcloud_</usage>
+  </command>
+
+  <command cmdName="runtool" cmdLevel="0" cmdCategory="Internal" rootOnly="true" isCloud="true" cloudRootOnly="true" cmdSeq="36">
+     <description>_begindesc_This will run the desired TFA tool._enddesc_ newline</description>
+     <usage>_begindef_&lt;tool&gt; [ arg1 arg2 ... argn]_enddef_
+            _begincloud_&lt;tool&gt; [ arg1 arg2 ... argn]_endcloud_</usage>
+  </command>
+
+  <command cmdName="cell" cmdLevel="0" cmdCategory="Internal" rootOnly="true" isCloud="true" cloudRootOnly="true" cmdSeq="37">
+     <description>_begindesc_Print or Modify various Storage Cell features_enddesc_ newline</description>
+     <usage>_begindef__enddef_</usage>
+     <commands>
+        <command cmdName="status" cmdLevel="1" cmdCategory="Internal" cmdParent="cell" rootOnly="true" cmdSeq="1">
+           <description>Print the current status of Storage Cells</description>
+           <usage>cell status</usage>
+        </command>
+        <command cmdName="config" cmdLevel="1" cmdCategory="Internal" cmdParent="cell" rootOnly="true" cmdSeq="2">
+           <description>Print the current configuration of Storage Cells</description>
+           <usage>cell config</usage>
+        </command>
+        <command cmdName="add" cmdLevel="1" cmdCategory="Internal" cmdParent="cell" rootOnly="true" cmdSeq="3">
+           <description>Add Wallet or Wallet Password for Storage Cells</description>
+           <usage>cell add</usage>
+        </command>
+        <command cmdName="remove" cmdLevel="1" cmdCategory="Internal" cmdParent="cell" rootOnly="true" cmdSeq="4">
+           <description>Remove Wallet Password</description>
+           <usage>cell remove</usage>
+        </command>
+        <command cmdName="invstat" cmdLevel="1" cmdCategory="Internal" cmdParent="cell" rootOnly="true" cmdSeq="5">
+           <description>Print the Inventory Statistics of Storage Cells</description>
+           <usage>cell invstat</usage>
+        </command>
+        <command cmdName="diagstat" cmdLevel="1" cmdCategory="Internal" cmdParent="cell" rootOnly="true" cmdSeq="6">
+           <description>Print the Diagcollection Statistics of Storage cells</description>
+           <usage>cell diagstat</usage>
+        </command>
+        <command cmdName="configure" cmdLevel="1" cmdCategory="Internal" cmdParent="cell" rootOnly="true" cmdSeq="7">
+           <description>To Configure Storage Cells</description>
+           <usage>cell configure</usage>
+        </command>
+        <command cmdName="deconfigure" cmdLevel="1" cmdCategory="Internal" cmdParent="cell" rootOnly="true" cmdSeq="8">
+           <description>To remove all the Storage Cell Configuration</description>
+           <usage>cell deconfigure</usage>
+        </command>
+     </commands>
+  </command>
+
+  <command cmdName="setupmos" cmdLevel="0" cmdCategory="Admin" rootOnly="false" isCloud="true" cmdSeq="38">
+    <description>_begindesc_Store My Oracle Support credentials in Oracle wallet_enddesc_ newline</description>
+    <usage>_begindef_setupmos _enddef_</usage>
+  </command>
+
+  <command cmdName="upload" cmdLevel="0" cmdCategory="Collection" rootOnly="false" isCloud="true" cmdSeq="39">
+    <description>_begindesc_Upload collections/files to SR_enddesc_ newline</description>
+    <usage>_begindef_upload -sr &lt;SR#&gt; [ -user &lt;UserId&gt; | -wallet ] &lt;Files&gt;_enddef_ newline</usage>
+    <options>
+       _beginifopt_-sr &lt;SR#&gt;      Support Request number to use for file upload_endifopt_ newline 
+       _beginifopt_-user &lt;userid&gt; My Oracle Support User ID_endifopt_ newline 
+       _beginifopt_-wallet        Upload will use credentials from Oracle wallet_endifopt_ newline
+       _beginifopt_&lt;Files&gt;        Space separated list of files you wish to upload_endifopt_ newline
+    </options>
+  </command>
+
+  <command cmdName="availability" cmdLevel="0" cmdCategory="availability" rootOnly="true" cmdSeq="40">
+    <description>_begindesc_Component Availability_enddesc_ newline</description>
+    <usage></usage>
+    <options>
+    </options>
+    <commands>
+      <command cmdName="enable" cmdLevel="1" cmdCategory="availability" cmdParent="availability" rootOnly="true" cmdSeq="1">
+        <description><![CDATA[Enable resources for Availability Score   
+          ]]> </description>
+        <usage><![CDATA[ enable -key <key> -value <value>  | -list 
+              ]]></usage>
+        <options>
+          _beginifopt_-type  &lt;resource_type&gt;  Resource type to be enable_endifopt_ newline
+          _beginifopt_-key   &lt;key&gt;            Key of the resource to be enable_endifopt_ newline
+          _beginifopt_-list                   List of resources that are available for enabling_endifopt_newline newline
+          _beginifopt_Examples:_endifopt_newline newline
+          _beginifopt_tfacmd availability enable -list_endifopt_ newline
+          _beginifopt_tfacmd availability enable -type server_disk -key filesystem -value "/dev/xvdad1"_endifopt_ newline
+          _beginifopt_tfacmd availability enable -type server_network -key interface -value eth1_endifopt_ newline newline
+
+        </options>
+      </command>
+      
+      <command cmdName="disable" cmdLevel="1" cmdCategory="availability" cmdParent="availability" rootOnly="true" cmdSeq="1">
+        <description><![CDATA[Disable resources for Availability Score   
+          ]]> </description>
+        <usage><![CDATA[ disable -key <key> -value <value> [-for n<d|D|h|H|m|M>]  | -list [-for n<d|D|h|H|m|M>] 
+              ]]></usage>
+        <options>
+          _beginifopt_-type  &lt;resource_type&gt;  Resource type to be disable_endifopt_ newline
+          _beginifopt_-key   &lt;key&gt;            Key of the resource to be disable_endifopt_ newline
+          _beginifopt_-for   n&lt;d|D|h|H|m|M&gt;   Days, Hours or Minutes to determine how long the resource will be_endifopt_newline
+          _beginifopt_                        disabled, default will be 7 days. _endifopt_newline
+          _beginifopt_-list                   List of resources that are available for disabling_endifopt_newline newline
+          _beginifopt_Examples:_endifopt_ newline newline 
+          _beginifopt_tfacmd availability disable -list_endifopt_ newline
+          _beginifopt_tfacmd availability disable -list -for 3d_endifopt_ newline
+          _beginifopt_tfacmd availability disable -list -for 15h_endifopt_ newline
+          _beginifopt_tfacmd availability disable -type server_disk -key filesystem -value "/dev/xvdad1"_endifopt_ newline
+          _beginifopt_tfacmd availability disable -type server_network -key interface -value eth1_endifopt_ newline
+          _beginifopt_tfacmd availability disable -type server_disk -key filesystem -value "/dev/xvdad1" -for 3d_endifopt_ newline
+          _beginifopt_tfacmd availability disable -type server_network -key interface -value eth1 -for 12h_endifopt_ newline newline
+        </options>
+      </command>
+    </commands>
+  </command>
+
+  <command cmdName="rest" cmdLevel="0" cmdCategory="Admin" rootOnly="true" isCloud="false" cmdSeq="41">
+    <description>_begindesc_TFA REST Services_enddesc_ newline</description>
+    <usage></usage>
+  </command>
+   <command cmdName="dbcheck" cmdLevel="0" cmdCategory="Admin" rootOnly="true" isExadata="true" cmdSeq="42">
+     <description>_begindesc_Run Exadata DBCheck_enddesc_ newline</description>
+  </command>
+
+
+  <command cmdName="events" cmdLevel="0" cmdCategory="Collection" rootOnly="false" isCloud="true" cloudRootOnly="true" cmdSeq="42">
+     <description>_begindesc_Lists all important events in system_enddesc_ newline</description>
+     <usage> event [-search &lt;keyword&gt; | -component &lt;ASM|CRS&gt; | -database &lt;db_name&gt; | -instance &lt;db_instance_name&gt; |
+                                    -source &lt;filename&gt; | -from &lt;time&gt; -to &lt;time&gt; | -json | -fields all|&lt;fields_list&gt; ]</usage>
+     <options>
+          _beginopt_-component     [ASM|CRS] Searches all ASM or CRS events_endopt_ newline
+          _beginopt_-database      Searches all events from a particular database_endopt_ newline
+          _beginopt_-instance      Searches all events from a particular instance_endopt_ newline
+          _beginopt_-source        Searches all events from a particular alert file_endopt_ newline
+          _beginopt_-json          Outputs event information in JSON format_endopt_ newline
+          _beginopt_-fields        When provided with the -json option, the command will only return the requested fields_endopt_ newline
+          _beginopt_-from          "Mon/dd/yyyy hh:mm:ss"    From &lt;time&gt;_endopt_ newline
+          _beginopt_                or "yyyy-mm-dd hh:mm:ss"_endopt_ newline
+          _beginopt_                or "yyyy-mm-ddThh:mm:ss"_endopt_ newline
+          _beginopt_                or "yyyy-mm-dd"_endopt_ newline
+          _beginopt_-to            "Mon/dd/yyyy hh:mm:ss"    To &lt;time&gt;_endopt_ newline
+          _beginopt_                or "yyyy-mm-dd hh:mm:ss"_endopt_ newline
+          _beginopt_                or "yyyy-mm-ddThh:mm:ss"_endopt_ newline
+          _beginopt_                or "yyyy-mm-dd"_endopt_ newline
+          _beginopt_-for           "Mon/dd/yyyy"                 For &lt;date&gt;_endopt_ newline
+          _beginopt_                or "yyyy-mm-dd"_endopt_ newline
+          _beginopt_-last           &lt;n&gt;&lt;h|d&gt;_endopt_ newline newline
+     </options>
+     <examples>
+          _begineg_tfactl events_endeg_ newline
+          _begineg_tfactl events -search ORA-0600_endeg_ newline
+          _begineg_tfactl events -from "Jan/20/2017 12:00:00" -to "Jan/20/2018 12:00:00"_endeg_ newline
+          _begineg_tfactl events -json -fields [ all | data_type,content,component ]_endeg_ newline
+          _begineg_tfactl events -database orcl_endeg_ newline
+          _begineg_tfactl events -source alert_orcl.log_endeg_ newline
+     </examples>
+  </command> 
+
+  <command cmdName="search" cmdLevel="0" cmdCategory="Collection" rootOnly="false" isCloud="true" cloudRootOnly="true" cmdSeq="43">
+     <description>_begindesc_Lists the indexed data in the system_enddesc_ newline</description>
+     <usage> search [-json &lt;json_string&gt; | -fields all|&lt;fields_list&gt; | -showdatatypes | -showfields &lt;datatype&gt; ]</usage>
+     <options>
+          _beginopt_-json               JSON string containing the criteria of search_endopt_ newline
+          _beginopt_-fields             The command returns the JSON output with the requested fields only_endopt_ newline
+          _beginopt_-showdatatypes      Outputs the list of all available datatypes_endopt_ newline
+          _beginopt_-showfields         Outputs the list of fields available in a datatype_endopt_ newline newline 
+     </options>
+     <examples>
+          _begineg_tfactl search_endeg_ newline
+          _begineg_tfactl search -json '{"data_type":"event"}'_endeg_ newline
+          _begineg_tfactl search -json '{"data_type":"db_param"}' -fields all_endeg_ newline
+          _begineg_tfactl search -json '{"data_type":"event"}' -fields data_type,content,component ]_endeg_ newline
+          _begineg_tfactl search -showdatatypes_endeg_ newline
+          _begineg_tfactl search -showfields event_endeg_ newline
+     </examples>
+  </command> 
+
+  <command cmdName="changes" cmdLevel="0" cmdCategory="Collection" rootOnly="false" isCloud="true" cloudRootOnly="true" cmdSeq="44">
+     <description>_begindesc_Lists all changes in the system_enddesc_ newline</description>
+     <usage> changes [ -from &lt;time&gt; -to &lt;time&gt; | -for &lt;time&gt; | last &lt;time_length&gt; ]</usage>
+     <options>
+          _beginopt_-from          "Mon/dd/yyyy hh:mm:ss"    From &lt;time&gt;_endopt_ newline
+          _beginopt_                or "yyyy-mm-dd hh:mm:ss"_endopt_ newline
+          _beginopt_                or "yyyy-mm-ddThh:mm:ss"_endopt_ newline
+          _beginopt_                or "yyyy-mm-dd"_endopt_ newline
+          _beginopt_-to            "Mon/dd/yyyy hh:mm:ss"    To &lt;time&gt;_endopt_ newline
+          _beginopt_                or "yyyy-mm-dd hh:mm:ss"_endopt_ newline
+          _beginopt_                or "yyyy-mm-ddThh:mm:ss"_endopt_ newline
+          _beginopt_                or "yyyy-mm-dd"_endopt_ newline
+          _beginopt_-for           "Mon/dd/yyyy"                 For &lt;date&gt;_endopt_ newline
+          _beginopt_                or "yyyy-mm-dd"_endopt_ newline
+          _beginopt_-last           &lt;n&gt;&lt;h|d&gt;_endopt_ newline newline
+     </options>
+     <examples>
+     </examples>
+  </command> 
+
+  <command cmdName="isa" cmdLevel="0" cmdCategory="Collection" rootOnly="true" isCloud="true" cmdSeq="45">
+    <description>_begindesc_Display the TFA - ISA (Infrastructure Service Automation) Score_enddesc_ newline</description>
+    <usage>_begindef_isa [-availability] [-all] [-node &lt;all|local|n1,n2,..&gt;]_enddef_ newline</usage>
+    <options>
+       _beginopt__endopt_ newline
+       _beginopt_-availability   Include the Availability Score_endopt_ newline
+       _beginopt_-all            Display all the details_endopt_ newline
+       _beginopt_-node           Specify comma separated list of host names_endopt_ newline newline
+    </options>
+  </command>
+
+</commands>

@@ -1,0 +1,63 @@
+printf("==========START_OF_REPORT_chkMaintenance.aksh==========\n");
+//
+//
+// This script will check if ZFS has any outstanding active problems
+//
+
+// ----------------------------------------------------------------------------
+// VARS
+
+	var founderrors = false; // Track error findings
+	var auditcheck = 0;
+	var report = 1;
+        var runonetime = 1;
+
+
+// ----------------------------------------------------------------------------
+// MAIN STARTS HERE	
+if(runonetime==1)
+{
+getHostname();
+
+// Get the interval
+try { 
+	run('maintenance problems');
+	var allproblems = list();
+    if ( allproblems.length > 0 ) {
+		founderrors=true;
+        if ( report == 1) {
+			problem=run('show');
+			printf("%s\n",problem);
+        }
+    }
+	run('cd /');
+} catch(err) { 
+}
+runonetime=0;
+}
+
+
+// Report Command
+
+if ( report == 1 ) {
+    if ( founderrors == false ) {
+        printf("OK: %s ZFS Maintenance Check Completed: ZFS has no outstanding active problems\n",host_name);
+    }
+    else {
+	    printf("WARNING: %s ZFS Maintenance Check Completed: ZFS has one or more outstanding active problems\n",host_name);
+    }
+
+}
+
+//END
+
+printf("==========END_OF_REPORT_chkMaintenance.aksh==========\n");
+printf("==========START_OF_AUDIT_CHECK_chkMaintenance.aksh==========\n");
+if ( founderrors == false ) {
+        printf("maintenance_check_status = 0\n");
+}
+else {
+        printf("maintenance_check_status = 1\n");
+}
+
+printf("==========END_OF_AUDIT_CHECK_chkMaintenance.aksh==========\n");

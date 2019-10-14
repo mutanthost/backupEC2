@@ -1,0 +1,32 @@
+<?xml version="1.0"?>
+
+<!--  $Header: tfa/src/v2/tfa_home/resources/tfactldbutlschedlist.xml /main/3 2018/08/15 16:55:53 bburton Exp $ -->
+
+<!-- 
+ Copyright (c) 2018, Oracle and/or its affiliates. All rights reserved.
+
+   NAME
+     tfactldbutltcategories.xml - Time categories catalog.
+
+   DESCRIPTION
+     Time categories catalog.
+     To be load in-memory by TFADbUtlThread class.
+
+   NOTES
+     <other useful comments, qualifications, etc.>
+
+   MODIFIED   (MM/DD/YY)
+   manuegar    08/05/18 - XbranchMerge manuegar_dbutils16 from main
+   manuegar    07/24/18 - manuegar_dbutils16.
+   manuegar    02/22/18 - Creation
+
+-->
+<timecategories>
+  <timecategory name="cat1_min" frequency="1" frequnits="min"/>
+  <timecategory name="cat5_min" frequency="5" frequnits="min"/>
+  <timecategory name="cat30_min" frequency="30" frequnits="min"/>
+  <timecategory name="cat60_min" frequency="60" frequnits="min"/>
+  <timecategory name="cat12_hour" frequency="12" frequnits="hour"/>
+  <timecategory name="cat24_hour" frequency="24" frequnits="hour"/>
+  <timecategory name="cat30_day" frequency="30" frequnits="day"/>
+</timecategories>

@@ -1,0 +1,72 @@
+<?xml version="1.0"?>
+
+<!--  $Header: tfa/src/v2/tfa_home/resources/srdc_ora1578.xml /main/2 2018/08/15 16:55:53 bburton Exp $ -->
+
+<!-- 
+ Copyright (c) 2018, Oracle and/or its affiliates. All rights reserved.
+
+   NAME
+     srdc_ora1578.xml
+
+   DESCRIPTION
+     SRDC - Required Diagnostic Data Collection for NOLOGGING ORA-1578/ORA-26040 DBV-00201
+
+   MODIFIED   (MM/DD/YY)
+   xiaodowu    08/01/18 - Revolve Bug 28438363 - INCORRECT COLLECTION_ID FORMAT
+   xiaodowu    03/28/18 - SRDC - Required Diagnostic Data Collection for
+                          NOLOGGING ORA-1578/ORA-26040 DBV-00201 (Doc ID
+                          1947824.1)
+   xiaodowu    03/28/18 - Creation
+
+-->
+
+<collections>
+<collection id="ORA-01578">
+    <description>SRDC - Required Diagnostic Data Collection for NOLOGGING ORA-1578/ORA-26040 DBV-00201.</description>
+    <srdc_docs>Doc ID 1947824.1: SRDC - Required Diagnostic Data Collection for NOLOGGING ORA-1578/ORA-26040 DBV-00201.</srdc_docs>
+    <alias>ora1578</alias>
+    <onevents>
+        <event>
+            <infile>
+                <name_patterns>
+                    <pattern>alert_.*\.log</pattern>
+                </name_patterns>
+            </infile>
+        </event>
+    </onevents>
+    <user_inputs>
+        <user_input cmdline="" default="" showprompt="1" setenv="REPLACE" validate="" prompt="Enter the Database Name">USERINPUT-DATABASE_NAME</user_input>
+	<user_input cmdline="" default="" showprompt="0" setenv="REPLACE" validate="" prompt="">USERINPUT-TFA_HOME</user_input>
+    </user_inputs>    
+    <duration>12h</duration>
+    <clusterwide>no</clusterwide>
+    <filter_files>
+        <filter_file_patterns>
+            <filter_file_pattern>alert_.*\.log</filter_file_pattern>
+            <filter_file_pattern>trc</filter_file_pattern>
+            <filter_file_pattern>log</filter_file_pattern>
+            <filter_file_pattern>archive\/osw</filter_file_pattern>
+            <filter_file_pattern>ExaWatcher\/archive</filter_file_pattern>
+        </filter_file_patterns>
+        <filter_file_exclude_patterns>
+            <filter_file_exclude_pattern>cdmp_.*_bucket\.tr[cm]</filter_file_exclude_pattern>
+        </filter_file_exclude_patterns>
+    </filter_files>
+    <components>
+        <component>OS</component>
+        <component>CRS</component>
+        <component>DATABASE</component>
+        <component>NOCHMOS</component>
+    </components>
+    <commands>
+     <script type="SQLSCRIPT" name="srdc_logging_info.sql" timeout="120" validfor="" platform="" version=""> </script>
+      <script type="OS" name="srdc_rman_validate_database" timeout="120" validfor="" platform="allux" version="">
+        $ORACLE_HOME/bin/rman target / cmdfile=%TFA_HOME%/resources/sql/srdc_rman_validate_database.rcv
+     </script>
+     <script type="SQLSCRIPT" name="srdc_get_affected_segment.sql" timeout="120" validfor="" platform="" version="11.2.0.3,11.2.0.4"> </script>
+     <script type="SQLSCRIPT" name="srdc_get_affected_segment_12c.sql" timeout="120" validfor="" platform="" version="12.1.0.1,12.1.0.2,12.2.0.1,18.0"> </script>
+    </commands>
+    <runtime_flags>
+    </runtime_flags>
+</collection>
+</collections>

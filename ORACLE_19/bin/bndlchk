@@ -1,0 +1,116 @@
+#!/bin/sh
+#
+#  NAME
+#     bndlchk
+#
+#  DESCRIPTION
+#     Internal script to be used during installation of a patchset
+#     to determine the bundle (EE or STD) that a customer chose
+#     to install in the base release
+#
+#     Currently during the base release install, we don't record
+#     whether the customer chose to install EE or STD.  So there
+#     is no easy way to query for this information during the patchset
+#     installation to determine which files to patch.  This script
+#     examines the contents of libvsn to determine which bundle the
+#     customer chose during the base release install, then creates
+#     a file based on these results so that the installer can query
+#     this information and take appropriate action.
+#
+#  NOTES
+#     If for any reason the script cannot make a determination of
+#     the bundle, it defaults to EE.
+#
+#     This script should be instantiated by the patchset installation
+#     before it is run
+#
+#     The script always ensures that one and only one of the files
+#     ${ORACLE_HOME}/install/.ee or ${ORACLE_HOME}/install/.std exists.
+#
+#  MODIFIED MM/DD/YY   REASON
+#  poosrini 12/18/17 - use LIBMAJORVSN in place of DB_VERSION_FIRST_DIGIT
+#  rfgonzal 08/22/17 - RTI 20491094 Add content to the .ee and .std files
+#  apperuma 01/31/17 - Introducing -o command line switch to print the bundle in console
+#  pkuruvad 01/20/12 - moving to pp for updating library version
+#  vkoganol 05/10/11 - Using port specific path for ar binary
+#  mwidjaja 04/17/09 - Update for 11.2
+#  mwidjaja 11/10/04 - Linux port
+#  anataraj 05/18/04 - changing libvsn9 to libvsn10 
+#  ssampath 05/12/04 - ssampath_patchset_sharetxn
+#  mmckerle 08/17/01 - Created for 9.0.1.1.0 patchset
+
+GREP=/bin/grep
+RM=/bin/rm
+USAGE="Usage: $0 [-o]"
+ARG=$1
+
+#
+# Show usage in case argument passed without "-o" switch
+#
+if [ x"$ARG" != x ] && [ "$ARG" != "-o" ] ; then
+   echo $USAGE
+   exit 0
+fi
+
+PLATFORM=`uname`
+
+case $PLATFORM in
+SunOS) ARPRINT='/usr/ccs/bin/ar t'; export ARPRINT
+         ;;
+HP-UX) ARPRINT='/usr/ccs/bin/ar t'; export ARPRINT
+         ;;
+AIX) ARPRINT='/usr/bin/ar -X64 t'; export ARPRINT
+         ;;
+*) ARPRINT='/usr/bin/ar t'; export ARPRINT
+         ;;
+esac
+
+#
+# Default values set by Installer
+#
+ORACLE_HOME=/u01/app/oracle/product/19.0.0/dbhome_1
+LIBVSN=${ORACLE_HOME}/lib/libvsn19.a
+EE=${ORACLE_HOME}/install/.ee
+STD=${ORACLE_HOME}/install/.std
+VSNFSTD=vsnfstd
+NULL=/dev/null
+
+#
+# Check for the existence of libvsn
+#
+if [ ! -f $LIBVSN ] ; then
+   if [ "$ARG" = "-o" ]; then
+      echo "ee"
+   else 
+      echo "ee" > $EE
+      if [ -f $STD ] ; then
+         $RM $STD
+      fi
+   fi
+   exit 1
+fi
+
+#
+# Determine flavor of libvsn and create files accordingly
+#
+if $ARPRINT $LIBVSN | $GREP $VSNFSTD > $NULL ; then
+   if [ "$ARG" = "-o" ]; then
+     echo "std"
+   else 
+     echo "std" > $STD
+     if [ -f $EE ] ; then
+        $RM $EE
+     fi
+   fi 
+else
+   if [ "$ARG" = "-o" ]; then
+     echo "ee"
+   else 
+     echo "ee" > $EE
+     if [ -f $STD ] ; then
+      $RM $STD
+     fi
+   fi
+fi
+
+exit 0

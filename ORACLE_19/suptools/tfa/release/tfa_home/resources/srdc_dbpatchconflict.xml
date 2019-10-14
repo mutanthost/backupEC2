@@ -1,0 +1,160 @@
+<?xml version="1.0"?>
+
+<!--  $Header: tfa/src/v2/tfa_home/resources/srdc_dbpatchconflict.xml /main/5 2018/05/28 15:06:28 bburton Exp $ -->
+
+<!-- 
+ Copyright (c) 2017, 2018, Oracle and/or its affiliates. All rights reserved.
+
+   NAME
+     srdc_patch_conflict.xml - <one-line expansion of the name>
+
+   DESCRIPTION
+     <short description of component this file declares/defines>
+
+   NOTES
+     <other useful comments, qualifications, etc.>
+
+   MODIFIED   (MM/DD/YY)
+   recornej    11/29/17 - Migrate opt in default attribute to required
+                          attribute
+   bburton     07/11/17 - Windows update for some O/S scripts
+   bburton     06/26/17 - 26132360 - Fix the Description for help
+   bburton     05/23/17 - do not have the onevents if there are no events
+   bburton     05/22/17 - PATCH_FILE being null hangs md5sum
+   bburton     05/05/17 - Add CRS to this SRDC
+   bburton     03/01/17 - SRDC driver for collection data for patch conflict
+                          issues
+   bburton     03/01/17 - Creation
+
+-->
+<collections>
+  <collection id="dbpatchconflict">
+  <description>SRDC for Oracle RDBMS patch conflict problems.</description>
+    <alias>dbpatchconflict</alias>
+    <user_inputs>
+        <user_input cmdline="" required="OPT" showprompt="1" setenv="REPLACE" validate="file" prompt="Please Enter the full path of the downloaded patch fileLBREAKEnter file name - Example:/orapatches/p12345678_121020_Linux-x86-64.zip">USERINPUT-PATCH_FILE</user_input>
+        <user_input cmdline="" default="" showprompt="1" setenv="YES" validate="directory" prompt="Please Enter the full directory path that the downladed patch was extracted toLBREAKEnter patch directory name - Example:/orapatches/12345678">USERINPUT-PATCH_DIRECTORY</user_input>
+        <user_input cmdline="" default="" showprompt="1" setenv="YES" validate="" prompt="Enter ORACLE_HOME">USERINPUT-ORACLE_HOME</user_input>
+    </user_inputs>
+    <duration>48h</duration>
+    <clusterwide>no</clusterwide>
+    <filter_files>
+        <types>
+        </types>
+        <filter_file_patterns>
+            <filter_file_pattern>alert_.*\.log</filter_file_pattern>
+            <filter_file_pattern>trc</filter_file_pattern>
+            <filter_file_pattern>log</filter_file_pattern>
+            <filter_file_pattern>\.xml</filter_file_pattern>
+            <filter_file_pattern>messages</filter_file_pattern>
+            <filter_file_pattern>archive\/osw</filter_file_pattern>
+            <filter_file_pattern>ExaWatcher\/archive</filter_file_pattern>
+        </filter_file_patterns>
+        <filter_file_exclude_patterns>
+            <filter_file_exclude_pattern>cdmp_.*_bucket\.tr[cm]</filter_file_exclude_pattern>
+        </filter_file_exclude_patterns>
+    </filter_files>
+    <components>
+      <component>CFGTOOLS</component>
+      <component>INSTALL</component>
+      <component>OS</component>
+      <component>CRS</component>
+      <component>NOCHMOS</component>
+      <component>COLLECTALLDIRS</component>
+    </components>
+    <commands>
+      <script type="OS" name="verify_patch_integrity" timeout="120" validfor="" platform="Linux" version="">     
+if [ -n "%PATCH_FILE%" ]; then      
+echo "+++ md5sum %PATCH_FILE% +++"
+/usr/bin/md5sum %PATCH_FILE%
+echo "+++ cksum %PATCH_FILE% +++"
+/usr/bin/cksum %PATCH_FILE%
+echo "+++ sha1sum %PATCH_FILE% +++"
+/usr/bin/sha1sum %PATCH_FILE%
+fi
+      </script>
+      <script type="OS" name="verify_patch_integrity" timeout="120" validfor="" platform="AIX" version="">     
+if [ -n "%PATCH_FILE%" ]; then      
+echo "+++ csum %PATCH_FILE% +++"
+csum %PATCH_FILE%
+echo "+++ csum -h SHA1 %PATCH_FILE% +++"
+csum -h SHA1 %PATCH_FILE%
+fi
+      </script>
+      <script type="OS" name="verify_patch_integrity" timeout="120" validfor="" platform="SunOS" version="">     
+if [ -n "%PATCH_FILE%" ]; then      
+echo "+++ digest -v -a md5 %PATCH_FILE% +++"
+digest -v -a md5 %PATCH_FILE%
+echo "+++ digest -v -a sha1  %PATCH_FILE% +++"
+digest -v -a sha1 %PATCH_FILE%
+fi
+      </script>
+      <script type="OS" name="verify_patch_integrity" timeout="120" validfor="" platform="HP-UX" version="">     
+if [ -n "%PATCH_FILE%" ]; then      
+echo "+++ openssl dgst -md5 %PATCH_FILE% +++"
+openssl dgst -md5  %PATCH_FILE%
+echo "+++ openssl dgst -sha1 %PATCH_FILE% +++"
+openssl dgst -sha1  %PATCH_FILE%
+fi
+      </script>
+      <script type="OS" name="verify_patch_integrity" timeout="120" validfor="" platform="MSWin32" version="">     
+echo "+++ fciv -both %PATCH_FILE% +++"
+set myfciv=
+for %%i in ('where fciv') do set myfciv=%%i
+if EXIST %myfciv% (
+fciv -both %PATCH_FILE%
+) ELSE (
+echo "No fciv on this windows system"
+)
+      </script>
+        <script type="OS" name="verify_patch_integrity_2" timeout="120" validfor="" platform="allux" version="">
+/bin/echo "+++ /usr/bin/file $ORACLE_HOME/bin/sqlplus +++"
+/usr/bin/file $ORACLE_HOME/bin/sqlplus
+/bin/echo "+++ /bin/env +++"
+/bin/env
+/bin/echo "+++ /bin/ls -l $ORACLE_HOME/.patch_storage +++"
+/bin/ls -l $ORACLE_HOME/.patch_storage
+/bin/echo "+++ /bin/ls -l $ORACLE_HOME/.patch_storage/* +++"
+/bin/ls -l $ORACLE_HOME/.patch_storage/*
+/bin/echo "+++ /bin/ls -ld $INVLOC/oraInventory/locks +++"
+/bin/ls -ld $INVLOC/oraInventory/locks
+/bin/echo "+++ /bin/ls -l $INVLOC/oraInventory/locks +++"
+/bin/ls -l $INVLOC/oraInventory/locks
+/bin/echo "+++ /bin/ls -lR $ORACLE_HOME/.patch_storage/* +++"
+/bin/ls -lR $ORACLE_HOME/.patch_storage/*
+/bin/echo "+++ /bin/cat $ORACLE_HOME/inventory/ContentsXML/oraclehomeproperties.xml +++"
+/bin/cat $ORACLE_HOME/inventory/ContentsXML/oraclehomeproperties.xml
+        </script>
+
+        <script type="OS" name="patch_conflict_report" timeout="120" validfor="" platform="allux" version="">
+/bin/echo "+++ cd $PATCH_DIRECTORY +++"
+cd $PATCH_DIRECTORY
+OPATCH_DEBUG=TRUE
+export OPATCH_DEBUG
+/bin/echo "+++ $ORACLE_HOME/OPatch/opatch apply -report +++"
+$ORACLE_HOME/OPatch/opatch apply -report
+OPATCH_DEBUG=FALSE
+export OPATCH_DEBUG
+      </script>
+      <script type="OS" name="patch_conflict_report" timeout="120" validfor="" platform="MSWin32" version="">
+echo "+++ cd %PATCH_DIRECTORY% +++"
+cd %PATCH_DIRECTORY%
+set OPATCH_DEBUG=TRUE
+echo "+++ %ORACLE_HOME%/OPatch/opatch apply -report +++"
+%ORACLE_HOME%/OPatch/opatch apply -report
+set OPATCH_DEBUG=FALSE
+      </script>
+      <script type="OS" name="cp_qopatch" timeout="120" validfor="" platform="allux" version="">
+if [ -e $ORACLE_HOME/QOpatch/qopatch*.log ]; then
+/bin/cp $ORACLE_HOME/QOpatch/qopatch*.log .
+fi
+    </script>
+    <script type="OS" name="cp_qopatch" timeout="120" validfor="" platform="MSWin32" version="">
+if EXIST %ORACLE_HOME%/QOpatch/qopatch*.log copy $ORACLE_HOME/QOpatch/qopatch*.log .
+    </script>
+    </commands>
+    <runtime_flags>
+    </runtime_flags>
+  </collection>
+</collections>
+

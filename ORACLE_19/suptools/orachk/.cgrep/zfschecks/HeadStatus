@@ -1,0 +1,122 @@
+printf("==========START_OF_REPORT_chkHeadStatus.aksh==========\n");
+//
+//
+// This script will check if the storage heads are both active and active status.  
+//
+
+// ----------------------------------------------------------------------------
+// VARS
+
+	var founderrors = true; // Track error findings
+	var auditcheck = 0;//For default, auditcheck = 1 for the main concat.sh; only in unit testing phase, auditcheck can be flipped into 0. 
+	var report = 1;
+        var runonetime = 1;
+	var clustered = true;
+
+// ----------------------------------------------------------------------------
+
+function checkHeadStatus() {
+	getHostname();
+
+	clustered = clusterExists();
+	if(clustered) {
+		// Get to a known context
+		run("cd /");
+
+		//Get storage head status
+		try {
+			run('configuration cluster');
+			headStatus=safeGet('description');
+			run('cd /');
+		}
+		catch(err) {
+			headStatus = "UNKNOWN";
+		}
+
+		//Get peer storage head status
+		try {
+			//get configuration cluster show data
+			configuration_cluster=run('configuration cluster show');
+			run('configuration cluster');
+			peerHeadStatus=safeGet('peer_description');
+			run('cd /');
+		}
+		catch(err) {
+			peerHeadStatus = "UNKNOWN";
+		}
+
+		//Get storage configuration akcs state
+		try {
+			run('configuration cluster');
+			akcsState=safeGet('state');
+			run('cd /');
+		}
+		catch(err) {
+			akcsState = "UNKNOWN";
+		}
+
+		//Get storage peer configuration akcs state
+		try {
+			run('configuration cluster');
+			peerAkcsState=get('peer_state');
+			run('cd /');
+		}
+		catch(err) {
+			peerAkcsState = "UNKNOWN";
+		}
+
+		if ( (peerHeadStatus == "Active (takeover completed)" &&
+				headStatus == "Ready (waiting for failback)" &&
+				peerAkcsState == "AKCS_OWNER" &&
+				akcsState == "AKCS_STRIPPED") || 
+			 (peerHeadStatus == "Ready (waiting for failback)" &&
+				headStatus == "Active (takeover completed)" &&
+				peerAkcsState == "AKCS_STRIPPED" && 
+				akcsState == "AKCS_OWNER") || 
+			 (peerHeadStatus == "Active" &&
+			    headStatus == "Active" &&
+			    peerAkcsState == "AKCS_CLUSTERED" &&
+			    	akcsState == "AKCS_CLUSTERED")) {
+		    founderrors = false;	
+		} 								
+	}
+	else {
+		founderrors = false;
+	}
+}
+
+// ----------------------------------------------------------------------------
+// MAIN STARTS HERE	
+if(runonetime==1)
+{
+	checkHeadStatus();	
+	runonetime=0;
+}
+
+// Report Command
+if ( report == 1 ) {
+    if ( founderrors == false ) {
+	if(clustered) {
+        	printf("OK: %s Storage Head Status Check Completed: Head and Peer State and Description are configured correctly.\n>configuration cluster show\n%s\n",host_name,configuration_cluster);
+	}
+	else {
+		printf("OK: %s Storage Head Status Check Completed: Head and Peer State and Description are configured correctly.\n", host_name);
+	}
+    }
+    else {
+	    printf("WARNING: %s Storage Head Status Check Completed: Head and Peer State and Description are not configured correctly.\n>configuration cluster show\n%s\n",host_name,configuration_cluster);
+    }
+
+}
+
+//END
+printf("==========END_OF_REPORT_chkHeadStatus.aksh==========\n");
+printf("==========START_OF_AUDIT_CHECK_chkHeadStatus.aksh==========\n");
+if ( founderrors == false ) {
+	printf("head_status = 0\n");
+}
+else {
+	printf("head_status = 1\n");
+}
+//END
+printf("==========END_OF_AUDIT_CHECK_chkHeadStatus.aksh==========\n");

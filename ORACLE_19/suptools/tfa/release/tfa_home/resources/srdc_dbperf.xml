@@ -1,0 +1,93 @@
+<?xml version="1.0"?>
+
+<!--  $Header: tfa/src/v2/tfa_home/resources/srdc_dbperf.xml /main/13 2018/05/28 15:06:28 bburton Exp $ -->
+
+<!-- 
+ Copyright (c) 2016, 2018, Oracle and/or its affiliates. All rights reserved.
+
+   NAME
+     srdc_dbperf.xml - <one-line expansion of the name>
+
+   DESCRIPTION
+     <short description of component this file declares/defines>
+
+   NOTES
+     <other useful comments, qualifications, etc.>
+
+   MODIFIED   (MM/DD/YY)
+   recornej    11/27/17 - Adding CHMOS
+   recornej    08/15/17 - Change () and add special chars so they can be
+                          parse
+   recornej    06/29/17 - BUG 25985797 - SRDC AUTOMATION: ENHANCE DBPERF SRDC
+                          TO INCLUDE OTHER COLLECTIONS
+   bburton     05/25/17 - Do not run orachk on windows
+   bburton     03/02/17 - add CRS for RAC env
+   bburton     02/23/17 - new format
+   manuegar    10/24/16 - manuegar_srdc_14.
+   bburton     10/10/16 - fix not collecting osw
+   bburton     09/22/16 - New prompts - No RDA
+   manuegar    08/10/16 - srdc_11 enhancements.
+   manuegar    07/12/16 - Prompt for the AWR duration for -srdc dbperf.
+   manuegar    06/22/16 - Added USERINPUT-PERFORM_OK.
+   manuegar    06/17/16 - Support labels in user_inputs.
+   bburton     06/01/16 - Fix inputs
+   bburton     05/18/16 - XML driver for DBPerf Issues
+   bburton     05/18/16 - Creation
+
+-->
+<collections>
+<collection id="dbperf">
+    <description>SRDC for database performance problems.</description>
+    <onevents>
+        <event>
+        </event>
+    </onevents>
+    <user_inputs>
+      <user_input cmdline="" default="" showprompt="1" setenv="NO" validate="" prompt="Enter the Database Name">USERINPUT-DATABASE_NAME</user_input>
+      <user_input cmdline="" default="" showprompt="1" setenv="NO" validate="" prompt="Do you have an AWR license? &#40;Refer to Doc 1490798.1 for more information &#41;">USERINPUT-LICENSE</user_input>
+      <user_input cmdline="" default="" showprompt="1" setenv="NO" validate="" prompt="Do you have a performance issue now">USERINPUT-ISSUE_NOW</user_input>
+      <user_input cmdline="" default="" showprompt="1" setenv="NO" validate="" prompt="AWR duration">USERINPUT-AWR_DURATION</user_input>
+      <user_input cmdline="" default="" showprompt="1" setenv="NO" validate="" msg="Start time when the performance was bad: " prompt="Enter start time when the performance was bad">USERINPUT-EVENT_START_TIME</user_input>
+      <user_input cmdline="" default="" showprompt="1" setenv="NO" validate="" msg="Stop time when the performance was bad: " prompt="Enter stop time when the performance was bad">USERINPUT-EVENT_END_TIME</user_input>
+      <user_input cmdline="" default="" showprompt="1" setenv="NO" validate="" prompt="For comparison, it is useful to gather data from another period with similar load where problems are not seen. Typically this is likely to be the same time period on a previous day. To compare to the same time period on a previous day enter the number of days ago you wish to use.">USERINPUT-PERFORM_OK</user_input>
+      <user_input cmdline="" default="" showprompt="1" setenv="NO" validate="" msg="Start time when the performance was good" prompt="Enter start time when the performance was good">USERINPUT-EVENT_BASELINE_START_TIME</user_input>
+      <user_input cmdline="" default="" showprompt="1" setenv="NO" validate="" msg="Stop time when the performance was good" prompt="Enter stop time when the performance was good">USERINPUT-EVENT_BASELINE_END_TIME</user_input>
+      <user_input cmdline="" default="" showprompt="1" setenv="NO" validate="" prompt="If any particular SQL causes the Database to be slow enter the SQL_ID ?&#40;Refer to Doc 1627387.1 for more information on how to determine SQL_ID&#41;">USERINPUT-SQL_SLOW</user_input>
+      </user_inputs>
+      <duration>12h</duration>
+      <awrduration>1h</awrduration>
+      <clusterwide>yes</clusterwide>
+      <filter_files>
+        <types>
+        </types>
+        <filter_file_patterns>
+            <filter_file_pattern>alert_.*\.log</filter_file_pattern>
+            <filter_file_pattern>trc</filter_file_pattern>
+            <filter_file_pattern>log</filter_file_pattern>
+            <filter_file_pattern>\.xml</filter_file_pattern>
+            <filter_file_pattern>archive\/osw</filter_file_pattern>
+            <filter_file_pattern>ExaWatcher\/archive</filter_file_pattern>
+        </filter_file_patterns>
+    </filter_files>
+    <components>
+        <component>OS</component>
+        <component>CRS</component>
+        <component>DATABASE</component>
+        <component>CHMOS</component>
+    </components>
+    <commands>
+        <script type="CLUORACHK" name="orachk_dbperf" timeout="300" validfor="" platform="allux" version="">
+            tfactl orachk -silentforce -localonly -check 07A76669BB985B6CE05313C0E50ADA40,594E09A832BCC864E0401490CACF200D,59521689DCC5A370E0401490CACF688D,5DC9DADFC45FD615E0401490CACF5277,8690E492D46D1F7BE040E50A1EC0198A,C64DC7C5BDE823AFE0431EC0E50A0D19,CB05EC6DA5E3694BE0431EC0E50AA352,F723B279BA9218A5E04313C0E50A1B01,F723B279BA9B18A5E04313C0E50A1B01,F723F251083F31B5E04312C0E50A6BFB,F727CEE3C3A92E08E04312C0E50A7E8C,F7394F6EBAD73B84E04313C0E50A08FA
+        </script>
+        <script type="IPSPACK" name="ipspack" timeout="120" validfor="" platform="" version="">
+        </script>
+        <script type="TFADBPERF" name="dbslow" timeout="120" validfor="" platform="" version="">
+        </script>
+        <script type="SQLSCRIPT" name="srdc_db_lfsdiag.sql" timeout="120" validfor="" platform="" version="">
+        </script>
+
+    </commands>
+    <runtime_flags>
+    </runtime_flags>
+</collection>
+</collections>

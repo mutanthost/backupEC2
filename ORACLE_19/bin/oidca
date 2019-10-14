@@ -1,0 +1,56 @@
+#!/bin/sh
+
+ORACLE_HOME=/u01/app/oracle/product/19.0.0/dbhome_1
+export ORACLE_HOME=/u01/app/oracle/product/19.0.0/dbhome_1
+
+# A few platforms use an environment variable other than LD_LIBRARY_PAT
+SET_DEFAULT=YES
+PLATFORM=`uname`
+case $PLATFORM in "HP-UX")
+   SET_DEFAULT=NO
+   SHLIB_PATH=$ORACLE_HOME/opmn/lib:$ORACLE_HOME/lib32:$ORACLE_HOME/network/lib32:$SHLIB_PATH
+   export SHLIB_PATH
+esac
+case $PLATFORM in "AIX")
+   SET_DEFAULT=NO
+   LIBPATH=$ORACLE_HOME/opmn/lib:$ORACLE_HOME/lib32:$ORACLE_HOME/network/lib32:$LIBPATH
+   export LIBPATH 
+esac
+case $SET_DEFAULT in "YES")
+  if [ -d ${ORACLE_HOME}/lib32 ]; then
+    export LD_LIBRARY_PATH=$ORACLE_HOME/opmn/lib:$ORACLE_HOME/lib32:$ORACLE_HOME/network/lib32:$LD_LIBRARY_PATH
+  else
+    export LD_LIBRARY_PATH=$ORACLE_HOME/opmn/lib:$ORACLE_HOME/lib:$ORACLE_HOME/network/lib:$LD_LIBRARY_PATH
+  fi
+esac
+
+PATH=$ORACLE_HOME/bin:$PATH
+export PATH
+
+# If ORACLE JRE not installed, use oidadmin JRE
+# If ORACLE JRE native thread patch not installed, use oidadmin JRE
+
+JAVAEXE=jre
+
+HELPJAR=help4.jar
+ICEJAR=oracle_ice.jar
+SHAREJAR=share.jar
+EWTJAR=ewt3.jar
+EWTCOMPAT=ewtcompat-3_3_15.jar
+NETCFGJAR=netcfg.jar
+DBUIJAR=dbui2.jar
+JNDIJAR=jndi.jar
+LDAPJAR=ldap.jar
+PROVJAR=providerutil.jar
+
+JNDILOC=/u01/app/oracle/product/19.0.0/dbhome_1/jlib
+
+
+JLIB_HOME=$ORACLE_HOME/jlib
+
+
+cd $ORACLE_HOME/ldap/admin
+
+CLASSPATH=$ORACLE_HOME/ldap/lib/oidca.jar:$JLIB_HOME/ldapjclnt11.jar:$JLIB_HOME/$NETCFGJAR:$JLIB_HOME/$HELPJAR:$JLIB_HOME/$ICEJAR:$JLIB_HOME/$SHAREJAR:$JLIB_HOME/$EWTJAR:$JLIB_HOME/$EWTCOMPAT:$JLIB_HOME/swingall-1_1_1.jar:$JLIB_HOME/$DBUIJAR:$ORACLE_HOME/ldap/odi/jlib/sync.jar:$ORACLE_HOME/ldap/oidadmin/dasnls.jar:$ORACLE_HOME/jlib/ojmisc.jar:$ORACLE_HOME/jdbc/lib/classes12.zip:$ORACLE_HOME/assistants/jlib/assistantsCommon.jar:$ORACLE_HOME/jlib/srvm.jar:$ORACLE_HOME/opmn/lib/optic.jar:$ORACLE_HOME/assistants/repca/repca.jar:$ORACLE_HOME/jlib/oraclepki.jar:$ORACLE_HOME/jlib/osdt_core.jar:$ORACLE_HOME/jlib/osdt_cert.jar
+
+${ORACLE_HOME}/jdk/bin/java -Xms48m -Xmx128m -Djava.security.policy=%s_java2policyFile% -DORACLE_HOME=$ORACLE_HOME -DLDAP_ADMIN=$LDAP_ADMIN -classpath ${CLASSPATH} oracle.ldap.oidinstall.OIDClientCA orahome=$ORACLE_HOME "$@"

@@ -1,0 +1,23 @@
+<problemsets>
+<problemset id="p1" description="Collect all files">
+<tasks>id1</tasks>
+</problemset>
+<problemset id="p1" description="Collect all database files">
+<tasks>id2</tasks>
+</problemset>
+<problemset id="p1" description="Collect all asm files">
+<tasks>id3</tasks>
+</problemset>
+<problemset id="p1" description="Collect all crs files">
+<tasks>id4</tasks>
+</problemset>
+<problemset id="p1" description="Collect all os files">
+<tasks>id5</tasks>
+</problemset>
+<problemset id="p1" description="Collect all install files">
+<tasks>id6</tasks>
+</problemset>
+<problemset id="p1" description="List contents of repository">
+<tasks>id7</tasks>
+</problemset>
+</problemsets>

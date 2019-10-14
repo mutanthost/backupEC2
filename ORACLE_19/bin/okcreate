@@ -1,0 +1,256 @@
+#!/bin/bash
+#
+# $Header: network_src/bin/okcreate /main/4 2017/12/07 13:01:20 tltang Exp $
+#
+# okcreate
+#
+# Copyright (c) 2014, 2017, Oracle and/or its affiliates. All rights reserved.
+#
+#    NAME
+#      okcreate - Utility to create keytab on KDC and copy it to the local machine
+#
+#    DESCRIPTION
+#      Utility to create and copy Keytab for kerberos configuration
+#
+#    NOTES
+#      <other useful comments, qualifications, etc.>
+#
+#    MODIFIED   (MM/DD/YY)
+#    tltang 	 11/20/17 - Bug 27145143: Change sh to bash
+#    tltang      11/10/16 - Bug 25078761: Sudo doesn't work after sshing
+#    himagarw    12/26/14 - Creation
+#
+
+usage() {
+  echo "Usage: okcreate (-s [-u KDCuser@KDCmachine] | -k) [-name service_name]"
+  echo "                [-hosts path_to_host_list] [-out path_to_output]" 
+  echo "                [-r realm] [-p principal] [-q query] [-d dbname]"
+  echo "                [-e enc:salt ...] [-m] [-x db_args]*"
+  echo "Where:"
+  echo "  One of -s or -k must be specified."
+  echo "  -s means that okcreate is being run on a kerberized service." 
+  echo "  -u will provide the KDCuser and KDCmachine to SSH into."
+  echo "  If -s is specified and -u is not, okcreate will prompt "
+  echo "    for the KDCuser@KDCmachine."
+  echo "  -k means that okcreate is being run on a KDC. "
+  echo "  -name provides the service name of the kerberized"
+  echo "     service to get a keytab for."
+  echo "  -hosts provides the path to a text file with a list of hosts to get"
+  echo "     the keytabs for."
+  echo "  -out provides the output path to store the resulting keytabs."
+  echo "     Note that this directory should be readable only by the root"
+  echo "     user. Keytabs should never be sent over the network in clear."
+  echo "  -bin specifies the kadmin tool. By default, this script will use "
+  echo "     KADMIN.LOCAL after SSHing into KDC."
+  echo "For all the rest of the options, please see the kerberos documentation"
+  echo " on kadmin and kadmin.local for more information."
+  echo "  -r specifies the kerberos realm."
+  echo "  -p specifies the kerberos principal."
+  echo "  -q specifies the kerberos query."
+  echo "  -d specifies the KDC database name."
+  echo "  -e specifies the salt list to be used for any new keys created."
+  echo "  -m specifies to prompt for the KDC master password."
+  echo "  [-x db_args]* is any number of KDC database specific arguments."
+  echo ""
+  echo "For example - "
+  echo "Running from KDC : okcreate -k -name oracle -hosts"
+  echo "                     /tmp/hosts.txt -out /OSsecured/keytablocation/"
+  echo "Running from Kerberized service : okcreate -s -u kdcuser1@kdcmachine1"
+  echo "                                    -name oracle -hosts /tmp/hosts.txt"
+  echo "                                    -out /OSsecured/keytablocation/"
+  echo "" 
+}
+
+
+is_option_or_null() {
+  argument=$1;
+  if [[ $argument == -* ]]; then 
+    return 1
+  elif [[ -z "$1" ]]; then 
+    return 1
+  else
+    return 0
+  fi
+} 
+
+if [[ -z "$RUN_AS_ROOT" ]]; then 
+  RUN_AS_ROOT=sudo
+fi
+
+if [[ -z "$KADMIN" ]]; then
+  KADMIN=kadmin.local
+fi
+
+while [[ $# -gt 0 ]]; do
+  case $1 in 
+    "-bin")
+      is_option_or_null $2;
+      if [[ "$?" == "0" ]]; then
+        KADMIN="${KADMIN/kadmin.local/$2}"; shift 2;
+      else
+        usage; exit;
+      fi 
+      ;;
+    "-name")
+      is_option_or_null $2;
+      if [[ "$?" == "0" ]]; then
+        service_name=$2;
+        shift 2;
+      else
+        shift 1;
+      fi 
+      ;;
+    "-hosts")
+      is_option_or_null $2;
+      if [[ "$?" == "0" ]]; then
+        hostlistpath=$2;
+        shift 2;
+      else
+        shift 1;
+      fi
+      ;;
+    "-out")
+      is_option_or_null $2;
+      if [[ "$?" == "0" ]]; then
+        outpath=$2;
+        shift 2;
+      else
+        shift 1;
+      fi
+      ;;
+    "-k") kdc=true;shift 1;;
+    "-s") kdc=false; shift 1;;
+    "-u")
+      is_option_or_null $2;
+      if [[ "$?" == "0" ]]; then
+        kdc_uname=$2;
+        shift 2;
+      else
+        shift 1;
+      fi 
+      ;;
+    -*)
+     is_option_or_null $2;
+      if [[ "$?" == "0" ]]; then
+        KADMIN="$KADMIN $1 $2"; shift 2;
+      else
+        KADMIN="$KADMIN $1"; shift 1;
+      fi     
+      ;;
+    *) usage; exit;
+  esac
+done
+
+if [[ -z "$kdc" ]]; then
+  echo "one of -k and -s option must be specified"
+  usage;
+  exit;
+fi
+
+if [[ -z "$kdc_uname" ]]; then
+  if [[ "$kdc" = "false" ]]; then
+    echo "okcreate is being run on kerberized service."
+    echo "Please provide KDCuser@KDCmachine."
+    echo "KDCuser is the user that has root access on KDCmachine."
+    echo "Enter KDCuser@KDCmachine>"
+    read kdc_uname
+  fi
+else
+  if [[ "$kdc" = "true" ]]; then
+    echo "KDCuser@KDCmachine is valid only if okcreate is run from kerberized service"
+    usage;
+    exit;
+  fi
+fi
+
+if [[ -z "$service_name" ]]; then
+  echo "service_name not specified. Defaulting to 'oracle'"
+  service_name=oracle
+fi
+
+if [[ -z "$hostlistpath" ]]; then
+  if [[ "$kdc" = "true" ]]; then 
+    echo "In KDC, create keytab"
+  else
+    echo "Host list path is empty." 
+  fi
+fi
+
+if [[ -z "$outpath" ]]; then
+  outpath=$PWD
+fi
+
+if [[ -z "$HOSTNAME" ]]; then
+  HOSTNAME=keytabs
+fi
+
+echo "Service name is :" $service_name
+echo "List of hostlistpath :"$hostlistpath
+echo "Keytab to be placed at:"$outpath
+echo "running from KDC :"$kdc
+echo "KDC username:"$kdc_uname
+
+#Script fails if $outpath is non-existent 
+if [[ ! -d $outpath ]]; then
+  echo "$outpath is not a directory"
+  exit;
+fi
+#Read hostlist and enter values in hosts array 
+OLD_IFS=$IFS
+IFS=,
+#If no file present at hostlistpath, consider it as host list 
+if [[ -f "$hostlistpath" ]]; then 
+  hosts=( $(<"$hostlistpath") )
+else
+  hosts=($hostlistpath)
+fi
+IFS=$OLD_IFS
+echo "Setting up KDC" 
+
+if [[ ${#hosts[@]} = 0 ]]; then
+  echo "Empty host list. Nothing to change\n"
+  exit;
+fi
+
+if [[ "$kdc" = "false" ]]; then
+  cur_time=$(date "+%Y.%m.%d-%H.%M.%S")
+  directory_name=$HOSTNAME"-"$cur_time
+  echo "Directory used on KDC for temporary storage : "$directory_name
+  ssh -o "NumberOfPasswordPrompts 1" $kdc_uname 'bash -s' << EOF
+    mv /tmp/$directory_name /tmp/$directory_name.bak
+    for host in ${hosts[@]}; do 
+      bash <<_EOF 
+      cd /tmp
+      mkdir $directory_name
+      $KADMIN
+      addprinc -randkey $service_name/\$host 
+      ktadd -k /tmp/$directory_name/$service_name.\$host $service_name/\$host 
+      q
+_EOF
+    done
+    bash <<_EOF
+      rm /tmp/$directory_name.zip
+      zip -rj /tmp/$directory_name.zip /tmp/$directory_name/* #zip files in /tmp/$directory_name
+      rm -rf /tmp/$directory_name
+      mv /tmp/$directory_name.bak /tmp/$directory_name
+_EOF
+EOF
+
+scp   $kdc_uname:/tmp/$directory_name.zip $outpath
+unzip $outpath/$directory_name.zip        -d $outpath
+rm    $outpath/$directory_name.zip
+
+for host in ${hosts[@]}; do
+  chmod 755 $outpath/$service_name.$host
+done
+else
+  for host in ${hosts[@]}; do
+    $RUN_AS_ROOT bash <<_EOF 
+    $KADMIN
+    addprinc -randkey $service_name/$host
+    ktadd -k $outpath/$service_name.$host $service_name/$host
+    q
+    chmod 755 $outpath/$service_name.$host
+_EOF
+  done
+fi

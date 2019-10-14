@@ -1,0 +1,163 @@
+#!/bin/sh
+#
+# $Header: rdbms/src/client/tools/patchgen/jsrc/patchgen /unix/11 2017/10/02 10:43:10 sanselva Exp $
+#
+# patchgen.sh
+#
+# Copyright (c) 2011, 2017, Oracle and/or its affiliates. All rights reserved.
+#
+#    NAME
+#      patchgen.sh - Wrapper for patchgen, a java utility.
+#
+#    DESCRIPTION
+#      Can be called with following options
+#      patchgen commit  -pi<a,b,..>   -rb<c,d,..>
+#      patchgen recover -pi<a,b,..>   -rb<c,d,.>
+#
+#      where: -pi are the list of incremental patches to be commited/recovered
+#             as part of this patching session 
+#             -rb are the list of rollback patches to be commited/recovered 
+#             as part of this patching session
+#    NOTES
+#      Make sure the list of -rb patches are alread present in the list of 
+#      patches applied in the grid home. Else will error.
+#
+#    MODIFIED   (MM/DD/YY)
+#    sahajaga    09/20/17 - 26734431: remove hardcoded library version
+#    bhshanmu    05/05/17 - bhshanmu_bug-26003322_linux
+#    sahajaga    12/15/16 - 24732408: increase java stack memory for AIX
+#    sahajaga    02/05/15 - 20125112: remove/restore .so backup 
+#    sahajaga    09/17/14 - 18034966: fix PATH for Solaris
+#    sanselva    02/26/13 - bug 16264386: use more thread stack memory in AIX
+#    sanselva    01/04/13 - Set LIBPATH as needed for AIX
+#    sahajaga    09/21/12 - assign the appropriate JRE_OPTIONS for
+#                           different platforms
+#    mchimang    06/19/12 - bug14125186: Error out when file is not found
+#    sanselva    03/28/12 - fix exit code
+#    sanselva    03/21/12 - do not make if jar exec fails
+#    sanselva    12/06/11 - regenerate libasmclnt after patchgen is called
+#    danagara    07/22/11 - Creation
+#
+
+ECHO=/bin/echo
+AWK=/bin/awk
+PATH=/bin:/usr/bin:/usr/sbin:/sbin:$PATH
+PLATFORM=`uname`
+
+
+# Check to see if ORACLE_HOME is set.
+if [ "${ORACLE_HOME}" = "" ] ; then
+  # If not then try to obtain the location of the Oracle home from
+  # oratab.
+
+  # The location of oratab differs by platform.
+  if [ "${PLATFORM}" = "SunOS" -o "${PLATFORM}" = "Solaris" ] ; then
+    ORATAB=/var/opt/oracle/oratab # Solaris or SunOS
+  else
+    ORATAB=/etc/oratab            # Linux, AIX, and HP-UX
+  fi
+
+  # If the oratab file does not exist at the expected location, give up
+  # and print error, asking the user to set ORACLE_HOME.
+  if [ ! -r ${ORATAB} ] ; then
+    ${ECHO} "PATCHGEN-00001: ORACLE_HOME environment variable not set"
+    exit -1
+  fi
+
+  # Try to get ORACLE_HOME from ortab.
+  ORACLE_HOME=`${AWK} -F: '/^\+ASM/ { print $2 }' ${ORATAB}`
+
+  # If ORACLE_HOME is not found in oratab, ask the user to supply
+  # ORACLE_HOME.
+  if [ "${ORACLE_HOME}" = "" ] ; then
+      ${ECHO} "PATCHGEN-00001: ORACLE_HOME environment variable not set"
+      exit -1
+  fi
+
+  # If the value of ORACLE_HOME is not a valid directory, asking user
+  # to supply ORACLE_HOME.
+  if [ ! -d ${ORACLE_HOME} ] ; then
+      ${ECHO} "PATCHGEN-00001: ORACLE_HOME environment variable not set"
+      exit -1
+  fi
+fi
+
+# In case the user did set ORACLE_HOME, but not to a valid directory,
+# print error to indicate so.
+if [ ! -d ${ORACLE_HOME} ] ; then
+  ${ECHO} "PATCHGEN-00002: ORACLE_HOME is not a valid directory"
+  exit -1
+fi
+
+# Need to export ORACLE_HOME, since we may have set it in this script.
+export ORACLE_HOME
+
+JREDIR=$ORACLE_HOME/jdk
+JLIBDIR=$ORACLE_HOME/jlib
+
+LD_LIBRARY_PATH=$ORACLE_HOME/lib:$LD_LIBRARY_PATH
+export LD_LIBRARY_PATH
+
+# bug 13836547 AIX only looks at LIBPATH and not LD_LIBRARY_PATH
+LIBPATH=$ORACLE_HOME/lib:$LIBPATH
+export LIBPATH
+
+# PATCHGEN jar file
+PATCHGENASMJAR=$JLIBDIR/patchgen.jar
+
+# JRE Executable and Class File Variables
+JRE="$JREDIR/bin/java -jar"
+#JREJAR=$JREDIR/jre/lib/rt.jar:$JREDIR/jre/lib/i18n.jar
+  
+#Used for specifying any platform specific Java options
+case ${PLATFORM} in
+SunOS)
+    JRE_OPTIONS="-d64"
+#18034966:Needed for pre-11 Solaris only,11 onwards /usr/ccs/bin is a symlink to /usr/bin
+    PATH=/usr/ccs/bin:$PATH
+    ;;
+AIX)
+# 24732408: -Xmss is needed to increase the default java thread stack memory
+# -Xmso is needed as default thread stack memory on AIX is not sufficient while ADR is running
+    JRE_OPTIONS="-d64 -Xmso2M -Xss2M" 
+    ;;
+HP-UX)
+    JRE_OPTIONS="-d64"
+    ;;
+*)
+    JRE_OPTIONS=""
+    ;;
+esac
+
+CUSMK=$ORACLE_HOME/rdbms/lib/env_rdbms.mk
+LIBVER=`grep '^LIBMAJORVSN *=' $CUSMK | cut -f2 -d=`
+
+echo $LIBVER
+
+# Run patchgen
+$JRE $JRE_OPTIONS $PATCHGENASMJAR "$@"
+exit_code=$?
+
+if [ $exit_code -eq 0 ]; then
+  if [ -f "${ORACLE_HOME}/rdbms/lib/skgfpmi.s" ] ; then
+    make update_patchrep -f $ORACLE_HOME/rdbms/lib/ins_rdbms.mk
+    exit_code=$?
+    echo "make libasmclntsh${LIBVER}.so returned code $exit_code"
+    if [ $exit_code -ne 0 ]; then
+# use exit code 99 to represent make errors, note it doesnt overlap with
+# skgfpm/kgfpm/kgfpmj/patchgen error codes
+      exit_code=99
+# 20125112: .bak is created as part of update_patchrep, move/remove it accordingly
+      if [ -f "${ORACLE_HOME}/oracle/lib/libasmclntsh${LIBVER}.so.bak" ] && [ ! -f "${ORACLE_HOME}/oracle/lib/libasmclntsh${LIBVER}.so" ]; then
+        mv -f $ORACLE_HOME/oracle/lib/libasmclntsh$LIBVER.so.bak $ORACLE_HOME/oracle/lib/libasmclntsh$LIBVER.so
+      fi
+    else
+      rm -f $ORACLE_HOME/oracle/lib/libasmclntsh$LIBVER.so.bak
+    fi
+  else
+    echo "File ${ORACLE_HOME}/rdbms/lib/skgfpmi.s not found"
+    exit_code=100
+  fi
+fi
+
+exit $exit_code

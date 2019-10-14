@@ -1,0 +1,50 @@
+printf("==========START_OF_REPORT_chkNISService.aksh==========\n");
+//
+//
+// This script will check if NIS service is disabled or not, will error out if it is enabled.
+//
+
+// ------------------------------------------------------------------------
+// VARS
+
+var founderrorNISService = true;
+var report = 1;
+var configuration_nis_out = "";
+
+// ------------------------------------------------------------------------
+// MAIN STARTS HERE
+getHostname();
+run('cd /');
+configuration_nis_out += "> configuration services nis show\n";
+configuration_nis_out += run('configuration services nis show');
+run('configuration services nis');
+disable_nis = get('<status>')
+
+if (disable_nis == 'disabled' ) {
+    founderrorNISService = false;
+}
+
+// REPORT COMMAND
+
+if ( report == 1 ) {
+    if ( founderrorNISService == false ) {
+        printf("OK: %s NIS Service Check Completed: NIS service is disabled\n", host_name);
+    } else {
+        printf("WARNING: %s NIS Service Check Completed: NIS service is enabled\n", host_name);
+    }
+    printf("%s", configuration_nis_out);
+}
+
+// END
+
+printf("==========END_OF_REPORT_chkNISService.aksh==========\n");
+printf("==========START_OF_AUDIT_CHECK_chkNISService.aksh==========\n");
+if ( founderrorNISService == false ) {
+    printf("nis_service_check_status = 0\n");
+}
+else {
+    printf("nis_service_check_status = 1\n");
+}
+
+printf("==========END_OF_AUDIT_CHECK_chkNISService.aksh==========\n");
+

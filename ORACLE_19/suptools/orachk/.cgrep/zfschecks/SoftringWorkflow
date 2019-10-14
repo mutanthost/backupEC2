@@ -1,0 +1,81 @@
+printf("==========START_OF_REPORT_chkSoftringWorkflow.aksh==========\n");
+
+//
+//
+// Check if Softring Workflow has been applied. This check only applies for firmware version before 2013.* 
+//
+
+// ----------------------------------------------------------------------------
+// VARS
+
+	var founderrors = true; // Track error findings
+	var auditcheck = 0;
+	var report = 1;
+        var runonetime = 1;
+
+// ----------------------------------------------------------------------------
+// MAIN STARTS HERE	
+if(runonetime==1)
+{
+getHostname();
+
+var report_output;
+
+try {
+    // Check the version, see if it's 2013 or greater because the fix should already be applied by this version
+    run('configuration version');
+    version=get('version');
+    prefix_version=version.split(".")[0];
+    report_output="Firmware Version : " + version
+	
+    if ( prefix_version >= 2013 ) {
+		report_output = report_output + "\n" + "For firmware version beginning with 2013 and above, this check is not applicable\n";
+		founderrors = false;
+    } else {
+		// Grep the lock
+		srs_output = run('confirm shell echo "mac_srs_thread_bind/D" | mdb -k');
+		soft_ring_output = run('confirm shell echo "mac_soft_ring_thread_bind/D" | mdb -k');
+		report_output = srs_output + soft_ring_output;
+	
+		// SRS or Soft Ring outputs are in the key:value form 
+		// mac_srs_thread_bind:		
+		// mac_srs_thread_bind: X
+		// The code below removes entries without values and extracts X. Assumes that only
+		// there is only one entry with a non-empty value
+		srs = Number(srs_output.replace(/.*:\s*\n|$/g, '').split(":")[1]);
+		soft_ring = Number(soft_ring_output.replace(/.*:\s*\n|$/g, '').split(":")[1]);
+
+		if (srs == 0 && soft_ring == 0){
+  			founderrors = false;
+		}
+	}
+
+} catch(err) { 
+	// do nothing
+}
+runonetime=0;
+}
+
+// Report Command
+
+if ( report == 1 ) {
+    if ( founderrors == false ) {
+        printf("OK: %s Softring Workflow Check Completed: Softring Workflow check passes.\n",host_name);
+    }
+    else {
+	    printf("WARNING: %s Softring Workflow Check Completed: Softring Workflow check does not pass.\n",host_name);
+    }
+    printf("%s",report_output);
+}
+
+//END
+printf("==========END_OF_REPORT_chkSoftringWorkflow.aksh==========\n");
+printf("==========START_OF_AUDIT_CHECK_chkSoftringWorkflow.aksh==========\n");
+if ( founderrors == false ) {
+        printf("softring_workflow_check_status = 0\n");
+}
+else {
+        printf("softring_workflow_check_status = 1\n");
+}
+
+printf("==========END_OF_AUDIT_CHECK_chkSoftringWorkflow.aksh==========\n");

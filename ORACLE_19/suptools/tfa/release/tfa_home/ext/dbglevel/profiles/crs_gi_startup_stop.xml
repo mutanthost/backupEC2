@@ -1,0 +1,50 @@
+<?xml version="1.0"?>
+
+<!--  $Header: tfa/src/v2/ext/dbglevel/profiles/crs_gi_startup_stop.xml /main/1 2016/04/15 00:39:06 bibsahoo Exp $ -->
+
+<!-- 
+ Copyright (c) 2016, Oracle and/or its affiliates. All rights reserved.
+
+   NAME
+     crs_gi_startup_stop.xml - <one-line expansion of the name>
+
+   DESCRIPTION
+     <short description of component this file declares/defines>
+
+   NOTES
+     <other useful comments, qualifications, etc.>
+
+   MODIFIED   (MM/DD/YY)
+   bibsahoo    02/23/16 - Creation
+
+-->
+
+<profile name="crs_gi_startup_stop" description="NA" type="default" timeout="-1" scope="global">
+<change>
+<command>crsctl</command>
+<command_location>GI_HOME</command_location>
+<command_type>log</command_type>
+<daemon>crs</daemon>
+<module>CRSPE</module>
+<set>5</set>
+<unset>0</unset>
+</change>
+<change>
+<command>crsctl</command>
+<command_location>GI_HOME</command_location>
+<command_type>log</command_type>
+<daemon>crs</daemon>
+<module>AGFW</module>
+<set>5</set>
+<unset>0</unset>
+</change>
+<change>
+<command>crsctl</command>
+<command_location>GI_HOME</command_location>
+<command_type>log</command_type>
+<daemon>crs</daemon>
+<module>UiServer</module>
+<set>5</set>
+<unset>0</unset>
+</change>
+</profile>

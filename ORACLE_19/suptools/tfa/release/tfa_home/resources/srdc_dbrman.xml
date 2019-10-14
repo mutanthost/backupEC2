@@ -1,0 +1,101 @@
+<?xml version="1.0"?>
+
+<!--  $Header: tfa/src/v2/tfa_home/resources/srdc_dbrman.xml /main/3 2018/09/05 08:07:35 recornej Exp $ -->
+
+<!-- 
+ Copyright (c) 2018, Oracle and/or its affiliates. All rights reserved.
+
+   NAME
+     srdc_dbrman.xml - <one-line expansion of the name>
+
+   DESCRIPTION
+     SRDC - Required diagnostic data collection for RMAN related issues, such as backup, maintenance, restore and recover, RMAN-08137 or RMAN-08120 
+
+   MODIFIED   (MM/DD/YY)
+   recornej    08/29/18 - Enh 28570494 - MODIFY RMAN SRDC COLLECTION USER
+   xiaodowu    08/01/18 - Resolve Bug 28439844 - ADD PARENTHESIS FOR VALIDATE
+   xiaodowu    03/28/18 - SRDC - Required diagnostic data collection for RMAN
+                          Backup (Doc ID 1671431.1)SRDC - Required diagnostic
+                          data collection for RMAN Maintenance (Doc ID
+                          1671433.1)SRDC - Required diagnostic data collection
+                          for RMAN Restore and Recover (Doc ID 1671416.1)SRDC -
+                          Required diagnostic data collection for RMAN-08137 or
+                          RMAN-08120 (Doc ID 2078937.1)
+   xiaodowu    03/28/18 - Creation
+
+-->
+<collections>
+<collection id="dbrman">
+    <description> SRDC - Required diagnostic data collection for RMAN related issues, such as backup, maintenance, restore and recover, RMAN-08137 or RMAN-08120 </description>
+    <srdc_docs>Doc IDs: 1671431.1,1671433.1,1671416.1,2078937.1</srdc_docs>
+    <alias>dbrmanrr</alias>
+    <onevents>
+        <event>
+            <infile>
+                <name_patterns>
+                    <pattern>alert_.*\.log</pattern>
+                </name_patterns>
+            </infile>
+        </event>
+    </onevents>
+    <user_inputs>
+	    <user_input cmdline="" default="" showprompt="1" setenv="REPLACE" validate="" prompt="Enter the Database Name">USERINPUT-DATABASE_NAME</user_input>
+	    <user_input cmdline="" default="" showprompt="0" setenv="REPLACE" validate="" prompt="">USERINPUT-TFA_HOME</user_input>
+	    <user_input cmdline="" default="" showprompt="1" setenv="REPLACE" validate="(y|Y|n|N)" prompt="Have you executed your rman command in debug mode? [Y|N] ">USERINPUT-DEBUG</user_input>
+	    <user_input cmdline="" default="" showprompt="1" setenv="REPLACE" validate="file" prompt="Provide the full path and name of your rman script file: ">USERINPUT-RMAN_FILE</user_input>
+	    <user_input cmdline="" default="" showprompt="1" setenv="REPLACE" validate="file" prompt="Provide the full path and name of your rman output file: ">USERINPUT-LOG_FILE</user_input>
+	    <user_input cmdline="" default="" showprompt="1" setenv="REPLACE" validate="file" depinput="DEBUG" deppattern="y|Y" prompt="Provide the full path and name of your rman debug trace file: ">USERINPUT-TRACE_FILE</user_input>
+	    <user_input cmdline="" default="" showprompt="1" setenv="REPLACE" validate="(y|Y|n|N)" depinput="DEBUG" deppattern="n|N" prompt="Oracle support usually require the execution of rman in debug. Based on the script you provided, TFA has created an RMAN command file oratfa_rman_debug.rcv in your HOME directory. Execute at your convenience. LBREAKRerun:LBREAKTFA_HOME/bin/tfactl diagcollect -srdc dbrman LBREAKand upload diagnostic file to support for review. LBREAKAcknowledged? [Y|N] ">USERINPUT-SUGGESTION</user_input>
+    </user_inputs>    
+    <duration>12h</duration>
+    <clusterwide>no</clusterwide>
+    <filter_files>
+        <types>
+        </types>
+        <filter_file_patterns>
+            <filter_file_pattern>alert_.*\.log</filter_file_pattern>
+            <filter_file_pattern>trc</filter_file_pattern>
+            <filter_file_pattern>log</filter_file_pattern>
+            <filter_file_pattern>archive\/osw</filter_file_pattern>
+            <filter_file_pattern>ExaWatcher\/archive</filter_file_pattern>
+        </filter_file_patterns>
+        <filter_file_exclude_patterns>
+            <filter_file_exclude_pattern>cdmp_.*_bucket\.tr[cm]</filter_file_exclude_pattern>
+        </filter_file_exclude_patterns>
+    </filter_files>
+    <components>
+        <component>OS</component>
+        <component>CRS</component>
+        <component>DATABASE</component>
+        <component>NOCHMOS</component>
+    </components>
+    <commands>
+      <script type="OS" name="cp_rman_script" timeout="120" validfor="" platform="allux" version="">
+       /bin/cp %RMAN_FILE% srdc_rman_script_`date +%F`.txt
+       </script>
+       <script type="OS" name="generate_debug_script" timeout="120" validfor="" platform="allux" version="">
+	       /bin/echo "spool trace to $HOME/rman_debug.trc" > oratfa_rman_debug.rcv
+	       /bin/echo "spool log to $HOME/rman_output.txt" >> oratfa_rman_debug.rcv
+	       /bin/echo "set echo on;" >> oratfa_rman_debug.rcv
+	       /bin/echo "debug on;" >> oratfa_rman_debug.rcv
+	       /bin/grep -vi spool %RMAN_FILE% >> oratfa_rman_debug.rcv
+	       /bin/echo "exit" >> oratfa_rman_debug.rcv
+	       /bin/cp -p oratfa_rman_debug.rcv $HOME/oratfa_rman_debug.rcv
+       </script>
+      <script type="OS" name="cp_rman_log" timeout="120" validfor="" platform="allux" version="">
+       /bin/cp %LOG_FILE% srdc_rman_output_`date +%F`.txt
+     </script>
+      <script type="OS" name="cp_rman_trace" timeout="120" validfor="" platform="allux" version="" depinput="DEBUG" deppattern="Y|y">
+       /bin/cp %TRACE_FILE% srdc_rman_debug_`date +%F`.trc
+     </script>
+      <script type="OS" name="srdc_rman_diag" timeout="120" validfor="" platform="allux" version="">
+        $ORACLE_HOME/bin/rman target / cmdfile=%TFA_HOME%/resources/sql/srdc_rman_diag.rcv log=srdc_rman_diag.out
+     </script>
+     <script type="SQLSCRIPT" name="srdc_rman_dbinfo.sql" timeout="300" validfor="" platform="" version=""></script>
+     <script type="SQLSCRIPT" name="srdc_rman_CDBinfo.sql" timeout="300" validfor="" platform="" version=""></script>
+     <script type="SQLSCRIPT" name="srdc_rman_08137_info.sql" timeout="300" validfor="" platform="" version=""></script>
+    </commands>
+    <runtime_flags>
+    </runtime_flags>
+</collection>
+</collections>

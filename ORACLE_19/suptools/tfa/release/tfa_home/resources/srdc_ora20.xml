@@ -1,0 +1,61 @@
+<?xml version="1.0"?>
+
+<!--  $Header: tfa/src/v2/tfa_home/resources/srdc_ora20.xml /main/1 2018/05/28 15:06:27 bburton Exp $ -->
+
+<!-- 
+ Copyright (c) 2017, 2018, Oracle and/or its affiliates. All rights reserved.
+
+   NAME
+     srdc_ora20.xml - <one-line expansion of the name>
+
+   DESCRIPTION
+     <short description of component this file declares/defines>
+
+   NOTES
+     <other useful comments, qualifications, etc.>
+
+   MODIFIED   (MM/DD/YY)
+   bburton     11/02/17 - Fix desc or help
+   bburton     10/06/17 - Fix issue in original xml
+   bburton     09/22/17 - SRDC Driver to gather diagnostics for ORA-20
+   bburton     09/22/17 - Creation
+
+-->
+<collections>
+  <collection id="ORA-00020">
+    <user_description></user_description>
+    <description>SRDC for database ORA-00020 Maximum number of processes exceeded</description>
+    <user_inputs>
+        <user_input cmdline="" default="" showprompt="1" setenv="NO" validate="" prompt="Enter the Database Name">USERINPUT-DATABASE_NAME</user_input>
+    </user_inputs>
+    <duration>12h</duration>
+    <clusterwide>no</clusterwide>
+    <filter_files>
+      <filter_file_patterns>
+        <filter_file_pattern>ExaWatcher\/archive</filter_file_pattern>
+        <filter_file_pattern>alert_.*\.log</filter_file_pattern>
+        <filter_file_pattern>archive\/osw</filter_file_pattern>
+        <filter_file_pattern>log</filter_file_pattern>
+        <filter_file_pattern>trc</filter_file_pattern>
+      </filter_file_patterns>
+      <filter_file_exclude_patterns>
+      </filter_file_exclude_patterns>
+    </filter_files>
+    <components>
+      <component>DATABASE</component>
+      <component>NOCHMOS</component>
+      <component>OS</component>
+    </components>
+    <commands>
+      <script type="SQLSCRIPT" name="srdc_db_ORA-20.sql" timeout="300" validfor="" platform="" version="">
+       </script>
+      <script type="OS" name="cp_parameter" timeout="120" validfor="" platform="allux" version="">
+      /bin/cp $ORACLE_HOME/dbs/init*.ora .
+      /bin/cp $ORACLE_HOME/dbs/spfile*.ora .
+     </script>
+     <script type="OS" name="cp_paremeter" timeout="120" validfor="" platform="MSWin32" version="">
+     if EXIST %ORACLE_HOME%/dbs/init*.ora copy $ORACLE_HOME/dbs/init*.ora .
+     </script>
+    </commands>
+  </collection>
+</collections>

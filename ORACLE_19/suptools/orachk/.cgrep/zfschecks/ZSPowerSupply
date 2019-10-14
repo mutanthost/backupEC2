@@ -1,0 +1,56 @@
+printf("==========START_OF_REPORT_chkZSPowerSupply.aksh==========\n");
+var founderrors = false;
+
+function psu_check(chassis_o, chassis_index){
+    chassis_o.psu = new Array();
+    faulted_ps = "";
+
+    run('select psu');
+    output = run('list').split('\n');
+
+    for (j = 1; (j < output.length) && (output[j].lastIndexOf("psu-")>=0); j++)  { // go through all the Power Supplies;	
+	    line = output[j].replace(/\s+/g, " ");
+	    items = line.split(' ');
+	
+	    pos = items[0];		
+	    status = items[3];
+	
+	    //print("select "+ pos+"\n");
+	    run("select "+ pos);										
+	    ps = {"label": get("label"), "present": get("present"), "faulted": get("faulted"), "status": status};					
+	
+        if(ps["faulted"].toString() == "true") {
+            founderrors = true;
+        }
+	
+	    if ((ps["faulted"].toString() == "true") || (ps["present"].toString()=="false") || (output[j].lastIndexOf("ok")<0)) {
+		    faulted = ps.label + " - " + status;  //takes PS location and status
+		    faulted_ps = faulted_ps + "      " +faulted + ";\n";								            
+	    }
+	    else {
+		    try{
+			    ps.pn = get("part");
+	//		    appl.com_issues.psu_pn.push(ps.pn);
+		    }
+		    catch(e){	
+			    ps.pn =	"n/a";
+		    }
+	    }	
+	    // move one level up, back to all the PSUs
+	    run("cd ..");					
+	    chassis_o.psu.push(ps);					
+    }
+    
+    return faulted_ps;
+}
+
+var hardwareTable = new printTable({name:"PSU Check", headNames:["Name", "Status", "Details"]});
+appl.hardware 	= new Array();	
+failed_hw_components(psu_check);
+printReportTable(hardwareTable);
+							
+
+printf("==========END_OF_REPORT_chkZSPowerSupply.aksh==========\n");
+printf("==========START_OF_AUDIT_CHECK_chkZSPowerSupply.aksh==========\n");
+printf("psu_status = %d\n", founderrors);
+printf("==========END_OF_AUDIT_CHECK_chkZSPowerSupply.aksh==========\n");			

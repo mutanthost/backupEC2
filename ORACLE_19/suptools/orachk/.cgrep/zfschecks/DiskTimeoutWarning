@@ -1,0 +1,50 @@
+printf("==========START_OF_REPORT_chkDiskTimeoutWarning.aksh==========\n");
+//
+//
+// This script will check if a disk has the potential of failing before the disk actually goes bad.
+//
+
+// ----------------------------------------------------------------------------
+// VARS
+
+var founderrors = false; // Track error findings
+var fail_message = ''
+
+// ----------------------------------------------------------------------------
+// MAIN STARTS HERE
+getHostname();
+
+var report_output = "";
+// Get timeout message in 90 days
+try {
+	fail_message = run("confirm shell find /var/ak/logs/debug* -type f -mtime -90 | xargs egrep -h 'disk.*Timeout.*'");
+	report_output = report_output + "> confirm shell find /var/ak/logs/debug* -type f -mtime -90 | xargs egrep -h 'disk.*Timeout.*'" + fail_message + "\n\n\n";	
+	if ( fail_message != "") {
+		founderrors = true;
+		report_output = report_output + "Timed out logs found.\n\n\n";
+	}
+
+} catch (err) {
+	// Do nothing
+}
+
+// Report Command
+printf("%s\n", report_output);
+if ( founderrors == false ) {
+	printf("OK: %s ZFSSA Disks Timeout Warning Check Completed: No disk timeout warning was found.\n", host_name);
+}
+else {
+	printf("WARNING: %s ZFSSA Disks Timeout Warning Check Completed: Disk timeout warning was found.\n", host_name);
+}
+
+// END
+printf("==========END_OF_REPORT_chkDiskTimeoutWarning.aksh==========\n");
+printf("==========START_OF_AUDIT_CHECK_chkDiskTimeoutWarning.aksh==========\n");
+
+if ( founderrors == false ) {
+	printf("zfs_disks_timeout_warning_check_status = 0\n");
+} else {
+	printf("zfs_disks_timeout_warning_check_status = 1\n");
+}
+
+printf("==========END_OF_AUDIT_CHECK_chkDiskTimeoutWarning.aksh==========\n");

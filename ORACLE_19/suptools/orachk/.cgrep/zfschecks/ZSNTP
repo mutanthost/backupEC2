@@ -1,0 +1,91 @@
+printf("==========START_OF_REPORT_chkZSNTP.aksh==========\n");
+var founderrors = false;
+
+
+/*----------------------------*
+  NTP status + server config
+*-----------------------------*/
+function ntp() {
+	var i,
+		netName        = 'Ntp Service',
+		netStatus      = '',
+		netConfig      = 'OK',
+		netDetails     = '',
+		netDetailsLong = '',
+		ntpServerCount = 0,
+		ntpPingSuccess = 0,
+		ntpPingResult  = '';
+	
+	try {
+		run('cd /');
+		run('configuration services ntp');
+		ntp = get('<status>');	
+		servers = get('servers');
+		netStatus = ntp;
+		if (ntp.lastIndexOf("disabled")>=0 ) {
+			netDetails = "NTP is disabled";
+			netDetailsLong = "*\tNTP:\n"+
+								 "\tThe Network Time Protocol (NTP) service should be used to keep the appliance\n"+
+								 "\tclock accurate. This is important for recording accurate timestamps in the\n"+
+								 "\tfilesystem, and for protocol authentication. The appliance records times\n"+
+								 "\tusing the UTC timezone. The times that are displayed in the BUI use the\n"+
+								 "\ttimezone offset of your browser. Use the help feature in the BUI/CLI to\n"+
+								 "\tenable this service.\n";
+            founderrors = true;								 
+		}else if(servers === ''){
+			netConfig = "Warning";
+			netDetails = "No Servers Configured"
+			netDetailsLong = "*\tNTP Service: "+ntp+"\n"+
+							 "\tNo NTP Servers configured\n";							 
+            founderrors = true;							 
+		}
+		else {
+			netDetailsLong = "*\tNTP Servers: "+servers+"\n";
+	/*
+	    	var IPs = servers.toString().split(",");
+			var ntpServerCount = IPs.length;
+			for(var i = 0; i < IPs.length; i++) {
+				try{		
+				    IPs[i] = IPs[i].trim();				
+					ntpPingResult = run("ping "+IPs[i]).trim();
+					if(ntpPingResult.match(/alive/)){
+						ntpPingSuccess += 1;
+					}else{
+						netConfig = "Warning";
+                        founderrors = true;
+					}
+					
+					netDetailsLong += "\tPing Test: "+IPs[i]+", Result: "+ntpPingResult+"\n";
+					
+				}
+				catch (err){
+					netDetailsLong += "\tPing Test: "+IPs[i]+", Error: "+err.message+"\n";
+					netConfig = "Warning";
+					founderrors = true;
+				}					
+			} 
+			netDetails = "Servers: "+ntpServerCount+", Ok Ping: "+ntpPingSuccess; */
+		}		
+		
+	}
+	catch(err){
+		netDetails = "Unable to Run";
+		netConfig  = "Failed";
+		netDetailsLong = "*\tNTP Error:\n"+
+						 "\t"+err.message+"\n";
+        founderrors = true;											 
+	}finally{
+		networkTable.data.push([netName, netStatus, netConfig, netDetails]);
+		networkTable.details.push(netDetailsLong);
+	}	
+}
+
+var networkTable = new printTable({name:"Network Best Practice", headNames:["Type", "Status", "Config", "Details"]});
+appl.network 	= new Array();		
+ntp();
+printReportTable(networkTable);
+
+printf("==========END_OF_REPORT_chkZSNTP.aksh==========\n");
+printf("==========START_OF_AUDIT_CHECK_chkZSNTP.aksh==========\n");
+printf("ntp_status = %d\n", founderrors);
+printf("==========END_OF_AUDIT_CHECK_chkZSNTP.aksh==========\n");			

@@ -1,0 +1,106 @@
+<?xml version="1.0"?>
+
+<!--  $Header: tfa/src/v2/tfa_home/resources/srdc_emdebugon.xml /main/5 2018/05/28 15:06:26 bburton Exp $ -->
+
+<!-- 
+ Copyright (c) 2016, 2018, Oracle and/or its affiliates. All rights reserved.
+
+   NAME
+     srdc_emdebugon.xml - <one-line expansion of the name>
+
+   DESCRIPTION
+     <short description of component this file declares/defines>
+
+   NOTES
+     <other useful comments, qualifications, etc.>
+
+   MODIFIED   (MM/DD/YY)
+   manuegar   12/14/17 - manuegar_em_dbdisc03.
+   recornej   11/29/17 - Migrate opt in default attribute to required attribute
+   manuegar   07/28/17 - manuegar-srdc_xmlparser.
+   manuegar   04/21/17 - manuegar_srdcwin_shared.
+   manuegar   03/22/17 - emsrdc01
+   bburton    03/10/17 - New Format
+   manuegar   01/20/17 - Creation
+
+-->
+<collections>
+<collection id="emdebugon">
+        <description>SRDC for setting EM Debug.</description>
+        <user_inputs>
+            <user_input cmdline="" default="" showprompt="1" setenv="NO" validate="" prompt="Is the EM Repository Database running locally?">USERINPUT-REPODB_LOCAL</user_input> 
+            <user_input cmdline="" required="OPT" showprompt="1" setenv="NO" validate="" prompt="Enter the EM Repository Database Name. You can get the repository connect details from EM using the following navigation: Setup -&gt; Manage Cloud Control -&gt; Health Overview -&gt; Repository Details.">USERINPUT-REPOSITORY_DBNAME</user_input>
+            <user_input cmdline="" default="" showprompt="1" setenv="REPLACE" validate="" prompt="Enter the sysman credential for Repository DB">USERINPUT-SYSMAN_PWD</user_input>
+        </user_inputs>
+        <onevents>
+                <event>
+                </event>
+        </onevents>
+        <duration>12h</duration>
+        <clusterwide>no</clusterwide>
+        <filter_files>
+                <types>
+                </types>
+                <filter_file_patterns>
+                    <filter_file_pattern>alert_.*\.log</filter_file_pattern>
+                    <filter_file_pattern>trc</filter_file_pattern>
+                    <filter_file_pattern>log</filter_file_pattern>
+                    <filter_file_pattern>archive\/osw</filter_file_pattern>
+                    <filter_file_pattern>ExaWatcher\/archive</filter_file_pattern>
+                </filter_file_patterns>
+        </filter_files>
+        <components>
+            <component>OS</component>
+        </components>
+        <commands>
+
+                <script type="OS" name="os_setDebugLogOMS" timeout="500" validfor="OMS" platform="allux" version="">
+                export ORACLE_HOME=%EMOMSOHOME%
+                export PATH=$ORACLE_HOME/bin:$PATH
+                export EMCLI_OPTS=-Demcli.debug=true
+                export EMCLI_LOG_LEVEL=ALL
+                emctl get property -name log4j.rootCategory -sysman_pwd "%SYSMAN_PWD%"
+                emctl set property -name log4j.rootCategory -value 'DEBUG, emlogAppender, emtrcAppender' -module logging -sysman_pwd "%SYSMAN_PWD%"
+                </script>
+                <script type="OS" name="os_setDebugLogOMSWin1" timeout="500" validfor="OMS" platform="MSWin32" version="">
+                set ORACLE_HOME=%EMOMSOHOME%
+                set PATH=%ORACLE_HOME%\bin;%PATH%
+                set EMCLI_OPTS=-Demcli.debug=true
+                set EMCLI_LOG_LEVEL=ALL
+                emctl get property -name log4j.rootCategory -sysman_pwd "%SYSMAN_PWD%"
+                </script>
+                <script type="OS" name="os_setDebugLogOMSWin2" timeout="500" validfor="OMS" platform="MSWin32" version="">
+                set ORACLE_HOME=%EMOMSOHOME%
+                set PATH=%ORACLE_HOME%\bin;%PATH%
+                set EMCLI_OPTS=-Demcli.debug=true
+                set EMCLI_LOG_LEVEL=ALL
+                emctl set property -name log4j.rootCategory -value "DEBUG, emlogAppender, emtrcAppender" -module logging -sysman_pwd "%SYSMAN_PWD%"
+                </script>
+
+                <script type="OS" name="os_setDebugLogEMAGENT" timeout="500" validfor="EMAGENT" platform="allux" version="">
+                export ORACLE_HOME=%EMAGENTOHOME%
+                export PATH=$ORACLE_HOME/bin:$PATH
+                emctl getproperty agent -name Logger.log.level
+                emctl getproperty agent -name EMAGENT_PERL_TRACE_LEVEL
+                emctl getproperty agent -name EMAGENT_PERL_TRACE_FILESIZE
+                emctl setproperty agent -name 'Logger.log.level' -value 'DEBUG'
+                emctl setproperty agent -name 'EMAGENT_PERL_TRACE_LEVEL' -value 'DEBUG'
+                emctl setproperty agent -name 'EMAGENT_PERL_TRACE_FILESIZE' -value '5242880'
+                emctl reload agent
+                </script>
+                <script type="OS" name="os_setDebugLogEMAGENTWin" timeout="500" validfor="EMAGENT" platform="MSWin32" version="">
+                set ORACLE_HOME=%EMAGENTOHOME%
+                set PATH=%ORACLE_HOME%\bin;%PATH%
+                emctl getproperty agent -name Logger.log.level
+                emctl getproperty agent -name EMAGENT_PERL_TRACE_LEVEL
+                emctl getproperty agent -name EMAGENT_PERL_TRACE_FILESIZE
+                emctl setproperty agent -name "Logger.log.level" -value "DEBUG"
+                emctl setproperty agent -name "EMAGENT_PERL_TRACE_LEVEL" -value "DEBUG"
+                emctl setproperty agent -name "EMAGENT_PERL_TRACE_FILESIZE" -value "5242880"
+                emctl reload agent
+                </script>
+        </commands>
+        <runtime_flags>
+        </runtime_flags>
+</collection>
+</collections>

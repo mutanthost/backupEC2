@@ -1,0 +1,31 @@
+<?xml version="1.0"?>
+
+<!--  $Header: tfa/src/v2/ext/dbglevel/profiles/oclumon_high_cpu.xml /main/1 2016/06/06 19:53:12 bibsahoo Exp $ -->
+
+<!-- 
+ Copyright (c) 2016, Oracle and/or its affiliates. All rights reserved.
+
+   NAME
+     oclumon_high_cpu.xml - <one-line expansion of the name>
+
+   DESCRIPTION
+     <short description of component this file declares/defines>
+
+   NOTES
+     <other useful comments, qualifications, etc.>
+
+   MODIFIED   (MM/DD/YY)
+   bibsahoo    04/14/16 - Creation
+
+-->
+<profile name="oclumon_high_cpu" description="For debugging oclumon high cpu failure problems if directed by Oracle Support." type="default" timeout="1m">
+<change>
+<command>oclumon</command>
+<command_location>GI_HOME</command_location>
+<command_type>ini</command_type>
+<daemon>OCLUMON</daemon>
+<module>OCLUMON</module>
+<set>3</set>
+<unset>1</unset>
+</change>
+</profile>

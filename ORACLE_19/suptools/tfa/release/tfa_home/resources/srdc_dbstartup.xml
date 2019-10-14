@@ -1,0 +1,139 @@
+<?xml version="1.0"?>
+
+<!--  $Header: tfa/src/v2/tfa_home/resources/srdc_dbstartup.xml /main/1 2018/05/28 15:06:26 bburton Exp $ -->
+
+<!-- 
+ Copyright (c) 2017, 2018, Oracle and/or its affiliates. All rights reserved.
+
+   NAME
+     srdc_dbstartup.xml - <one-line expansion of the name>
+
+   DESCRIPTION
+     <short description of component this file declares/defines>
+
+   NOTES
+     <other useful comments, qualifications, etc.>
+
+   MODIFIED   (MM/DD/YY)
+   recornej    10/30/17 - Adding Net related files to the collection
+   recornej    10/11/17 - Creation
+
+-->
+<collections>
+  <collection id="dbstartup">
+    <user_description></user_description>
+    <description>SRDC for Single Instance Database Startup problems</description>
+    <user_inputs>
+      <user_input cmdline="" default="" showprompt="1" setenv="NO" validate="" prompt="Enter the Database Name">USERINPUT-DATABASE_NAME</user_input>
+      <user_input cmdline="" default="" showprompt="1" setenv="NO" validate="" prompt="Can you simulate the issue now so that TFA can automatically collect the diagnostic data ?">USERINPUT-SIMULATE</user_input>
+    </user_inputs>
+    <duration>12h</duration>
+    <clusterwide>no</clusterwide>
+    <filter_files>
+      <filter_file_patterns>
+        <filter_file_pattern>ExaWatcher\/archive</filter_file_pattern>
+        <filter_file_pattern>alert_.*\.log</filter_file_pattern>
+        <filter_file_pattern>archive\/osw</filter_file_pattern>
+        <filter_file_pattern>log</filter_file_pattern>
+        <filter_file_pattern>trc</filter_file_pattern>
+      </filter_file_patterns>
+      <filter_file_exclude_patterns>
+        <filter_file_exclude_pattern>cdmp_.*_bucket\.tr[cm]</filter_file_exclude_pattern>
+      </filter_file_exclude_patterns>
+    </filter_files>
+    <components>
+      <component>DATABASE</component>
+      <component>OS</component>
+    </components>
+    <commands>
+      <script type="TFACTL" name="rdahcve1120" timeout="120" validfor="" platform="" version="11.2">
+        tfactl run darda run rda_HCVE_11_2 menu menus/oracle_database.xml
+      </script>
+      <script type="TFACTL" name="rdahcve1210" timeout="120" validfor="" platform="" version="12.1">
+        tfactl run darda run rda_HCVE_12_1_0 menu menus/oracle_database.xml
+      </script>
+      <script type="TFACTL" name="rdahcve1110" timeout="120" validfor="" platform="" version="11.1">
+        tfactl run darda run rda_HCVE_11_1 menu menus/oracle_database.xml
+      </script>
+      <script type="OS" name="cp_parameter" timeout="120" validfor="allux" platform="" version="">
+       /bin/cp $ORACLE_HOME/network/admin/*.ora .
+     </script>
+     <script type="OS" name="cp_parameter" timeout="120" validfor="MSWin32" platform="" version="">
+       copy %ORACLE_HOME%\network\admin\*.ora .
+     </script>
+     <script type="OS" name="Win_OS.bat" timeout="120" validfor="" platform="MSWin32" version="">
+        <![CDATA[
+@echo off
+SET mypath=%~dp0
+
+echo Administrative permissions required. Detecting permissions...
+
+net session >nul 2>&1
+if NOT %errorLevel% == 0 (
+echo Failure: Current permissions inadequate.
+echo Please run the script as Administrator.&goto end
+)
+
+cd %mypath%
+
+Set CURRENTDIR=%CD%
+
+ECHO ============================================== >> OSwin.txt
+ECHO *********** Oracle Process Details *********** >> OSwin.txt
+ECHO ============================================== >> OSwin.txt
+ECHO. >> OSwin.txt
+TASKLIST /FI "imagename eq oracle.exe"  >> OSwin.txt
+ECHO. >> OSwin.txt
+ECHO ============================================ >> OSwin.txt
+ECHO *********** Environment Vaiables: *********** >> OSwin.txt
+ECHO ============================================ >> OSwin.txt
+ECHO. >> OSwin.txt
+SET >> OSwin.txt
+ECHO. >> OSwin.txt
+ECHO. >> OSwin.txt
+
+WMIC LOGICALDISK GET DeviceID,Description,FileSystem,FreeSpace,Size,QuotasDisabled,VolumeDirty /FORMAT:htable > Win_DB.html
+WMIC SERVICE WHERE "name like '%%Oracle%%'"  GET /FORMAT:htable >> Win_DB.html
+WMIC SERVICE WHERE "name like '%%OracleService%%'"  GET /FORMAT:htable >> Win_DB.html
+WMIC SERVICE WHERE "name like '%%TNS%%'"  GET /FORMAT:htable >> Win_DB.html
+
+ECHO. >> OSwin.txt
+ECHO. >> OSwin.txt
+regedit /e NLSwinreg_32bit.txt HKEY_LOCAL_MACHINE\SOFTWARE\ORACLE
+regedit /e NLSwinreg_64bit.txt HKEY_LOCAL_MACHINE\SOFTWARE\Wow6432Node\ORACLE
+regedit /e NLSwinreg_code.txt HKEY_LOCAL_MACHINE\SYSTEM\CurrentControlSet\Control\Nls\CodePage\
+
+
+ECHO ========================================================== >> NLSReg.txt
+ECHO *********** Windows Registry setting 32 Bit: *********** >> NLSReg.txt
+ECHO ========================================================= >> NLSReg.txt
+ECHO. >> NLSReg.txt
+type NLSwinreg_32bit.txt >> NLSReg.txt
+
+
+ECHO ========================================================== >> NLSReg.txt
+ECHO *********** Windows Registry setting 64 Bit: *********** >> NLSReg.txt
+ECHO ========================================================= >> NLSReg.txt
+ECHO. >> NLSReg.txt
+type NLSwinreg_64bit.txt >> NLSReg.txt
+
+ECHO ========================================================== >> NLSReg.txt
+ECHO *********** Windows Registry setting Code Pages *********** >> NLSReg.txt
+ECHO ========================================================= >> NLSReg.txt
+ECHO. >> NLSReg.txt
+type NLSwinreg_code.txt >> NLSReg.txt
+
+copy OSwin.txt+NLSReg.txt Win_Setup_Process.txt
+del OSwin*.txt
+del NLSwin*.txt
+del NLSReg.txt
+
+)
+:end
+]]>
+      </script>
+
+    </commands>
+  </collection>
+</collections>
+

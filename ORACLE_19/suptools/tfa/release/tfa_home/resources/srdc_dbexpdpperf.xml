@@ -1,0 +1,120 @@
+<?xml version="1.0"?>
+
+<!--  $Header: tfa/src/v2/tfa_home/resources/srdc_dbexpdpperf.xml /main/2 2018/08/15 16:55:52 bburton Exp $ -->
+
+<!-- 
+ Copyright (c) 2018, Oracle and/or its affiliates. All rights reserved.
+
+   NAME
+     srdc_dbexpdpperf.xml 
+
+   DESCRIPTION
+     Implement for SRDC - Diagnostic Collection for DataPump Export Performance Issues Doc ID: 1935743.1
+
+   NOTES
+     None
+
+   MODIFIED   (MM/DD/YY)
+   xiaodowu    08/01/18 - Resolve Bug 28439844 - ADD PARENTHESIS FOR VALIDATE
+   xiaodowu    07/16/18 - Enable running performance script multiple times with
+			  defined intervals
+   xiaodowu    05/16/18 - Improve user prompts. e.g. allow command line input
+   xiaodowu    01/19/18 - Implement for SRDC - Diagnostic Collection for
+                          DataPump Export Performance IssuesDoc ID: 1935743.1
+   xiaodowu    01/19/18 - Creation
+
+-->
+<collections>
+<collection id="dbexpdpperf">
+    <description>SRDC - Diagnostic Collection for DataPump Export Performance Issues</description>
+    <srdc_docs>Doc ID 1935743.1: SRDC - Diagnostic Collection for DataPump Export Performance Issues.</srdc_docs>
+    <alias>dbexpdpperf</alias>
+    <onevents>
+        <event>
+            <infile>
+                <name_patterns>
+                    <pattern>alert_.*\.log</pattern>
+                </name_patterns>
+            </infile>
+        </event>
+    </onevents>
+    <user_inputs>
+      <user_input cmdline="" default="" showprompt="1" setenv="NO" validate="" prompt="This collection is only to be run when the performance issue is ongoing. Otherwise, please exit now and come back when experiencing performance issue. Do you need to exit now?">USERINPUT-STOP</user_input>
+      <user_input cmdline="" required="OPT" showprompt="1" setenv="REPLACE" validate="" prompt="Note: this collection takes more than 30 minutes due to collecting dynamic performance information multiple times with long intervals. Press Enter to continue.">USERINPUT-NOTICE</user_input>
+      <user_input cmdline="" default="" showprompt="1" setenv="NO" validate="" prompt="Enter the Database Name">USERINPUT-DATABASE_NAME</user_input>
+     <user_input cmdline="" default="" showprompt="1" setenv="REPLACE" validate="(y|Y|n|N)" prompt="Note: datapump performance diagnostic collection requires collecting SQL tracing. LBREAK It can be turned on by running $ORACLE_HOME/bin/expdp username/password METRICS=Y TRACE=480300 parfile=my_expdp.par dumpfile=my_directory_name:my_dump.dmp logfile=my_directory_name:my_log. LBREAK Have you collected SQL trace as such? [Y|N] ">USERINPUT-SQLTRACE_FLAG</user_input>
+     <user_input cmdline="" default="" showprompt="1" setenv="REPLACE" validate="file" depinput="SQLTRACE_FLAG" deppattern="y|Y" prompt="Enter the full path of the collected trace file ">USERINPUT-TRACE_FILE</user_input>
+     <user_input cmdline="" default="" showprompt="1" setenv="REPLACE" validate="" prompt="Please enter the command line: ">USERINPUT-COMMAND_LINE</user_input>
+     <user_input cmdline="" default="" showprompt="1" setenv="" validate="(y|Y|n|N)" prompt="Do you use a parameter file in the above command? [Y|N]">USERINPUT-PARFLAG</user_input>
+     <user_input cmdline="" default="" showprompt="1" setenv="REPLACE" validate="file" depinput="PARFLAG" deppattern="y|Y" prompt="Enter the full path of the parameter file ">USERINPUT-PAR_FILE</user_input>
+     <user_input cmdline="" default="" showprompt="1" setenv="REPLACE" validate="file" prompt="Please give the full path of the log file? ">USERINPUT-LOG_FILE</user_input>
+      <user_input cmdline="" default="" showprompt="1" setenv="NO" validate="" prompt="Do you have an AWR license? &#40;Refer to Doc 1490798.1 for more information &#41;">USERINPUT-LICENSE</user_input>
+      <user_input cmdline="" default="" showprompt="1" setenv="NO" validate="" prompt="AWR duration">USERINPUT-AWR_DURATION</user_input>
+      <user_input cmdline="" default="" showprompt="1" setenv="NO" validate="" msg="Start time when the performance was bad: " prompt="Enter start time when the performance was bad">USERINPUT-EVENT_START_TIME</user_input>
+      <user_input cmdline="" default="" showprompt="1" setenv="NO" validate="" msg="Stop time when the performance was bad: " prompt="Enter stop time when the performance was bad">USERINPUT-EVENT_END_TIME</user_input>
+      <user_input cmdline="" default="" showprompt="1" setenv="NO" validate="" prompt="For comparison, it is useful to gather data from another period with similar load where problems are not seen. Typically this is likely to be the same time period on a previous day. To compare to the same time period on a previous day enter the number of days ago you wish to use.">USERINPUT-PERFORM_OK</user_input>
+      <user_input cmdline="" default="" showprompt="1" setenv="NO" validate="" msg="Start time when the performance was good" prompt="Enter start time when the performance was good">USERINPUT-EVENT_BASELINE_START_TIME</user_input>
+      <user_input cmdline="" default="" showprompt="1" setenv="NO" validate="" msg="Stop time when the performance was good" prompt="Enter stop time when the performance was good">USERINPUT-EVENT_BASELINE_END_TIME</user_input>
+     <user_input cmdline="" default="" showprompt="1" setenv="" validate="(y|Y|n|N)" prompt="Is the performance issue related to a particular object? [Y|N] ">USERINPUT-OBJECTFLAG</user_input>
+     <user_input cmdline="" default="" showprompt="1" setenv="REPLACE" validate="" depinput="OBJECTFLAG" deppattern="y|Y" prompt="Enter the object type: ">USERINPUT-OBJECT_TYPE</user_input>
+     <user_input cmdline="" default="" showprompt="1" setenv="REPLACE" validate="" depinput="OBJECTFLAG" deppattern="y|Y" prompt="Enter the object owner: ">USERINPUT-SCHEMA_NAME</user_input>
+     <user_input cmdline="" default="" showprompt="1" setenv="REPLACE" validate="" depinput="OBJECTFLAG" deppattern="y|Y" prompt="Enter the object name: ">USERINPUT-OBJECT_NAME</user_input>
+    </user_inputs>    
+    <duration>12h</duration>
+    <clusterwide>no</clusterwide>
+    <filter_files>
+        <types>
+        </types>
+        <filter_file_patterns>
+            <filter_file_pattern>alert_.*\.log</filter_file_pattern>
+            <filter_file_pattern>trc</filter_file_pattern>
+            <filter_file_pattern>log</filter_file_pattern>
+            <filter_file_pattern>archive\/osw</filter_file_pattern>
+            <filter_file_pattern>ExaWatcher\/archive</filter_file_pattern>
+        </filter_file_patterns>
+        <filter_file_exclude_patterns>
+            <filter_file_exclude_pattern>cdmp_.*_bucket\.tr[cm]</filter_file_exclude_pattern>
+        </filter_file_exclude_patterns>
+    </filter_files>
+    <components>
+        <component>OS</component>
+        <component>DATABASE</component>
+    </components>
+    <commands>
+      <script type="SQLSCRIPT" name="srdc_expdp_performance.sql" timeout="300" validfor="" platform="" version="" frequency="3" interval="600"></script>
+      <script type="OS" name="cp_expdp_tracefile" timeout="120" validfor="" platform="allux" version="" depinput="SQLTRACE_FLAG" deppattern="y|Y">
+       /bin/cp %TRACE_FILE%  srdc_expdp_tracefile_`date +%F`.txt
+     </script>
+      <script type="OS" name="cp_expdp_commandline" timeout="120" validfor="" platform="allux" version="">
+       /bin/echo %COMMAND_LINE% >srdc_expdp_commandline_`date +%F`.txt
+     </script>
+      <script type="OS" name="cp_expdp_parfile" timeout="120" validfor="" platform="allux" version="">
+       /bin/cp %PAR_FILE% srdc_expdp_parfile_`date +%F`.txt
+     </script>
+      <script type="OS" name="cp_expdp_logfile" timeout="120" validfor="" platform="allux" version="">
+       /bin/cp %LOG_FILE% srdc_expdp_logfile_`date +%F`.txt
+     </script>
+     <script type="TFADBPERF" name="awr_reports" timeout="120" validfor="" platform="" version=""> </script>
+     <script type="DB" name="srdc_expdpperf_object_metadata.sql" depinput="OBJECTFLAG" deppattern="y|Y" timeout="120" validfor="" platform="" version="">
+	REM srdc_expdpperf_object_metadata.sql 
+	set pagesize 200 verify off term off entmap off echo off
+	set markup html on spool on
+	COLUMN SRDCSPOOLNAME NOPRINT NEW_VALUE SRDCSPOOLNAME
+	select 'SRDC_'||upper('OBJECT_METADATA')||'_'||upper(instance_name)||'_'|| to_char(sysdate,'YYYYMMDD_HH24MISS') SRDCSPOOLNAME from v$instance;
+	spool SRDC_EXPDPPERF_%OBJECT_TYPE%_%SCHEMA_NAME%_%OBJECT_NAME%.htm
+	set long 100000
+	select owner, object_type, data_object_id from dba_objects where object_name = upper('%OBJECT_NAME%');
+	select dbms_metadata.get_ddl (upper('%OBJECT_TYPE%'), upper('%OBJECT_NAME%'), upper('%SCHEMA_NAME%')) from dual;
+
+	spool off
+	set markup html off spool off
+	set term on
+	set echo off
+	set verify on
+  set echo on
+  </script>
+    </commands>
+    <runtime_flags>
+    </runtime_flags>
+</collection>
+</collections>

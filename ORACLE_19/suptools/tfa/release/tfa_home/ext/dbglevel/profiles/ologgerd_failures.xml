@@ -1,0 +1,50 @@
+<?xml version="1.0"?>
+
+<!--  $Header: tfa/src/v2/ext/dbglevel/profiles/ologgerd_failures.xml /main/1 2016/06/06 19:53:12 bibsahoo Exp $ -->
+
+<!-- 
+ Copyright (c) 2016, Oracle and/or its affiliates. All rights reserved.
+
+   NAME
+     ologgerd_failures.xml - <one-line expansion of the name>
+
+   DESCRIPTION
+     <short description of component this file declares/defines>
+
+   NOTES
+     <other useful comments, qualifications, etc.>
+
+   MODIFIED   (MM/DD/YY)
+   bibsahoo    04/14/16 - Creation
+
+-->
+<profile name="ologgerd_failures" description="For debugging ologgerd failure problems if directed by Oracle Support." type="default" timeout="10m">
+<change>
+<command>oclumon</command>
+<command_location>GI_HOME</command_location>
+<command_type>ologgerd</command_type>
+<daemon>CRFLDREP</daemon>
+<module>CRFLDREP</module>
+<set>3</set>
+<unset>1</unset>
+</change>
+<change>
+<command>oclumon</command>
+<command_location>GI_HOME</command_location>
+<command_type>ologgerd</command_type>
+<daemon>CRFLOGD</daemon>
+<module>CRFLOGD</module>
+<set>3</set>
+<unset>1</unset>
+</change>
+<change>
+<command>oclumon</command>
+<command_location>GI_HOME</command_location>
+<command_type>ologgerd</command_type>
+<daemon>CRFM</daemon>
+<module>CRFM</module>
+<set>3</set>
+<unset>1</unset>
+</change>
+</profile>
+

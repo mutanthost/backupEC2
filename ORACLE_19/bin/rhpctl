@@ -1,0 +1,222 @@
+#!/bin/sh
+#
+#
+#    NAME
+#     rhpctl - Rapid Home Provisioning Control Utility
+#
+#    DESCRIPTION
+#      Oracle Rapid Home Provisioning Control Utility can be used to administer the
+#      Rapid Home Provisioning product, and to provision/manage Oracle RAC Database homes
+#
+#    MODIFIED   (MM/DD/YY)
+#       vgunredd 04/05/18 - fix bug 27714373 
+#       vgunredd 02/07/18 - remove non-NLS msg
+#       yifyang  11/15/17 - create executable from rhpctl.sbs
+
+DIRNAME=/usr/bin/dirname
+
+cmdpath=`$DIRNAME $0`
+case "$cmdpath" in
+    /*) ;;
+    .) cmdpath=`pwd`;;
+    *) cmdpath=`pwd`/$cmdpath;;
+esac
+
+OHOMEDIR=`$DIRNAME $cmdpath`
+if [ -z "$ORACLE_HOME" ]
+then
+    ORACLE_HOME=$OHOMEDIR
+fi
+
+if [ ! -f  $ORACLE_HOME/srvm/admin/getcrshome ]
+then
+   echo "ERROR: "
+   echo "Command '$0' is being run from an improper Oracle Home."
+   exit 1
+fi
+
+#Get CRS home
+INVOKEMODE=""
+CRSHOME=`$ORACLE_HOME/srvm/admin/getcrshome`
+
+if [ $? -eq 0 ]
+then
+    if [ ! -f $CRSHOME/bin/rhpctl ]
+    then
+        echo "Oracle Grid Infrastructure is configured."
+        echo "Missing $CRSHOME/bin/rhpctl"
+        exit 1
+    fi
+    if [ ! $OHOMEDIR -ef $CRSHOME ]
+    then
+        $CRSHOME/bin/rhpctl "$@"
+        exit $?
+    fi
+else
+    INVOKEMODE="-Dsrvm.ghctl.invokemode=SIDB"
+fi
+
+export ORACLE_HOME
+OHOME=$ORACLE_HOME
+
+if [ ! -d $OHOMEDIR/bin ] || [ ! -f $OHOMEDIR/jlib/srvm.jar ]
+then
+   OHOMEDIR=$ORACLE_HOME
+fi
+
+JREDIR=$OHOMEDIR/jdk
+JLIBDIR=$OHOMEDIR/jlib
+
+# jar files
+
+# SRVM-ASM jar file
+SRVMASMJAR=$JLIBDIR/srvmasm.jar
+
+SRVMRHPJAR=$JLIBDIR/srvmrhp.jar
+
+### ORATST_SRVCTL11 is a for upgrade tests and WLM folks to add nodeapps in 11.1 style
+if [ -z "$ORATST_SRVCTL11" ]
+then
+#SRVM jar file
+   SRVMJAR=$JLIBDIR/srvm.jar
+
+#SRVCTL jar file
+   SRVCTLJAR=$OHOMEDIR/srvm/jlib/srvctl.jar
+
+# SRVM-HAS jar file
+   SRVMHASJAR=$JLIBDIR/srvmhas.jar
+fi
+
+# RHP jar
+   GHJAR=$JLIBDIR/rhp.jar
+
+# Grid Naming Service jar file.
+GNSJAR=$JLIBDIR/gns.jar
+
+#clsce.jar for snapshot support
+CLSCEJAR=$OHOMEDIR/has/jlib/clsce.jar
+
+# Supercluster jar files
+SCJAR=$JLIBDIR/supercluster.jar
+SCCJAR=$JLIBDIR/supercluster-common.jar
+EONSJAR=$OHOMEDIR/ons/lib/ons.jar
+
+#NetCa config jar
+NETCFGJAR=$JLIBDIR/netcfg.jar
+
+#LDAP client jar
+LDAPJAR=$JLIBDIR/ldapjclnt12.jar:$JLIBDIR/ldapjclnt19.jar
+
+# JRE Executable and Class File Variables
+JRE=$JREDIR/bin/java
+JREJAR=$JREDIR/jre/lib/rt.jar:$JREDIR/jre/lib/i18n.jar
+
+#GHCTL jar
+GHCTLJAR=$JLIBDIR/ghctl.jar
+
+JWCCRED_JAR=$JLIBDIR/jwc-cred.jar
+
+#JACKSON jars
+JCOREJAR=$JLIBDIR/jackson-core-2.4.5.jar
+JANNOTATIONJAR=$JLIBDIR/jackson-annotations-2.4.5.jar
+JDATABINDJAR=$JLIBDIR/jackson-databind-2.4.5.jar
+
+# CVU jar
+CVU_JAR=$JLIBDIR/cvu.jar
+
+CLASSPATH=$GHJAR:$NETCFGJAR:$JREJAR:$GHCTLJAR:$SRVMRHPJAR:$SRVMJAR:$SRVMHASJAR:$SRVMASMJAR:$SCJAR:$SCCJAR:$EONSJAR:$SRVCTLJAR:$LDAPJAR:$GNSJAR:$CVU_JAR:$CLSCEJAR:$JWCCRED_JAR:$JCOREJAR:$JANNOTATIONJAR:$JDATABINDJAR
+
+# turn on output capture
+_CRS_UI_FMT=-v
+export _CRS_UI_FMT
+
+#Used for specifying any platform specific Java options
+JRE_OPTIONS=""
+
+# Set the shared library path for JNI shared libraries
+# A few platforms use an environment variable other than LD_LIBRARY_PATH
+PLATFORM=`uname`
+case $PLATFORM in 
+HP-UX)
+   LD_LIBRARY_PATH=$OHOMEDIR/lib:$OHOMEDIR/srvm/lib
+   export LD_LIBRARY_PATH
+   JRE_OPTIONS="-d64"
+   ;;
+AIX)
+   LIBPATH=$OHOMEDIR/lib:$OHOMEDIR/srvm/lib:$LIBPATH
+   export LIBPATH
+   JRE_OPTIONS="-d64"
+   ;;
+Linux)
+   LD_LIBRARY_PATH=$OHOMEDIR/lib:$OHOMEDIR/srvm/lib:$LD_LIBRARY_PATH
+   # Linux ( ppc64 || s390x ) => LD_LIBRARY_PATH lib32
+   ARCH=`uname -m`;
+   if [ "$ARCH" = "ppc64" -o "$ARCH" = "s390x" ]
+   then
+     LD_LIBRARY_PATH=$OHOMEDIR/lib32:$OHOMEDIR/srvm/lib32:$LD_LIBRARY_PATH
+   fi
+   export LD_LIBRARY_PATH
+   ;;
+SunOS) 
+    LD_LIBRARY_PATH_64=$OHOMEDIR/lib:$OHOMEDIR/srvm/lib:$LD_LIBRARY_PATH_64
+    export LD_LIBRARY_PATH_64
+    LD_LIBRARY_PATH=$OHOMEDIR/lib:$OHOMEDIR/srvm/lib:$LD_LIBRARY_PATH
+    export LD_LIBRARY_PATH
+    JRE_OPTIONS="-d64"
+    ;;
+OSF1) LD_LIBRARY_PATH=$OHOMEDIR/lib:$OHOMEDIR/srvm/lib:$LD_LIBRARY_PATH
+      export LD_LIBRARY_PATH
+      ;;
+Darwin) 
+      DYLD_LIBRARY_PATH=$OHOMEDIR/lib:$OHOMEDIR/srvm/lib:$DYLD_LIBRARY_PATH 
+      export DYLD_LIBRARY_PATH 
+      ;; 
+*)    if [ -d $OHOMEDIR/lib32 ];
+      then
+        LD_LIBRARY_PATH=$OHOMEDIR/lib32:$OHOMEDIR/srvm/lib32:$LD_LIBRARY_PATH
+      else
+        LD_LIBRARY_PATH=$OHOMEDIR/lib:$OHOMEDIR/srvm/lib:$LD_LIBRARY_PATH
+      fi
+      export LD_LIBRARY_PATH
+      ;;
+esac
+
+# Properties to pass directly to java
+if [ "X$SRVM_PROPERTY_DEFS" = "X" ]
+then
+  SRVM_PROPERTY_DEFS=""
+fi
+
+ORACLE_BASE=`$OHOMEDIR/bin/orabase`
+RHP_BASE=$ORACLE_BASE/cfgtoollogs/rhp
+if [ ! -d "$RHP_BASE" ]
+then
+    mkdir -p $RHP_BASE
+    chmod 775 $RHP_BASE
+fi
+RHP_LOG=$RHP_BASE/rhpctl.log
+
+# Environment variable to turn on tracing to a file.
+if [ "X$GHCTL_TRACEFILE" = "X" ]
+then
+  GHCTL_TRACEFILE=$RHP_LOG;
+fi
+
+SRVM_PROPERTY_DEFS="$SRVM_PROPERTY_DEFS -DTRACING.ENABLED=true -DTRACING.LEVEL=2"
+SRVM_PROPERTY_DEFS="$SRVM_PROPERTY_DEFS -Dsrvm.ghctl.tracefile=$GHCTL_TRACEFILE -Doracle.eonsd.tracefile=$GHCTL_TRACEFILE"
+
+
+# Environment variable to turn on checking
+if [ "X$CHECK_LEVEL" != "X" ]
+then
+    SRVM_PROPERTY_DEFS="$SRVM_PROPERTY_DEFS -DNETWORK.CHECKLEVEL=$CHECK_LEVEL"
+fi
+
+# Add configuration file containing logging properties.
+SRVM_PROPERTY_DEFS="$SRVM_PROPERTY_DEFS -Djava.util.logging.config.file=$ORACLE_HOME/srvm/admin/logging.properties"
+# Add invoke mode
+SRVM_PROPERTY_DEFS="$SRVM_PROPERTY_DEFS $INVOKEMODE"
+
+# Run rhpctl 
+$JRE $JRE_OPTIONS -DORACLE_HOME=$ORACLE_HOME -classpath $CLASSPATH $SRVM_PROPERTY_DEFS oracle.cluster.gridhome.ghctl.GHCTLDriver "$@"
+exit $?

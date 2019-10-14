@@ -1,0 +1,173 @@
+printf("==========START_OF_REPORT_chkZSRouting.aksh==========\n");
+var founderrors = false;
+
+function routing(){
+	var i, cmd, route,
+		obj = {},
+		netName = '',
+		netStatus = 'N/A',
+		netConfig = '',
+		netDetails = '',
+		netDetailsLong = '',
+		def = [],
+		all_routes = [],
+		routes = [],
+		dynamic_nr = 0,
+		dynamic_routes = "";
+	//s = "Routing Information\n";
+		appl.network.routing =  new Array();
+	
+	try {		
+		run('cd /');
+		run('configuration net routing');				
+		
+	    // Get multihoming model
+		mh = get("multihoming");
+		appl.network.routing.multihoming = mh;
+		netName = "Multihoming";
+		netConfig = 'OK';
+		netDetails = "Model: "+mh;
+		networkTable.data.push([netName, netStatus, netConfig, netDetails]);		
+		
+		// Get routing info
+		lines = run('list').split("\n");	
+		for (i=1; i<lines.length; i++){
+			if (lines[i].lastIndexOf("route-")> -1 ){	
+				route = lines[i].replace(/\s+/g, " ").split(" ")[0]
+				routes.push(route.toString());				
+			}
+		}		
+		
+		// Go through all the routes and get detailed info about each route
+		for(i=0; i< routes.length; i++){			
+			cmd = "select "+routes[i];			
+			run(cmd);
+						
+			// Store info about the route in an object						
+			obj = {"interface"  : getOrNA("interface"), 
+				   "destination": getOrNA("destination"),
+				   "family"     : getOrNA("family"), 
+				   "gateway"    : getOrNA("gateway"), 
+				   "status"     : getOrNA("status"), 
+				   "type"       : getOrNA("type")};	
+			all_routes.push(obj);	
+			
+			// Is this a default route? add it to default routes
+			if (obj["destination"] == "0.0.0.0"){				
+				def.push(obj);				
+			}
+			run("cd ..");
+		}
+
+		appl.network.routing.routes = all_routes;
+		
+		/* Display number of default routes; default-route should go via the private interface if it's a cluster
+		   there should be only one default route active per node */
+		//s += "   " + routes.length + " network routes, of which " + def.length + " default: ";
+		netName = "Default Route";
+		netConfig = "OK";
+		netDetails = "Default: "+def.length;
+		netDetailsLong = "*\tRouting-Default Route:\n"+
+						 "\t"+routes.length+" network routes, of which "+def.length+" default:\n";
+						// networkTable.details.push(netDetailsLong);
+		if (is_clustered()){
+		    private_default = 0;
+			for (i=0; i< def.length; i++){
+				//s += "\n\t" + def[i].interface + " - "+ def[i].status + " (dest: " + def[i].destination + "; gateway: " + def[i].gateway + ") ";
+				netDetailsLong += "\t"+def[i].interface+" - "+def[i].status+" (dest: "+def[i].destination+"; gateway: "+def[i].gateway+") \n";
+				
+				var ownNetworks = getOwnNetworks();
+				for (j=0; j< ownNetworks.length; j++){
+					//print(appl.cluster.resources.network.private[j].interface + "\n");
+					if(ownNetworks[j]["type"] == "private") {					
+					    if (def[i].interface == ownNetworks[j]["name"].split("/")[1]) {
+					     	private_default++;
+					    }
+					}
+				}				
+			}
+			if (private_default == 0 && def.length==1){
+    			netDetailsLong += "\tWARNING: The default network route found is not private to the cluster node.\n";
+				netConfig = "Warning";
+				founderrors = true;
+			}
+			else if (private_default == 0 && def.length>=1){
+				//s += "\n   WARNING: None of the default network routes found aren't private to the cluster node."
+				netDetailsLong += "\tWARNING: None of the default network routes found are private to the cluster node.\n";
+				netConfig = "Warning";
+                founderrors = true;
+			}
+			else if (private_default > 1 && def.length>1){
+				//s += "\n   WARNING: Found more than one default network routes private to the cluster node."
+				netDetailsLong += "\tWARNING: Found more than one default network routes private to the cluster node.\n";
+				netConfig = "Warning";
+                founderrors = true;				
+			}
+			else {
+				//s += "\n\tDefault network routing configured properly."
+				netDetailsLong += "\tDefault network routing configured properly.\n";
+			}
+		}
+		else {
+			for (i=0; i< def.length; i++){
+				//s += "\n\t" + def[i].interface + " - "+ def[i].status + " (dest: " + def[i].destination + "; gateway: " + def[i].gateway + ") ";
+				netDetailsLong += "\t"+def[i].interface+" - "+def[i].status+" (dest: "+def[i].destination+"; gateway: "+def[i].gateway+") \n";
+			}
+		}
+		//Push the default rout stuff
+		networkTable.data.push([netName, netStatus, netConfig, netDetails]);
+		networkTable.details.push(netDetailsLong);
+		
+		// Go thorough all the routes and search if there's any with the dynamic type.
+		netName = "Dynamic Routes";
+		netConfig = "OK";
+		netDetailsLong = "*\tRouting-Dynamic Route:\n";
+		for(i=0; i< all_routes.length; i++){
+			if (all_routes[i].type == "dynamic"){
+				dynamic_nr ++;
+				dynamic_routes += "\t"+all_routes[i].interface+"\n";
+			}
+		}
+		
+		//s += "\n   ---";
+		if (dynamic_nr >0){
+			//~ s += "\n   There are " + dynamic_nr + " route(s) configured dynamic: " + dynamic_routes + 
+				 //~ "\n   Ignore this message if they were configured dynamic on purpose.\n"; 			     
+			netConfig = "Warning";
+			netDetailsLong += "\tThere are "+dynamic_nr+"route(s) configured dynamic:\n"+
+							  "\t"+dynamic_routes+"\n"+
+							  "\tIgnore this message if they were configured dynamic on purpose.\n";
+            founderrors = true;
+		}	
+		else {
+			netDetailsLong += "\tNo dynamic routes configured.\n";
+		}
+		netDetails = "Dynamic Routes: "+dynamic_nr;
+		
+	}
+	catch(e){
+		//s = "Routing Error: " + e + "\n";
+		netName = "Routing";
+		netConfig = "Error";
+		netDetails = "Unable to check";
+		netDetailsLong = "*\tRouting error:\n"+
+						 "\t"+e.message+"\n";
+	}
+	finally {
+		//print(s);
+		//all_checks += s;
+		networkTable.data.push([netName, netStatus, netConfig, netDetails]);
+		networkTable.details.push(netDetailsLong);
+	}	
+}
+
+var networkTable = new printTable({name:"Network Best Practice", headNames:["Type", "Status", "Config", "Details"]});
+appl.network 	= new Array();		
+routing();
+printReportTable(networkTable);
+
+
+printf("==========END_OF_REPORT_chkZSRouting.aksh==========\n");
+printf("==========START_OF_AUDIT_CHECK_chkZSRouting.aksh==========\n");
+printf("routing_status = %d\n", founderrors);
+printf("==========END_OF_AUDIT_CHECK_chkZSRouting.aksh==========\n");

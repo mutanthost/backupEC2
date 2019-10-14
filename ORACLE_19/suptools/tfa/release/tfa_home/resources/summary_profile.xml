@@ -1,0 +1,195 @@
+<?xml version="1.0"?>
+
+<!--  $Header: tfa/src/v2/tfa_home/resources/summary_profile.xml /main/3 2018/05/28 15:06:27 bburton Exp $ -->
+
+<!-- 
+ Copyright (c) 2017, 2018, Oracle and/or its affiliates. All rights reserved.
+
+   NAME
+        summary_profile.xml - Profile is used to drive summary collection 
+
+   DESCRIPTION
+        Data Collection is controlled using command under specific component 
+
+   NOTES
+        <other useful comments, qualifications, etc.>
+
+   MODIFIED   (MM/DD/YY)
+      manuegar    10/25/17 - manuegar_summary_basrep.
+      cpujar      03/05/17 - Split database problem summary Bug25971734
+      cpujar      04/13/17 - Update Collection Commands
+      cpujar      01/18/17 - Creation
+
+-->
+
+<summary_profile>
+  <component name="overview">
+  <command name="cluster_nodes" clusterwide="no" html="yes" json="yes" console="yes" sequence="1"> </command>
+  <command name="summary_overview" clusterwide="no" html="yes" json="yes" console="yes" sequence="2"> </command>
+  <command name="cluster_status_summary" clusterwide="no" html="yes" json="yes" console="yes" sequence="3" level="1"> </command>
+  <command name="cluster_status_details" clusterwide="no" html="yes" json="yes" console="no" sequence="4"> </command> 
+  </component>
+
+
+  <component name="crsoverview">
+  <command name="crs_clusterwide_summary" clusterwide="no" html="yes" json="yes" console="yes" sequence="0"> </command> 
+  <command name="crs_clusterwide_status" clusterwide="no" html="yes" json="yes" console="yes" sequence="1" level="2"> </command> 
+  </component>
+  <component name="crs">
+  <command name="crs_status_summary" clusterwide="yes" html="yes" json="yes" console="yes" sequence="1"> </command>
+  <command name="crs_resource_status_summary" clusterwide="yes" html="yes" json="yes" console="yes" sequence="2"> </command>
+  <command name="crs_resource_category" clusterwide="yes" html="yes" json="yes" console="yes" sequence="3"> </command>
+  <command name="crs_resource_statistics" clusterwide="yes" html="yes" json="yes" console="yes" sequence="4"> </command>
+  <command name="crs_resource_complete_details" clusterwide="yes" html="yes" json="yes" console="no" sequence="7"> </command>
+  </component>
+
+
+  <component name="asmoverview">
+  <command name="asm_clusterwide_summary" clusterwide="no" html="yes" json="yes" console="yes" sequence="0"> </command> 
+  <command name="asm_clusterwide_status" clusterwide="no" html="yes" json="yes" console="yes" sequence="1" level="2"> </command> 
+  </component>
+  <component name="asm">
+  <command name="asm_status_summary" clusterwide="yes" html="yes" json="yes" console="yes" sequence="1"> </command>
+  <command name="asm_instancefiles" clusterwide="yes" html="yes" json="yes" console="yes" sequence="2"> </command>
+  <command name="asm_diskgroup_details" clusterwide="yes" html="yes" json="yes" console="yes" sequence="3"> </command>
+  <command name="asm_volumes" clusterwide="yes" html="yes" json="yes" console="yes" sequence="4"> </command>
+  <command name="asm_incidents" clusterwide="yes" html="yes" json="yes" console="yes" sequence="5"> </command>
+  <command name="asm_problems" clusterwide="yes" html="yes" json="yes" console="yes" sequence="6"> </command>
+  <command name="asm_hang_analysis" clusterwide="yes" html="yes" json="yes" console="yes" sequence="7"> </command> 
+  </component>
+
+
+  <component name="databaseoverview">
+  <command name="database_clusterwide_summary" clusterwide="no" html="yes" json="yes" console="yes" sequence="0"> </command>
+  <command name="database_clusterwide_status" clusterwide="no" html="yes" json="yes" console="yes" sequence="1" level="2"> </command>
+  <command name="database_problems_summary" clusterwide="no" html="yes" json="yes" console="yes" sequence="2"> </command>
+  <command name="database_incidents_summary" clusterwide="no" html="yes" json="yes" console="yes" sequence="3"> </command>
+  <command name="database_hang_analysis_summary" clusterwide="no" html="yes" json="yes" console="yes" sequence="4"> </command>
+  </component>
+
+  <component name="database">
+  <command name="database_status_summary" clusterwide="yes" html="yes" json="yes" console="yes" sequence="1"> </command>
+  <command name="database_configuration_details" clusterwide="yes" html="yes" json="yes" console="yes" sequence="2"> </command>
+  <command name="database_instance_details" clusterwide="yes" html="yes" json="yes" console="yes" sequence="3"> </command>
+  <command name="database_account_status" clusterwide="yes" html="yes" json="yes" console="yes" sequence="4"> </command>  
+  <command name="database_components_version" clusterwide="yes" html="yes" json="yes" console="yes" sequence="5"> </command>
+  <command name="database_tablespace_details" clusterwide="yes" html="yes" json="yes" console="yes" sequence="6"> </command>
+  <command name="database_group_details" clusterwide="yes" html="yes" json="yes" console="yes" sequence="8"> </command>
+  <command name="database_hanganalyze" clusterwide="yes" html="yes" json="yes" console="yes" sequence="9"> </command> 
+  <command name="database_system_events" clusterwide="yes" html="yes" json="yes" console="yes" sequence="10"> </command>
+  <command name="database_statistics" clusterwide="yes" html="yes" json="yes" console="yes" sequence="11"> </command>
+  <command name="database_sql_statistics" clusterwide="yes" html="yes" json="yes" console="yes" sequence="12"> </command>
+  <command name="database_sqlmon_statistics" clusterwide="yes" html="yes" json="yes" console="yes" sequence="13"> </command>
+  <command name="database_rman_stats" clusterwide="yes" html="yes" json="yes" console="yes" sequence="14"> </command> 
+  <command name="database_pdb_stats" clusterwide="yes" html="yes" json="yes" console="yes" sequence="15"> </command> 
+  <command name="database_incidents" clusterwide="yes" html="yes" json="yes" console="yes" sequence="16"> </command>
+  <command name="database_problems" clusterwide="yes" html="yes" json="yes" console="yes" sequence="17"> </command>
+
+  <command name="database_get_running_db_details" clusterwide="yes" html="yes" json="yes" console="no" sequence="19"> </command>
+  <command name="database_get_db_stat_details" clusterwide="yes" html="no" json="yes" console="no" sequence="20"> </command>
+  </component>
+
+
+  <component name="osoverview">
+  <command name="os_clusterwide_summary" clusterwide="no" html="yes" json="yes" console="yes" sequence="0"> </command> 
+  <command name="os_clusterwide_status" clusterwide="no" html="yes" json="yes" console="yes" sequence="1" level="2"> </command> 
+  </component>
+  
+  <component name="os">
+  <command name="os_status_summary" clusterwide="yes" html="yes" json="yes" console="yes" sequence="1"> </command>
+  <command name="os_details" clusterwide="no" html="yes" json="yes" console="yes" sequence="2"> </command>
+  <command name="system_configuration" clusterwide="yes" html="yes" json="yes" console="yes" sequence="3"> </command>
+  <command name="os_sleeping_tasks" clusterwide="yes" html="yes" json="yes" console="yes" sequence="4"> </command>
+  <command name="os_cpu_details" clusterwide="yes" html="yes" json="yes" console="yes" sequence="5"> </command>
+  <command name="os_disk_location" clusterwide="yes" html="yes" json="yes" console="yes" sequence="6"> </command>
+  <command name="os_disk_details" clusterwide="yes" html="yes" json="yes" console="yes" sequence="7"> </command>
+  </component>
+
+
+  <component name="listeneroverview">
+  <command name="listener_clusterwide_summary" clusterwide="no" html="yes" json="yes" console="yes" sequence="0"> </command> 
+  <command name="listener_clusterwide_status" clusterwide="no" html="yes" json="yes" console="yes" sequence="1" level="2"> </command> 
+  </component>
+  
+  <component name="listener">
+  <command name="listener_status_summary" clusterwide="yes" html="yes" json="yes" console="yes" sequence="1"> </command>
+  <command name="listener_scan_details" clusterwide="yes" html="yes" json="yes" console="yes" sequence="2"> </command>
+  <command name="listener_lsnrctl_status" clusterwide="yes" html="yes" json="yes" console="yes" sequence="3"> </command>
+  </component>
+
+  <component name="networkoverview">
+  <command name="network_clusterwide_summary" clusterwide="no" html="yes" json="yes" console="yes" sequence="0"> </command> 
+  <command name="network_clusterwide_status" clusterwide="no" html="yes" json="yes" console="yes" sequence="1" level="2"> </command> 
+  </component>
+  
+  <component name="network">
+  <command name="network_status_summary" clusterwide="no" html="yes" json="yes" console="yes" sequence="1"> </command> 
+  <command name="network_interface_details" clusterwide="yes" html="yes" json="yes" console="yes" sequence="2"> </command>
+  <command name="network_cluvfy_details" clusterwide="yes" html="yes" json="yes" console="yes" sequence="3"> </command>
+  <command name="network_ocrcheck_details" clusterwide="yes" html="yes" json="yes" console="yes" sequence="4"> </command>
+  </component>
+
+  <component name="patchoverview">
+  <command name="patch_clusterwide_summary" clusterwide="no" html="yes" json="yes" console="yes" sequence="0"> </command> 
+  <command name="patch_clusterwide_status" clusterwide="no" html="yes" json="yes" console="yes" sequence="1" level="2"> </command> 
+  </component>
+  
+  <component name="patch">
+  <command name="patch_status_summary" clusterwide="yes" html="yes" json="yes" console="yes" sequence="1"> </command> 
+  <command name="crs_patch_details" clusterwide="yes" html="yes" json="yes" console="yes" sequence="2"> </command>
+  <command name="database_patch_details" clusterwide="yes" html="yes" json="yes" console="yes" sequence="3"> </command>
+  <command name="crs_product_details" clusterwide="yes" html="yes" json="yes" console="yes" sequence="4"> </command>
+  <command name="database_product_details" clusterwide="yes" html="yes" json="yes" console="yes" sequence="5"> </command>
+  </component>
+
+  <component name="acfsoverview">
+  <command name="acfs_clusterwide_summary" clusterwide="no" html="yes" json="yes" console="yes" sequence="0"> </command> 
+  <command name="acfs_clusterwide_status" clusterwide="no" html="yes" json="yes" console="yes" sequence="1" level="2"> </command> 
+  </component>
+  
+  <component name="acfs">
+  <command name="acfs_status_summary" clusterwide="yes" html="yes" json="yes" console="yes" sequence="1"> </command> 
+  <command name="acfs_filesystem_details" clusterwide="yes" html="yes" json="yes" console="yes" sequence="2"> </command> 
+  <command name="acfs_volume_details" clusterwide="yes" html="yes" json="yes" console="yes" sequence="3"> </command> 
+  <command name="acfs_volume_statistics" clusterwide="yes" html="yes" json="yes" console="yes" sequence="4"> </command> 
+  </component>
+
+  <component name="tfaoverview">
+  <command name="tfa_clusterwide_summary" clusterwide="no" html="yes" json="yes" console="yes" sequence="0"> </command> 
+  <command name="tfa_clusterwide_status" clusterwide="no" html="yes" json="yes" console="yes" sequence="1" level="2"> </command> 
+  </component>
+  
+  <component name="tfa">
+  <command name="tfa_status_summary" clusterwide="yes" html="yes" json="yes" console="yes" sequence="0"> </command> 
+  <command name="tfa_directories" clusterwide="yes" html="yes" json="yes" console="no" sequence="1"> </command>   
+  <command name="tfa_directories_summary" clusterwide="yes" html="no" json="yes" console="yes" sequence="2"> </command> 
+  <command name="tfa_repository" clusterwide="yes" html="yes" json="yes" console="yes" sequence="3"> </command> 
+  <command name="tfa_config" clusterwide="no" html="yes" json="yes" console="yes" sequence="4"> </command> 
+  </component>
+
+  <component name="summaryoverview">
+  <command name="summary_clusterwide_summary" clusterwide="no" html="yes" json="yes" console="yes" sequence="0"> </command>
+  <command name="summary_clusterwide_status" clusterwide="no" html="yes" json="yes" console="yes" sequence="1" level="2"> </command>
+  </component>
+   
+  <component name="summary">
+  <command name="summary_profile" clusterwide="no" html="yes" json="yes" console="yes" sequence="1"> </command>
+  <command name="summary_exectime_summary" clusterwide="yes" html="yes" json="yes" console="yes" sequence="2"> </command>
+  <command name="summary_exectime_component" clusterwide="yes" html="yes" json="yes" console="yes" sequence="3"> </command>
+  </component>
+
+  <component name="exadataoverview">
+  <command name="exadata_clusterwide_summary" clusterwide="no" html="yes" json="yes" console="yes" sequence="0"> </command>
+  <command name="exadata_clusterwide_status" clusterwide="no" html="yes" json="yes" console="yes" sequence="1" level="2"> </command>
+  </component>
+
+  <component name="exadata">
+  <command name="exadata_status_summary" clusterwide="yes" html="yes" json="yes" console="yes" sequence="0"> </command>
+  <command name="exadata_system_details" clusterwide="yes" html="yes" json="yes" console="yes" sequence="1"> </command>
+  <command name="exadata_cell_details" clusterwide="yes" html="yes" json="yes" console="yes" sequence="2"> </command>
+  <command name="exadata_infiband_switches_details" clusterwide="yes" html="yes" json="yes" console="yes" sequence="3"> </command>
+  <command name="exadata_io_statistics" clusterwide="yes" html="yes" json="yes" console="yes" sequence="4"> </command>
+  <command name="exadata_io_status" clusterwide="yes" html="no" json="no" console="no" sequence="5"> </command>
+  </component>
+
+</summary_profile>

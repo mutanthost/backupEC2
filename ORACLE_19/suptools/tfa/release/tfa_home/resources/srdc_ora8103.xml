@@ -1,0 +1,91 @@
+<?xml version="1.0"?>
+
+<!--  $Header: tfa/src/v2/tfa_home/resources/srdc_ora8103.xml /main/2 2018/08/15 16:55:53 bburton Exp $ -->
+
+<!-- 
+ Copyright (c) 2018, Oracle and/or its affiliates. All rights reserved.
+
+   NAME
+     srdc_ora8103.xml
+
+   DESCRIPTION
+     SRDC - Required Diagnostic Data Collection for ORA-08103
+
+   MODIFIED   (MM/DD/YY)
+   xiaodowu    08/01/18 - Resolve Bug 28439844 - ADD PARENTHESIS FOR VALIDATE
+   xiaodowu    03/28/18 - SRDC - Required Diagnostic Data Collection for
+                          ORA-08103 (Doc ID 1671518.1)
+   xiaodowu    03/28/18 - Creation
+
+-->
+<collections>
+<collection id="ORA-08103">
+    <description>SRDC - Required Diagnostic Data Collection for ORA-08103.</description>
+    <srdc_docs>Doc ID 1671518.1: SRDC - Required Diagnostic Data Collection for ORA-08103.</srdc_docs>
+    <alias>ora8103</alias>
+    <onevents>
+        <event>
+            <infile>
+                <name_patterns>
+                    <pattern>alert_.*\.log</pattern>
+                </name_patterns>
+            </infile>
+        </event>
+    </onevents>
+    <user_inputs>
+        <user_input cmdline="" default="" showprompt="1" setenv="REPLACE" validate="" prompt="Enter the Database Name">USERINPUT-DATABASE_NAME</user_input>
+     <user_input cmdline="" default="" showprompt="1" setenv="" validate="(y|Y|n|N)" prompt="Can you reproduce the ORA-08103 issue now? [Y|N] ">USERINPUT-REPRODUCEFLAG</user_input>
+     <user_input cmdline="" default="" showprompt="1" setenv="REPLACE" validate="" depinput="REPRODUCEFLAG" deppattern="y|Y" prompt="Enter the statement to reproduce the ORA-08103 issue: ">USERINPUT-REPRODUCE_SQL</user_input>
+     <user_input cmdline="OPT" default="" showprompt="1" setenv="REPLACE" validate="(y|Y|n|N)" depinput="REPRODUCEFLAG" deppattern="n|N" prompt="This collection will enable EVENT errorstack for ORA-08103 and event 10236 at system level. Please wait for the error to be reproduced and upload the trace file to SR. Then disable the events tracing by issuing: LBREAK connect / as sysdba; LBREAK alter system set events '8103 trace name errorstack off'; LBREAK alter system set events '10236 trace name context off'; [Y|N] ">USERINPUT-OFFFLAG</user_input>
+    </user_inputs>    
+    <duration>12h</duration>
+    <clusterwide>no</clusterwide>
+    <filter_files>
+        <types>
+        </types>
+        <filter_file_patterns>
+            <filter_file_pattern>alert_.*\.log</filter_file_pattern>
+            <filter_file_pattern>trc</filter_file_pattern>
+            <filter_file_pattern>log</filter_file_pattern>
+            <filter_file_pattern>archive\/osw</filter_file_pattern>
+            <filter_file_pattern>ExaWatcher\/archive</filter_file_pattern>
+        </filter_file_patterns>
+        <filter_file_exclude_patterns>
+            <filter_file_exclude_pattern>cdmp_.*_bucket\.tr[cm]</filter_file_exclude_pattern>
+        </filter_file_exclude_patterns>
+    </filter_files>
+    <components>
+        <component>OS</component>
+        <component>CRS</component>
+        <component>DATABASE</component>
+        <component>NOCHMOS</component>
+    </components>
+    <commands>
+     <script type="DB" name="srdc_reproduce_ora8103.sql" timeout="120" validfor="" platform="" version="" depinput="REPRODUCEFLAG" deppattern="Y|y">
+  <![CDATA[
+	set echo on;
+ alter session set max_dump_file_size=unlimited;
+ alter session set db_file_multiblock_read_count=1;
+ alter session set events 'immediate trace name trace_buffer_on level 1048576';
+ alter session set events '10200 trace name context forever, level 1';
+ alter session set events '10236 trace name context forever, level 1';
+ alter session set events '8103 trace name errorstack level 3';
+ alter session set tracefile_identifier='ORA8103';
+	%REPRODUCE_SQL%;
+ alter session set events 'immediate trace name trace_buffer_off';
+ oradebug setmypid 
+ oradebug tracefile_name
+  ]]>
+       	</script>
+     <script type="DB" name="srdc_waiting_for_ora8103.sql" timeout="120" validfor="" platform="" version="" depinput="REPRODUCEFLAG" deppattern="n|N">
+  <![CDATA[
+	alter system set events '8103 trace name errorstack forever, level 3';
+	alter system set events '10236 trace name context forever, level 1';
+  ]]>
+       	</script>
+    </commands>
+    <runtime_flags>
+    </runtime_flags>
+</collection>
+</collections>
+

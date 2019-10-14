@@ -1,0 +1,66 @@
+printf("==========START_OF_REPORT_chkStorageMemSize.aksh==========\n");
+// Written by - Ajit Solomon
+// Group - ELSE
+// ----------------------------------------------------------------------------
+// VARS
+
+var founderrors = false; // Track error findings
+var auditcheck = 0;
+var report = 1;
+var runonetime = 1;
+var mem_size = 0;
+var si = 0;
+var report_output = '';
+var memory = null; 
+var minmemory = 90;
+
+if(runonetime==1)
+{
+	getHostname();	
+	memory = getMemory();
+	if(memory != null) {
+		memory_size(memory);
+
+		run("cd /");
+		if ( report == 1) {
+	        report_output=">maintenance hardware select chassis-000 select memory show\n";
+	        report_output+=run('maintenance hardware select chassis-000 select memory show');
+	    }
+
+		if (mem_size < minmemory) {
+			founderrors = true;
+	    }		
+	}
+	else
+		founderrors = false;
+
+	runonetime=0;
+}
+
+// Report Command
+if ( report == 1 ) {
+    if ( founderrors == false ) {
+	if(memory != null) {
+	        printf("OK: %s Memory Size Check Completed: Memory size on ZFS in GB is %s, not less than minimum recommended size %s\n", host_name, mem_size, minmemory);
+	}
+	else {
+		printf("OK: %s Memory Size Check Completed", host_name);
+	}
+    }
+    else {
+        printf("WARNING: %s Memory Size Check Completed: Memory size on ZFS in GB is %s, less than minimum recommended size %s\n", host_name, mem_size, minmemory);
+    }
+	printf("%s\n",report_output);
+}
+
+
+//END
+printf("==========END_OF_REPORT_chkStorageMemSize.aksh==========\n");
+printf("==========START_OF_AUDIT_CHECK_chkStorageMemSize.aksh==========\n");
+if ( founderrors == false ) {
+        printf("mem_size_status = 0\n");
+}
+else {
+        printf("mem_size_status = 1\n");
+}
+printf("==========END_OF_AUDIT_CHECK_chkStorageMemSize.aksh==========\n");

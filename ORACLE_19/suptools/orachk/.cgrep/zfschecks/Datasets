@@ -1,0 +1,76 @@
+printf("==========START_OF_REPORT_chkDatasets.aksh==========\n");
+//
+// Name: chkDatasets.aksh
+// Author: Jim Stewart
+//
+// Usage: ssh user@appliance < chkDatasets.aksh
+//
+// Purpose: Check for large datasets which can impact AKD performance
+//          
+// ----------------------------------------------------------------------------
+
+	// To Enable Debug set to 1 to disable set 0
+	var DEBUG = 0;
+
+	//Appliance Vars	
+	var founderrors = false; // This flag is set true if any error is found
+	// To enable detailed report, set to 1. To disable set to 0
+	var report = 1;
+	// To enable audit check output(whether it passes or fails), set to 1. To disable set to 0 
+	var auditcheck = 0;
+        var runonetime = 1;
+
+
+//-----------------------------------------------------------------------------
+// MAIN STARTS HERE
+if(runonetime==1)
+{
+getHostname();
+
+run('analytics datasets');
+datasetlist=list();
+x = 0;
+loopmax = datasetlist.length;
+while ( x < loopmax ) {
+	mydataset = datasetlist[x];
+	run('select ' + mydataset);
+	datasetsize = safeGet('size');
+	datasetname = safeGet('name');
+	datasetincore = safeGet('incore');
+	run('cd ..');
+	
+	if ( datasetsize > 2147483648) {
+		datasetsize = datasetsize / 1073741824;
+		if ( report == 1) { printf("WARN: %s DATASET: %s SIZE: %.2fGB SIZE EXCEEDS RECOMMENDED VALUE\n",host_name,datasetname,datasetsize); }
+		founderrors = true;
+// THIS CODEBLOCK WHEN UNCOMMENTED WILL REMOVE LARGE IO.OPS DATASETS, THE USER AUTO CANNOT DO THIS
+//		if ( datasetname.match('io.ops*') ) {
+//			printf("NUKING DATASET: %s\n",datasetname);
+//			run('confirm destroy ' + mydataset);
+//			// When you remove a dataset the numbers get reset so you will need to recheck the current dataset number
+//			x = x - 1;
+//			loopmax = loopmax - 1;
+//		}
+	}
+	if ( DEBUG ) { printf("DEBUG: %s DATASET: %s SIZE: %s\n",host_name,datasetname,datasetsize); }
+	x = x + 1 ;
+
+}		
+runonetime=0;
+}
+// Report Command
+if ( report == 1 ) {
+	if ( founderrors == false ) { 
+		printf("OK: %s Dataset Size Check Completed: No Errors Found\n",host_name); 
+	}
+}
+//END
+printf("==========END_OF_REPORT_chkDatasets.aksh==========\n");
+printf("==========START_OF_AUDIT_CHECK_chkDatasets.aksh==========\n");
+if ( founderrors == false ) { 
+	printf("dataset_check_status = 0\n"); 
+}
+else {
+    	printf("dataset_check_status = 1\n");
+}
+printf("==========END_OF_AUDIT_CHECK_chkDatasets.aksh==========\n");

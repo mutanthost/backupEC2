@@ -1,0 +1,46 @@
+<?xml version="1.0"?>
+
+<!--  $Header: tfa/src/v2/tfa_home/resources/tfactlsudocmds.xml /main/2 2018/07/02 10:06:07 recornej Exp $ -->
+
+<!-- 
+ Copyright (c) 2018, Oracle and/or its affiliates. All rights reserved.
+
+   NAME
+     tfactlsudocmds.xml
+
+   DESCRIPTION
+     Metadata file of commands to be added to the sudoers file in case user has
+     sudo privilege.
+
+   NOTES
+     <other useful comments, qualifications, etc.>
+
+   MODIFIED   (MM/DD/YY)
+   recornej    06/14/18 - Adding GetExaWatcherResults.sh and sundiag.sh
+   recornej    04/26/18 - Adding ib commands
+   recornej    04/16/18 - Commands to be added to the sudoers file in case user
+                          has sudo privilege.
+   recornej    04/16/18 - Creation
+
+-->
+<commands>
+  <cmd command="raw" flags="-qa"/>
+  <cmd command="showmount" flags="-e"/>
+  <cmd command="cat" flags="/etc/sysconfig/oracleasm"/>
+  <cmd command="ls" flags="/etc/sysconfig/oracleasm"/>
+  <cmd command="ls" flags=" -l /usr/sbin/oracleasm-discover"/>
+  <cmd command="ls" flags="/dev/oracleasm/disks"/>
+  <cmd command="ls" flags="/dev/mpath/*"/>
+  <cmd command="ls" flags="/dev/emcpower*"/>
+  <cmd command="ibnetdiscover"/>
+  <cmd command="ibqueryerrors"/>
+  <cmd command="ibswitches"/>
+  <cmd command="iblinkinfo"/>
+  <cmd command="%GRID_HOME%/bin/crsctl" flags="config crs"/>
+  <cmd command="%GRID_HOME%/bin/crsctl" flags="query css ipmiconfig"/>
+  <cmd command="%GRID_HOME%/bin/crsctl" flags="get css ipmiaddr"/>
+  <cmd command="acfsutil" flags="log"/>
+  <cmd command="/opt/oracle.ExaWatcher/GetExaWatcherResults.sh" flags=""/>
+  <cmd command="/opt/oracle.SupportTools/sundiag.sh" flags=""/>
+</commands>
+

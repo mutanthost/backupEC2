@@ -1,0 +1,212 @@
+#!/bin/sh -f
+# $Header: assistants/bin/dbca.sh.pp /st_assistants_19/1 2019/02/21 15:50:47 dizamora Exp $
+#
+# dbca.sh
+#
+# Copyright (c) 1997, 2019, Oracle and/or its affiliates. All rights reserved.
+#
+#    NAME
+#      dbassist - Shell script to run Database Creation Assistant
+#
+#
+#    DESCRIPTION
+#      Runs Database Creation Assistion java application
+#      Run this script with -h or -help option to get the help.
+#
+#   MODIFIED   (MMDD/YY)
+#    obriseno    05/15/18 - use LIBMAJORVSN in place of DB_VERSION_FIRST_DIGIT
+#    nramamur    03/14/18 - Added the jsch.jar for SSH changes on Install team request
+#    jaikrish	 09/01/17 - pp changes
+#    obriseno    08/01/16 - use $@ to pass arguments to dbca
+#    pvallam     10/08/15 - update to ojdbc8 jar file
+#    andalfar    08/11/15 - bug 21610834, remove -XX:MaxPermSize=128M
+#    obriseno    05/21/15 - add ssh.jar to classpath
+#    andalfar    05/20/15 - bug fix 21121578, add -XX:MaxPermSize=128M
+#    obriseno    05/14/15 - bug 21076102: unset DISPLAY in silent mode
+#    akhprabh    04/05/15 - bug 20892535,Changed the JVM Option parsing logic
+#    obriseno    11/06/14 - add support for custom jre
+#    xiaofwan    05/28/14 - separate JVM options
+#    rpattabh    03/16/07 - bug 4395270: fix interrupt handling
+#    npamnani    10/23/02 - add 1.3.1. java flag
+#    npamnani    10/09/02 - run with java instead jre
+#    dkapoor    07/05/2000 - Created
+#
+
+#######################################################################
+# Variables set by Oracle Universal Installer for dependent components.
+#######################################################################
+
+# Define ORACLE_HOME -> OH
+OH=/u01/app/oracle/product/19.0.0/dbhome_1
+PLATFORM=Linux
+ORACLE_HOME=$OH 
+export ORACLE_HOME;
+ 
+
+# Version specific JAR files
+EWT_FILE=ewt3.jar
+JEWT_FILE=jewt4.jar
+EWT_COMP_FILE=ewtcompat-3_3_15.jar
+SHARE_FILE=share.jar
+HELP_FILE=help4.jar
+#ICE_BROWSER_FILE=oracle_ice5.jar
+ICE_BROWSER5_FILE=oracle_ice.jar
+KODIAK_FILE=kodiak.jar
+XMLPARSER_FILE=xmlparserv2.jar
+JDBC_FILE=ojdbc8.jar
+GDK_FILE1=orai18n.jar
+GDK_FILE2=orai18n-mapping.jar
+GDK_FILE3=orai18n-utility.jar
+GDK_FILE4=orai18n-collation.jar
+NETCFG_FILE=netcfg.jar
+OJMISC_FILE=ojmisc.jar
+CVU_JAR=cvu.jar
+PKI_FILE=oraclepki.jar
+LDAP_FILE=ldapjclnt19.jar
+OPM_FILE=opm.jar
+SRVM_FILE=srvm.jar
+SRVMHAS_FILE=srvmhas.jar
+SRVMASM_FILE=srvmasm.jar
+GNS_FILE=gns.jar
+ASSISTANTS_COMMON_EXT_FILE=asstcommonext.jar
+ASSISTANTS_COMMON_FILE=assistantsCommon.jar
+RCONFIG_COMMON_FILE=rconfig.jar
+DBCA_EXT_FILE=dbcaext.jar
+DBCA_FILE=dbca.jar
+INSTALLER_FILE=OraInstaller.jar
+PREREQ_JAR_FILE=OraPrereq.jar
+DVCA_JAR=dvca.jar
+PREREQ_CHECKS_JAR_FILE=OraPrereqChecks.jar
+CHECKPOINT_JAR=OraCheckPoint.jar
+SSH_JAR=ssh.jar
+JSCH_JAR=jsch.jar
+
+# Directory Variables
+SRVM_JLIB_DIR=/u01/app/oracle/product/19.0.0/dbhome_1/jlib
+JRE_DIR=/u01/app/oracle/product/19.0.0/dbhome_1/jdk/jre
+JLIB_DIR=$OH/jlib
+DBCA_JLIB_DIR=$OH/assistants/dbca/jlib
+DBCA_HELP_DIR=$OH/assistants/dbca/doc
+INSTALLER_JLIB_DIR=/u01/app/oracle/product/19.0.0/dbhome_1/oui/jlib
+ASSISTANTS_JLIB_DIR=$OH/assistants/jlib
+# Classpath
+
+GNS_CLASSPATH=$JLIB_DIR/$GNS_FILE
+SHARE_CLASSPATH=$JLIB_DIR/$SHARE_FILE
+HELP_CLASSPATH=$JLIB_DIR/$HELP_FILE:$INSTALLER_JLIB_DIR/$JEWT_FILE
+ICE_BROWSER_CLASSPATH=$JLIB_DIR/$ICE_BROWSER5_FILE
+EWT_CLASSPATH=$JLIB_DIR/$EWT_FILE:$JLIB_DIR/$EWT_COMP_FILE
+KODIAK_CLASSPATH=$JLIB_DIR/$KODIAK_FILE
+XMLPARSER_CLASSPATH=/u01/app/oracle/product/19.0.0/dbhome_1/lib/$XMLPARSER_FILE
+JDBC_CLASSPATH=$OH/jdbc/lib/$JDBC_FILE
+GDK_CLASSPATH=$JLIB_DIR/$GDK_FILE1
+ASSISTANTS_COMMON_CLASSPATH=$ASSISTANTS_JLIB_DIR/$ASSISTANTS_COMMON_FILE:$ASSISTANTS_JLIB_DIR/$RCONFIG_COMMON_FILE:$ASSISTANTS_JLIB_DIR/$ASSISTANTS_COMMON_EXT_FILE
+NETCFG_CLASSPATH=$JLIB_DIR/$LDAP_FILE:$JLIB_DIR/$NETCFG_FILE:$JLIB_DIR/$OJMISC_FILE:$JLIB_DIR/$PKI_FILE:$JLIB_DIR/$OPM_FILE
+SRVM_CLASSPATH=$SRVM_JLIB_DIR/$SRVM_FILE:$SRVM_JLIB_DIR/$SRVMHAS_FILE:$SRVM_JLIB_DIR/$SRVMASM_FILE
+DBCA_CLASSPATH=$DBCA_JLIB_DIR/$DBCA_FILE:$DBCA_JLIB_DIR/$DBCA_EXT_FILE
+HELPJAR_CLASSPATH=$DBCA_HELP_DIR/dbcahelp.jar:$DBCA_HELP_DIR/dbcahelp_es.jar:$DBCA_HELP_DIR/dbcahelp_de.jar:$DBCA_HELP_DIR/dbcahelp_fr.jar:$DBCA_HELP_DIR/dbcahelp_it.jar:$DBCA_HELP_DIR/dbcahelp_ja.jar:$DBCA_HELP_DIR/dbcahelp_ko.jar:$DBCA_HELP_DIR/dbcahelp_pt_BR.jar:$DBCA_HELP_DIR/dbcahelp_zh_CN.jar:$DBCA_HELP_DIR/dbcahelp_zh_TW.jar
+INSTALLER_CLASSPATH=$INSTALLER_JLIB_DIR/$INSTALLER_FILE:$INSTALLER_JLIB_DIR/$PREREQ_JAR_FILE:$OH/inventory/prereqs/oui/$PREREQ_CHECKS_JAR_FILE:$INSTALLER_JLIB_DIR/$PREREQ_CHECKS_JAR_FILE:$INSTALLER_JLIB_DIR/$CHECKPOINT_JAR:$JLIB_DIR/$CVU_JAR:$OH/install/jlib/installcommons_1.0.0b.jar:$OH/oui/jlib/jewt4.jar:$INSTALLER_JLIB_DIR/$SSH_JAR:$INSTALLER_JLIB_DIR/$JSCH_JAR
+DVCA_CLASSPATH=$OH/dv/jlib/$DVCA_JAR
+COMMONS_COMPRESS_PATH=$OH/jlib/commons-compress-1.18.jar
+
+# Check for silent or help
+SILENT="false"
+for i in $*
+do
+   if [ $i = "-silent"  ] || [ $i = "-deinstall"  ] || [ $i = "-help"  ] || [ $i = "-h"  ]; then
+      SILENT="true"
+      break
+   fi
+done
+
+# Check for DISPLAY
+if [ $SILENT = "false"  ]; then
+   case $DISPLAY in
+      "")
+      echo "DISPLAY not set."
+      echo "Set DISPLAY environment variable, then re-run."
+      exit;
+   esac
+else
+   unset DISPLAY
+fi    
+
+#call platform_common script
+. $ORACLE_HOME/bin/platform_common
+
+# Check if user is non-root
+if [ "$RUID" = "0" ]; then
+        echo "DBCA cannot be run as root."
+        exit 1;
+fi
+
+# make sure others can not read/write any files created
+umask 27
+
+# The environment variable $TWO_TASK cannot be set during the installation
+unset TWO_TASK
+
+# The environment variable $JAVA_HOME cannot be set during the installation
+unset JAVA_HOME
+
+# Basic error checking
+case $OH in
+    "") echo "*** ORACLE_HOME Not Set!"
+        echo "    Set and export ORACLE_HOME, then re-run"
+        echo "    ORACLE_HOME points to the main directory that"
+        echo "    contains all Oracle products."
+        exit 1;;
+esac
+
+
+# Set Classpath for Database Creation Assistant
+CLASSPATH=$DBCA_CLASSPATH:$ASSISTANTS_COMMON_CLASSPATH:$SRVM_CLASSPATH:$INSTALLER_CLASSPATH:$EWT_CLASSPATH:$SHARE_CLASSPATH:$HELP_CLASSPATH:$ICE_BROWSER_CLASSPATH:$KODIAK_CLASSPATH:$XMLPARSER_CLASSPATH:$GDK_CLASSPATH:$NETCFG_CLASSPATH:$JDBC_CLASSPATH:$DVCA_CLASSPATH:$GNS_CLASSPATH:$COMMONS_COMPRESS_PATH
+
+JVM_OPTIONS=""
+ARGUMENTS=""
+for j in $*
+do
+   index=`expr match "$j" "-J-"`
+   if [ $index = 3 ]; then
+      j=`echo $j | sed 's/-J//'`
+      JVM_OPTIONS="${JVM_OPTIONS} $j"
+   else
+      ARGUMENTS="${ARGUMENTS} $j"
+   fi
+done
+
+JRE_OPTIONS="${JRE_OPTIONS} -DSET_LAF=${SET_LAF} -Dsun.java2d.font.DisableAlgorithmicStyles=true -Dice.pilots.html4.ignoreNonGenericFonts=true  -DDISPLAY=${DISPLAY} -DJDBC_PROTOCOL=thin -mx512m"
+
+# Check for custom JRE
+USE_CUSTOM_JRE="false"
+
+for k in $*
+do
+   if [ $USE_CUSTOM_JRE = "true" ]; then
+      JRE_DIR=$k
+      USE_CUSTOM_JRE="false"
+   elif [ $k = "-jreLoc" ]; then
+      USE_CUSTOM_JRE="true"
+   fi
+done
+
+###################################Remote debugging############################
+#To enable Remote debugging
+# setenv DEBUG_ASSISTANTS true
+# setenv DEBUG_PORT <desired port>
+
+DEFAULT_DEBUG_PORT=8000
+
+if [ "$DEBUG_ASSISTANTS" = "true" ]; then
+        if [ "$DEBUG_PORT" = "" ]; then
+                #If port not specified then assign default port
+                DEBUG_PORT=$DEFAULT_DEBUG_PORT
+        fi
+        DEBUG_STRING="-Xdebug -Xrunjdwp:transport=dt_socket,address=$DEBUG_PORT,server=y,suspend=n -client"
+         echo "Remote Debugging is enabled in port $DEBUG_PORT"
+else
+        DEBUG_STRING=""
+fi
+##############################################################################
+# Run DBCA
+exec $JRE_DIR/bin/java  $JRE_OPTIONS  $DEBUG_STRING $JVM_OPTIONS -classpath $CLASSPATH oracle.assistants.dbca.driver.DBConfigurator "$@"

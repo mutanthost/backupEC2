@@ -1,0 +1,22 @@
+printf("==========START_OF_REPORT_chkExtBlockSize.aksh==========\n");
+
+var minRecordSize = 8192;
+var founderrorsBlocksize = false;
+var report = 1;
+
+getHostname();
+
+checkBlockSize(minRecordSize);
+
+if ( founderrorsBlocksize == false ) {
+    printreport("OK: " + host_name + " Block Size Check Completed: Block size on ECU generated shares are at least " + minRecordSize + " bytes\n");
+}
+else {
+    printreport("WARNING: " + host_name + " Block Size Check Completed: Block size on one or more ZFS shares are not at least " + minRecordSize + " bytes\n");
+}
+
+printf("==========END_OF_REPORT_chkExtBlockSize.aksh==========\n");
+
+printf("==========START_OF_AUDIT_CHECK_chkExtBlockSize.aksh==========\n");
+printf("block_size_check_status = %d\n", founderrorsBlocksize);
+printf("==========END_OF_AUDIT_CHECK_chkExtBlockSize.aksh==========\n");

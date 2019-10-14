@@ -1,0 +1,125 @@
+<?xml version="1.0"?>
+
+<!--  $Header: tfa/src/v2/tfa_home/resources/srdc_dbpartitionperf.xml /main/2 2018/08/15 16:55:52 bburton Exp $ -->
+
+<!-- 
+ Copyright (c) 2018, Oracle and/or its affiliates. All rights reserved.
+
+   NAME
+     srdc_dbpartitionperf.xml 
+
+   DESCRIPTION
+     SRDC - Data to Supply for Slow Create/Alter/Drop Commands Against Partitioned Table/Index
+
+   MODIFIED   (MM/DD/YY)
+   xiaodowu    08/01/18 - Resolve Bug 28439844 - ADD PARENTHESIS FOR VALIDATE
+   xiaodowu    06/06/18 - Implement Enh 28056207 (REPLACE DBSLOW WITH
+                          AWR_REPORT FOR DBPARTITIONPERF SRDC COLLECTION)
+   xiaodowu    03/28/18 - SRDC - Data to Supply for Slow Create/Alter/Drop
+                          Commands Against Partitioned Table/Index (Doc ID
+                          1671258.1)
+   xiaodowu    03/28/18 - Creation
+
+-->
+<collections>
+	<collection id="dbpartitionperf">
+		<description>SRDC - Data to Supply for Slow Create/Alter/Drop Commands Against Partitioned Table/Index</description>
+		<srdc_docs>Doc ID 1671258.1:SRDC - Data to Supply for Slow Create/Alter/Drop Commands Against Partitioned Table/Index</srdc_docs>
+		<alias>dbpartitionperf</alias>
+		<onevents>
+			<event>
+				<infile>
+					<name_patterns>
+						<pattern>alert_.*\.log</pattern>
+					</name_patterns>
+				</infile>
+			</event>
+		</onevents>
+		<user_inputs>
+			<user_input cmdline="" default="" showprompt="1" setenv="NO" validate="" prompt="Enter the Database Name">USERINPUT-DATABASE_NAME</user_input>
+			<user_input cmdline="" default="" showprompt="1" setenv="NO" validate="" prompt="Do you have an AWR license? &#40;Refer to Doc 1490798.1 for more information &#41;">USERINPUT-LICENSE</user_input>
+			<user_input cmdline="" default="" showprompt="1" setenv="NO" validate="" prompt="Do you have a performance issue now">USERINPUT-ISSUE_NOW</user_input>
+			<user_input cmdline="" default="" showprompt="1" setenv="NO" validate="" prompt="AWR duration">USERINPUT-AWR_DURATION</user_input>
+			<user_input cmdline="" default="" showprompt="1" setenv="NO" validate="" msg="Start time when the performance was bad: " prompt="Enter start time when the performance was bad">USERINPUT-EVENT_START_TIME</user_input>
+			<user_input cmdline="" default="" showprompt="1" setenv="NO" validate="" msg="Stop time when the performance was bad: " prompt="Enter stop time when the performance was bad">USERINPUT-EVENT_END_TIME</user_input>
+			<user_input cmdline="" default="" showprompt="1" setenv="NO" validate="" prompt="For comparison, it is useful to gather data from another period with similar load where problems are not seen. Typically this is likely to be the same time period on a previous day. To compare to the same time period on a previous day enter the number of days ago you wish to use.">USERINPUT-PERFORM_OK</user_input>
+			<user_input cmdline="" default="" showprompt="1" setenv="NO" validate="" msg="Start time when the performance was good" prompt="Enter start time when the performance was good">USERINPUT-EVENT_BASELINE_START_TIME</user_input>
+			<user_input cmdline="" default="" showprompt="1" setenv="NO" validate="" msg="Stop time when the performance was good" prompt="Enter stop time when the performance was good">USERINPUT-EVENT_BASELINE_END_TIME</user_input>
+			<user_input cmdline="" default="" showprompt="1" setenv="" validate="(y|Y|n|N)" prompt="Can you reproduce the issue during this collection? [Y|N] ">USERINPUT-REPRODUCEFLAG</user_input>
+			<user_input cmdline="" default="" showprompt="1" setenv="REPLACE" validate="file" depinput="REPRODUCEFLAG" deppattern="y|Y" prompt="Enter the full path of the SQL file which would reproduce the issue now: ">USERINPUT-SQLFILE</user_input>
+			<user_input cmdline="" default="" showprompt="1" setenv="" validate="(y|Y|n|N)" prompt="Is the performance issue related to a particular table? [Y|N] ">USERINPUT-TABLEFLAG</user_input>
+			<user_input cmdline="" default="" showprompt="1" setenv="REPLACE" validate="" depinput="TABLEFLAG" deppattern="y|Y" prompt="Enter the table owner: ">USERINPUT-TABLE_OWNER</user_input>
+			<user_input cmdline="" default="" showprompt="1" setenv="REPLACE" validate="" depinput="TABLEFLAG" deppattern="y|Y" prompt="Enter the table name: ">USERINPUT-TABLE_NAME</user_input>
+			<user_input cmdline="" default="" showprompt="1" setenv="" validate="(y|Y|n|N)" prompt="Is the performance issue related to a particular index? [Y|N] ">USERINPUT-INDEXFLAG</user_input>
+			<user_input cmdline="" default="" showprompt="1" setenv="REPLACE" validate="" depinput="INDEXFLAG" deppattern="y|Y" prompt="Enter the index owner: ">USERINPUT-INDEX_OWNER</user_input>
+			<user_input cmdline="" default="" showprompt="1" setenv="REPLACE" validate="" depinput="INDEXFLAG" deppattern="y|Y" prompt="Enter the index name: ">USERINPUT-INDEX_NAME</user_input>
+		</user_inputs>    
+		<duration>12h</duration>
+		<awrduration>1h</awrduration>
+		<clusterwide>yes</clusterwide>
+		<filter_files>
+			<types>
+			</types>
+			<filter_file_patterns>
+				<filter_file_pattern>alert_.*\.log</filter_file_pattern>
+				<filter_file_pattern>trc</filter_file_pattern>
+				<filter_file_pattern>log</filter_file_pattern>
+				<filter_file_pattern>archive\/osw</filter_file_pattern>
+				<filter_file_pattern>ExaWatcher\/archive</filter_file_pattern>
+			</filter_file_patterns>
+			<filter_file_exclude_patterns>
+				<filter_file_exclude_pattern>cdmp_.*_bucket\.tr[cm]</filter_file_exclude_pattern>
+			</filter_file_exclude_patterns>
+		</filter_files>
+		<components>
+			<component>OS</component>
+			<component>CRS</component>
+			<component>DATABASE</component>
+			<component>CHMOS</component>
+		</components>
+		<commands>
+			<script type="IPSPACK" name="ipspack" timeout="120" validfor="" platform="" version=""> </script>
+			<script type="TFADBPERF" name="awr_reports" timeout="120" validfor="" platform="" version=""> </script>
+			<script type="DB" name="srdc_table_ddl.sql" depinput="TABLEFLAG" deppattern="y|Y" timeout="120" validfor="" platform="" version="">
+	spool table_ddl.log 
+set echo on
+SET LONG 10000000 LINESIZE 1000 PAGESIZE 0
+col DDL format a1000
+select DBMS_METADATA.GET_DDL('TABLE', upper('%TABLE_NAME%'),upper('%TABLE_OWNER%')) DDL from dual;
+	spool off
+			</script>
+			<script type="DB" name="srdc_index_ddl.sql" depinput="INDEXFLAG" deppattern="y|Y" timeout="120" validfor="" platform="" version="">
+	spool index_ddl.log 
+set echo on
+SET LONG 10000000 LINESIZE 1000 PAGESIZE 0
+col DDL format a1000
+select DBMS_METADATA.GET_DDL('INDEX', upper('%INDEX_NAME%'),upper('%INDEX_OWNER%')) DDL from dual;
+	spool off
+			</script>
+			<script type="OS" name="generate_reproduce_sql" timeout="120" validfor="" platform="allux" version="" depinput="REPRODUCEFLAG" deppattern="y|Y">
+	file=srdc_get_sql_trace.sql
+
+	echo "spool SQL_EXEC.OUT" > $file
+	echo "set echo on" >> $file
+	echo "set timing on" >> $file
+	echo "alter session set tracefile_identifier='SQL_EXEC_TRACE_10046';" >> $file
+	echo "alter session set timed_statistics = true;" >> $file
+	echo "alter session set statistics_level=all;" >> $file
+	echo "alter session set max_dump_file_size = unlimited;" >> $file
+	echo "alter session set events '10046 trace name context forever,level 12';" >> $file
+
+	/bin/cat %SQLFILE% >>$file
+
+	echo "select * from dual;" >> $file
+	echo "exit;" >> $file
+			</script>
+			<script type="OS" name="srdc_sql_reproduce" timeout="120" validfor="" platform="allux" version="">
+        file=srdc_get_sql_trace.sql
+        $ORACLE_HOME/bin/sqlplus / as sysdba @$file
+        /bin/rm -f $file
+			</script>
+		</commands>
+		<runtime_flags>
+		</runtime_flags>
+	</collection>
+</collections>

@@ -1,0 +1,470 @@
+printf("==========START_OF_REPORT_chkZSVersion.aksh==========\n");
+var founderrors = false;
+
+function ak_release_converter(long_ak){
+	ak_converter = {
+		"2013.06.05": "2013.1",
+		"2011.04.24": "2011.1",
+		"2010.08.17": "2010.Q3",
+		"2010.02.09": "2010.Q1",
+		"2009.09.01": "2009.Q3",
+		"2009.04.10": "2009.Q2",
+		"2008.11.20": "2008.Q4",
+	}
+	var prefix = ak_converter[long_ak.substr(0,10)];
+	
+	if(prefix != null) {
+    	short_ak = prefix +long_ak.substr(10);
+	}
+	else {
+	    short_ak = long_ak;
+	}
+	return short_ak;
+}
+
+/*
+  Compares AK versions. Returns negative number if version1 is earlier, 0 if versions are equal, and positive number if version1 is later
+*/
+function ak_version_compare(version1, version2) {
+	version1 = version1.replace(/\.+/g, "");
+	version2 = version2.replace(/\.+/g, "");
+	var largerLen = Math.max(version1.length, version2.length);
+	var strVer1 = version1.toString() + Array(largerLen-version1.length+1).join("0");
+	var strVer2 = version2.toString() + Array(largerLen-version2.length+1).join("0");
+	return parseInt(strVer1)-parseInt(strVer2);
+}
+
+
+/*-----------------------------------
+  ak Version Check (DDT version)
+------------------------------------*/
+
+function ak_version_check() {
+	
+	fw = new Array();
+	fw['7x10'] =  new Array();
+	fw['7x20'] =  new Array();
+	fw['zs3']  =  new Array();
+	fw['zs4']  =  new Array();
+    var checkName     = "AK Version", 
+    firmwareLatest    = "", 
+    firmwareInstalled = "", 
+    detailsShort      = "", 
+    detailsLong       = "";
+	
+	// FW versions from KM Doc 2021771.1: Oracle ZFS Storage Appliance: Software Updates
+	fw['7x10']['min'] = '2011.04.24.9.3';
+	fw['7x10']['min_rec'] = '2011.04.24.9.3';
+	fw['7x10']['current'] = '2011.04.24.9.3';
+	
+	fw['7x20']['min'] = '2013.06.05.2.13';
+	fw['7x20']['min_rec'] = '2013.06.05.5.0';
+	fw['7x20']['current'] = '2013.06.05.5.0';
+	
+	fw['zs3']['min'] = '2013.06.05.2.13';
+	fw['zs3']['min_rec'] = '2013.06.05.5.0';
+	fw['zs3']['current'] = '2013.06.05.5.0';
+	
+	fw['zs4']['min'] = '2013.06.05.3.0';
+	fw['zs4']['min_rec'] = '2013.06.05.5.0';
+	fw['zs4']['current'] = '2013.06.05.5.0';
+	
+	needs_update = true;
+	s = "";
+	
+	try{									
+		product 	= appl.model;		
+		ak_version 	= appl.ak_ver;		
+
+		if (product.lastIndexOf("10")>=0){
+			product = '7x10';
+		} 
+		else if (product.lastIndexOf("20")>=0) {
+			product = '7x20';
+		}
+		else if (product.toUpperCase().lastIndexOf("ZS3")>=0 || product.lastIndexOf("30")>=0) {
+			product = 'zs3';
+		}
+		else if (product.toUpperCase().lastIndexOf("ZS4")>=0) {
+			product = 'zs4';
+		}	
+			
+		max = parseInt(fw[product]['current'].replace(/\.+/g, ""));
+		
+		firmwareLatest = max;
+        firmwareInstalled = ak_release_converter(ak_version);
+        
+        var currentComparison = ak_version_compare(ak_version, fw[product]['current']);
+        if(currentComparison > 0) {        
+        	//s = "The ak release installed " + ak_version + " seems to be newer than the latest ak release: " + ak_release_converter(fw[product]['current']) + " ("+fw[product]['current']+")\n";			
+            detailsShort = ak_release_converter(fw[product]['current'])+": Above latest ak release.";
+            detailsLong  = "*\tThe ak release installed " + ak_version + " seems to be newer than the latest ak release: " + ak_release_converter(fw[product]['current']) + " ("+fw[product]['current']+")\n";
+        }            
+		else if (currentComparison == 0) {		   
+		  	//s = "The FW release on the appliance is up to date (" + ak_release_converter(ak_version) + ").\n";  
+            		detailsShort = "FW up to date.";
+			needs_update = false;
+		} 
+		else if (ak_version_compare(ak_version, fw[product]['min_rec']) >= 0) {
+			//s = "The FW release on the appliance (" +ak_release_converter(ak_version)+ ") meets the minimum recommended version ("+ ak_release_converter(fw[product]['min_rec'])+ ").\n";
+            detailsShort = ak_release_converter(fw[product]['min_rec'])+": At minimum recommended.";
+            detailsLong  = "*\tThe FW release on the appliance (" +ak_release_converter(ak_version)+ ") meets the minimum recommended version ("+ ak_release_converter(fw[product]['min_rec'])+ ").\n"; 
+		} 
+		else if (ak_version_compare(ak_version, fw[product]['min']) >= 0) {
+			//s = "The FW release on the appliance (" +ak_release_converter(ak_version)+ ") meets the minimum supported version ("+ ak_release_converter(fw[product]['min'])+ "). \nAn update is recommended.\n";
+            detailsShort = ak_release_converter(fw[product]['min'])+": An update is recommended.";
+            detailsLong  = "*\tThe FW release on the appliance (" +ak_release_converter(ak_version)+ ") meets the minimum supported version ("+ ak_release_converter(fw[product]['min'])+ "). \n\tAn update is recommended.\n";
+		}
+		else {
+		    founderrors = true;
+			//s = "The FW release on the appliance (" +ak_release_converter(ak_version)+ ") doesn't meet the minimum supported version ("+ ak_release_converter(fw[product]['min'])+ "). \nAn update is mandatory.\n";
+            detailsShort = ak_release_converter(fw[product]['min'])+": Below supported firmware.";
+            detailsLong  = "*\tThe FW release on the appliance (" +ak_release_converter(ak_version)+ ") doesn't meet the minimum supported version ("+ ak_release_converter(fw[product]['min'])+ "). \n\tAn update is mandatory.\n";
+		}
+	}
+	catch(e){
+		//s = "ak FW Check: " + e + "\n";
+        detailsShort = "Check failed to process";
+        detailsLong  = "*\tFirmware Check Error:\n"+
+					   "\t"+e.message+"\n";
+        founderrors = true;					   
+	}
+	finally{
+        firmwareTable.data.push([checkName, firmwareLatest, firmwareInstalled, detailsShort]);
+        firmwareTable.details.push(detailsLong);
+		return needs_update;
+	}
+};
+
+
+/*----------------------------------------------------
+  AK version - check for updates
+*---------------------------------------------------*/	
+function update_check(){
+	//s = "Checking for newer versions...\n"
+    var checkName     = "Firmware Updates", 
+    firmwareLatest    = "", 
+    firmwareInstalled = "", 
+    detailsShort      = "", 
+    detailsLong       = "";
+	
+	try{				
+		run('cd /');
+		run('maintenance system updates');
+		
+		try{
+			output = run('check');
+
+			/*
+			 * The call to execute an update check is asynchronous as it goes over the
+			 * Internet. It is usually fairly fast, so we sleep for 10 seconds and expect
+			 * the result. If we do not get the result by then, we simply cannot say
+			 * whether or not an update is available.
+			 */
+			run('sleep 10');
+			
+			if (output.lastIndexOf("Phone home")>=0){				
+				//s +=
+                firmwareLatest = "SCRK Error";
+                firmwareInstalled = "SCRK Error";
+                detailsShort = "Unable to check for updates";
+                detailsLong = "*\tTo find out how to enable SCRK (Phone Home Service), please consult the following knowledge article:\n"+ 
+                               "\t Doc ID 1285455.1: Oracle ZFS Storage Appliance: How to (and why) enable the Automated\n"+
+                               "\t Service Request (ASR) Feature on MOS\n";
+    		    founderrors = true;                               
+			}
+			else {
+				ak_vers = run('list').split('\n');
+				// Go through each line of the output and check if an update is ready for download
+				for (i = 1; i < ak_vers.length; i++){	
+					if (ak_vers[i].lastIndexOf("downloadable")>=0){
+						/*
+						 * The data we get back from MOS is already in the
+						 * appropriate format.
+						 */
+						firmwareLatest = ak_vers[i].split(' ')[0];
+					} else if (ak_vers[i].lastIndexOf("current")>=0){
+                        firmwareInstalled = ak_release_converter(/^\S+(\d{4}\.\d{2}\.\d{2}\.\d\.\d)/.exec(ak_vers[i])[1]);
+                        printf("Current firmware version is: %s\n", firmwareInstalled);
+					}
+				}
+                detailsShort = "Update Check Successful.";
+			}
+		}
+		catch (e){
+			//s += 
+            detailsLong = "*\tCould not check for firmware updates, using: maintenance system updates \n"+
+			     "\tThis feature may not be available on this machine or for this ak release\n";
+            detailsShort = "Unable to use Update check.";
+		    founderrors = true;            
+		}		
+	}
+	catch(e){
+		//s += e + "\n";
+     
+	}
+	finally{
+        firmwareTable.data.push([checkName, firmwareLatest, firmwareInstalled, detailsShort]);
+        firmwareTable.details.push(detailsLong);
+	}
+}			
+		
+/*-----------------------------------
+  IB Check
+------------------------------------*/
+var checkIBfirmware = function(){
+    var checkName     = "IB Firmware", 
+    firmwareLatest    = "", 
+    firmwareInstalled = "", 
+    detailsShort      = "", 
+    detailsLong       = "";
+    var ibFirmware = [
+      {
+        model: "Dual Port QDR IB HCA M2",
+        zfs: "2.11.2010",
+        link: "https://support.oracle.com/epmos/faces/DocumentDisplay?id=2051841.1"
+      },
+      {
+        model: "Dual Port QDR IB HCA M3",
+        zfs: "2.11.1280",
+        link: "https://support.oracle.com/epmos/faces/DocumentDisplay?id=2051841.1"
+      }
+    ];
+    var slots = [], i, result = [], out;
+    run("cd /");
+    try{
+        run("maintenance hardware select chassis-000 select slot");
+    }catch(e){ 
+        audit(dump(e));
+       // print("Unable to select chassis-000\n"+dump(e));
+        //all_checks +
+        detailsShort = "Unable to select chassis-000.";
+        detailsLong  = "*\tCMD Failed: maintenance hardware select chassis-000 select slot"
+        firmwareTable.data.push([checkName, firmwareLatest, firmwareInstalled, detailsShort]);
+        firmwareTable.details.push(detailsLong);
+        //return(false);
+        founderrors = true;        
+        return;
+    }
+    
+    result = (function(slots){
+        var data = [], model, revision, label;
+        for(i=0;i<slots.length;++i){
+            run("select "+slots[i]);
+            try{
+                model = get('model');
+                if(model.match(/IB/)){
+                    revision = get('revision') || 'none';
+                    label = get('label');
+                    if(model.match(/M2/)){
+                        if(revision.match(ibFirmware[0].zfs)){
+                            data.push({label   : label, 
+									   model   : model, 
+									   latest  : ibFirmware[0].zfs, 
+									   revision: revision, 
+									   isMatch : true});
+                        }else{
+                            data.push({label   : label, 
+									   model   : model, 
+									   revision: revision, 
+									   isMatch : false, 
+									   latest  : ibFirmware[0].zfs, 
+									   link    : ibFirmware[0].link});
+                        }
+                    }else if(model.match(/M3/)){
+                        if(revision.match(ibFirmware[1].zfs)){
+                             data.push({label   : label, 
+										model   : model, 
+										latest  : ibFirmware[1].zfs, 
+										revision: revision, 
+										isMatch : true});
+                        }else{
+                            data.push({label   : label, 
+									   model   : model, 
+									   revision: revision, 
+									   isMatch : false, 
+									   latest  : ibFirmware[1].zfs, 
+									   link    : ibFirmware[1].link});
+                        }
+                    }
+                }
+            }catch(e){ run("done"); continue;}
+            
+           
+            run("done");
+        }
+        return(data);
+    })(list());
+   //out = "IB Firmware Check ...\n";
+   if(result.length === 0){
+        //out += "No IB Cards found\n";
+        //return(out);
+        detailsShort = "No IB Cards Found.";
+        firmwareTable.data.push([checkName, firmwareLatest, firmwareInstalled, detailsShort]);
+        founderrors = true;        
+        return;
+   }
+   for(i=0; i < result.length; ++i){
+	   
+        if(result[i].isMatch === false){
+            detailsLong = "*\tSlot: "+result[i].label+", Model:"+result[i].model+", Should be at "+result[i].latest+"\n"+
+                          "\tLink: "+result[i].link+"\n";
+            firmwareTable.data.push([checkName, result[i].latest, result[i].revision, "Slot:"+result[i].label+",Does not match latest release."]);
+            firmwareTable.details.push(detailsLong);
+            
+            founderrors = true;
+
+        }else{
+            firmwareTable.data.push([checkName, result[i].latest, result[i].revision, "Slot:"+result[i].label+",Matched Latest."]);
+        }
+        
+   }
+   return;
+};
+
+/*-----------------------------------
+  ILOM/SP Check
+------------------------------------*/
+var checkILOMfirmware = function(){
+    
+    var spFirmwareLatest = [
+      {
+        name: ["7310", "7410"],
+        sp: "2.0.2.16",
+        bios: "0ABMN080",
+        link: "MOS Doc ID 1174698.1"
+      },
+      {
+        name: ["7210"],
+        sp: "2.0.2.15",
+        bios: "0ABNF032",
+        link: "MOS Doc ID 1174698.1"
+      },
+      {
+        name: ["7120", "7320"],
+        sp: "3.1.2.20.g",
+        bios: "08.14.01.09",
+        link: "MOS Doc ID 1174698.1"
+      },
+      {
+        name: ["7420$|7420\s"],
+        sp: "3.0.16.30",
+        bios: "09.05.02.01",
+        link: "MOS Doc ID 1174698.1"
+      },
+      {
+        name: ["7420-M2"],
+        sp: "3.1.2.50",
+        bios: "16.04.02.00",
+        link: "MOS Doc ID 1174698.1"
+      },
+      {
+        name: ["ZS3-2"],
+        sp: "3.2.4.58",
+        bios: "21.00.02.25",
+        link: "MOS Doc ID 1174698.1"
+      },
+      {
+        name: ["ZS3-4"],
+        sp:"33.1.2.50",
+        bios: "16.04.02.00",
+        link: "MOS Doc ID 1174698.1"
+      },
+      {
+        name: ["ZS3-ES"],
+        sp: "3.2.4.26.a",
+        bios: "17.11.05.00",
+        link: "MOS Doc ID 1174698.1"
+      },
+      {
+        name: ["ZS4-4"],
+        sp: "3.2.4.38.a",
+        bios: "24.04.05.00",
+        link: "MOS Doc ID 1174698.1"
+      }
+    ];
+    var i,k, result, out;
+    var checkName     = "ILOM/BIOS", 
+    firmwareLatest    = "", 
+    firmwareInstalled = "", 
+    detailsShort      = "", 
+    detailsLong       = "";
+    
+    result = (function()
+    {
+        for(i=0; i < spFirmwareLatest.length; ++i){
+            for(k=0; k < spFirmwareLatest[i].name.length; ++k){
+                if(appl.model.match(spFirmwareLatest[i].name[k])){
+                    if(spFirmwareLatest[i].sp.match(appl.sp_ver) !== null){
+                        return true;
+                    }
+                    return({sp: spFirmwareLatest[i].sp, bios: spFirmwareLatest[i].bios, link: spFirmwareLatest[i].link});
+                }
+            }
+        }
+        return(false);
+    })();
+    
+    //out = 'SP Firmware Check...\n';
+
+    if(result === false){
+        detailsShort = appl.model+": Did not match our list.";
+        founderrors = true;        
+    }else if( result === true){
+
+        firmwareLatest    = "SP:"+appl.sp_ver+"/Bios:"+appl.bios;
+        firmwareInstalled = "SP:"+appl.sp_ver+"/Bios:"+appl.bios;
+        detailsShort      = "Did match latest release";
+    }else if(result.sp){
+
+        firmwareLatest    = "SP:"+result.sp+"/Bios:"+result.bios;
+        firmwareInstalled = "SP:"+appl.sp_ver+"/Bios:"+appl.bios;
+        detailsShort      = "SP Firmware did not match latest."
+        detailsLong = "*\tThe ILOM firmware should be upgrade to the latest.\n"+
+                      "\t FW Link: "+result.link+"\n";
+        founderrors = true;                      
+    }else{ 
+    //out += "Check failed";
+        detailsShort = "Check failed...";
+        founderrors = true;        
+    }
+    
+    firmwareTable.data.push([checkName, firmwareLatest, firmwareInstalled, detailsShort]);
+    firmwareTable.details.push(detailsLong);
+   return;
+};
+
+
+//Lets create our new printTable objects
+var firmwareTable = new printTable({name:"Firmware", headNames:["Name", "Latest", "Installed", "Details"]});		
+/***************************************************************************************
+		FW CHECK
+ ***************************************************************************************/
+
+function fw_check(){		
+//	if (ak_version_check()){
+	update_check();
+//	}
+ //   checkILOMfirmware();
+//    checkIBfirmware();
+}	
+
+general_info();
+fw_check();
+printReportTable(firmwareTable);
+
+
+printf("==========END_OF_REPORT_chkZSVersion.aksh==========\n");
+printf("==========START_OF_AUDIT_CHECK_chkZSVersion.aksh==========\n");
+printf("version_status = %d\n", founderrors);
+printf("==========END_OF_AUDIT_CHECK_chkZSVersion.aksh==========\n");			
+/**************************************************************************************
+	Following is to show hardware information on report. Bug 25449195, 24662619
+ **************************************************************************************/
+printf("==========START_OF_REPORT_chkHWInfo.aksh==========\n")
+var report_output = "";
+run("cd /");
+message = run("configuration version show");
+report_output = report_output + "Hardware Version Information:\n" + message + "\n";
+printf("%s\n", report_output);
+printf("==========END_OF_REPORT_chkHWInfo.aksh==========\n");

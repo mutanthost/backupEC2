@@ -1,0 +1,115 @@
+#!/bin/sh
+#
+# $Header: assistants/bin/platform_common.sh /main/17 2017/06/08 14:28:28 rmallego Exp $
+#
+# platform_common.sh
+#
+# Copyright (c) 2009, 2017, Oracle and/or its affiliates. All rights reserved.
+#
+#    NAME
+#      platform_common.sh - Script to export platform specific variables
+#
+#    DESCRIPTION
+#      This script is used to define and export platform specific variables
+#      needed for all assistants in common.
+#
+#    NOTES
+#      <other useful comments, qualifications, etc.>
+#
+#    MODIFIED   (MM/DD/YY)
+#    rmallego    06/07/17 - adding jvm property to use /dev/urandom
+#    lsencion    05/16/16 - 23201736 - Logic to set OH to ORACLE_HOME, this as the 
+#                           ORACLE_HOME value is resolved dynamically in ASMCA sh script
+#    andalfar    08/14/15 - bug fix 21635178, introduce workaround for jdk8 bug
+#                           8060036
+#    svsathe     11/21/11 - cv_home
+#    svsathe     11/02/11 - add cvu home and export
+#    rajprasa    07/18/11 - added PERL5LIB for catcon requirement
+#    mstalin     06/25/10 - 9853001 Add oracle.installer.not_bootstrap
+#    svsathe     06/10/10 - aix bug 9785079
+#    rajprasa    09/24/09 - define RUID to check user
+#    spanchum    09/18/09 - XbranchMerge spanchum_bug-8903772 from
+#                           st_assistants_11.2.0.1.0
+#    svsathe     07/20/09 - handle empty LD_LIBRARY_PATH
+#    svsathe     06/28/09 - ppc,zlinux and sparc32 changes
+#    svsathe     06/24/09 - solarisx64 -d64
+#    svsathe     06/16/09 - add ice pilot -D option to fix zh_CN locale issue
+#                           on AIX
+#    svsathe     05/31/09 - use platform_common
+#    ssriram     04/21/09 - Script to export platform specific variables
+#    ssriram     04/21/09 - Creation
+#
+if [ -n $ORACLE_HOME ]
+then
+  OH=$ORACLE_HOME
+else
+  OH=/u01/app/oracle/product/19.0.0/dbhome_1
+fi
+
+LIB_DIR=$OH/lib
+LIB32_DIR=$OH/lib32
+
+#read SRVM related paths to pass to JRE with -D option 
+if [ "X$ORACLE_SRVM_REMOTECOPY" != "X" ]
+then
+   RCP_OPTION="-Doracle.srvm.remotecp=$ORACLE_SRVM_REMOTECOPY"
+fi
+      
+if [ "X$ORACLE_SRVM_REMOTESHELL" != "X" ]
+then
+   RSH_OPTION="-Doracle.srvm.remoteshell=$ORACLE_SRVM_REMOTESHELL"
+fi
+ 
+
+
+PLATFORM=`uname`
+case $PLATFORM in
+Linux)
+       
+    if [  "`uname -m`" = "ia64" ] ; then
+        LD_LIBRARY_PATH=$OH/lib:$OH/network/lib${LD_LIBRARY_PATH:+:${LD_LIBRARY_PATH}}
+    else
+        LD_LIBRARY_PATH=$OH/lib:$OH/network/lib:$LD_LIBRARY_PATH
+fi
+    export LD_LIBRARY_PATH
+   
+    ;;
+HP-UX)
+    
+    SHLIB_PATH=$OH/lib:$OH/network/lib:$SHLIB_PATH
+    export SHLIB_PATH
+    LD_LIBRARY_PATH=$OH/lib:$OH/network/lib:$LD_LIBRARY_PATH
+    export LD_LIBRARY_PATH
+    # /bin/file uses ELF-64 for specifying 64-bitness for hpux parisc and itanium
+# else it is specified as ELF-32, PARISC1.1 etc
+    if [ `/bin/file $OH/lib/nautab.o | /bin/awk '{print $2}'` = "ELF-64" ];
+    then
+        JAVA64FLAG="-d64"
+        export JAVA64FLAG
+    fi
+    ;;
+AIX)
+   if [[  $LC_ALL = *UTF* || $LANG = *UTF* ]];
+   then
+     ENCODING="-Dice.pilots.html4.defaultEncoding=ISO8859_1"
+    fi
+    LIBPATH=$OH/lib:$OH/network/lib:$LIBPATH
+    export LIBPATH
+    ;;
+SunOS)
+     LD_LIBRARY_PATH=$OH/lib:$OH/network/lib:$LD_LIBRARY_PATH
+     export LD_LIBRARY_PATH
+     if [ `/bin/file $OH/lib/nautab.o | /bin/awk '{print substr($3,0,2)}'` != "32" ];
+     then
+        LD_LIBRARY_PATH_64=$OH/lib:$OH/network/lib:$LD_LIBRARY_PATH_64
+        export LD_LIBRARY_PATH_64
+        JAVA64FLAG="-d64"
+        export JAVA64FLAG
+     fi
+           
+     ;;
+esac
+
+JRE_OPTIONS="${JAVA64FLAG} -Doracle.installer.not_bootstrap=true -DCV_HOME=${OH} -DORACLE_HOME=${OH} ${RCP_OPTION} ${RSH_OPTION} ${ENCODING} -XX:-OmitStackTraceInFastThrow -XX:CompileCommand=quiet -XX:CompileCommand=exclude,javax/swing/text/GlyphView,getBreakSpot -Djava.security.egd=file:/dev/urandom"
+
+RUID=`/usr/bin/id|/bin/awk -F= '{print $2}'|/bin/awk -F\( '{print $1}'` 

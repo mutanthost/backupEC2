@@ -1,0 +1,86 @@
+<?xml version="1.0"?>
+
+<!--  $Header: tfa/src/v2/tfa_home/resources/srdc_ora4030.xml /main/10 2018/05/28 15:06:27 bburton Exp $ -->
+
+<!-- 
+ Copyright (c) 2016, 2018, Oracle and/or its affiliates. All rights reserved.
+
+   NAME
+     srdc_ora4030.xml - <one-line expansion of the name>
+
+   DESCRIPTION
+     <short description of component this file declares/defines>
+
+   NOTES
+     <other useful comments, qualifications, etc.>
+
+   MODIFIED   (MM/DD/YY)
+   migmoren    04/17/18 - Bug 27624530 - TFAT: HCVE FILE IS NOT GENERATED IN
+                          12.2.0.1.0 DATABASE VERSION
+   bburton     06/12/17 - one line for each scriptname
+   bburton     02/27/17 - new format
+   bburton     11/15/16 - TFA SRDC for ORA-4030 errora
+   bburton     11/15/16 - Creation
+
+-->
+<collections>
+<collection id="ORA-04030">
+   <description>SRDC for ORA-04030. OS process private memory was exhausted.</description>
+   <alias>o4030</alias>
+   <onevents>
+       <event>
+          <onerror>ORA-04030</onerror>
+          <infile>
+             <name_patterns>
+                 <pattern>alert_.*\.log</pattern>
+             </name_patterns>
+          </infile>
+       </event>
+   </onevents>
+   <user_inputs>
+       <user_input cmdline="" default="" showprompt="1" setenv="NO" validate="" prompt="Enter the time of the ORA-04030">USERINPUT-EVENT_TIME</user_input>
+       <user_input cmdline="" default="" showprompt="1" setenv="NO" validate="" prompt="Enter the Database Name">USERINPUT-DATABASE_NAME</user_input>
+   </user_inputs>
+   <duration>12h</duration>
+   <clusterwide>no</clusterwide>
+   <filter_files>
+           <types>
+           </types>
+           <filter_file_patterns>
+               <filter_file_pattern>alert_.*\.log</filter_file_pattern>
+               <filter_file_pattern>trc</filter_file_pattern>
+               <filter_file_pattern>log</filter_file_pattern>
+               <filter_file_pattern>archive\/osw</filter_file_pattern>
+               <filter_file_pattern>ExaWatcher\/archive</filter_file_pattern>
+           </filter_file_patterns>
+           <filter_file_exclude_patterns>
+               <filter_file_exclude_pattern>cdmp_.*_bucket\.tr[cm]</filter_file_exclude_pattern>
+           </filter_file_exclude_patterns>
+   </filter_files>
+   <components>
+       <component>OS</component>
+       <component>CRS</component>
+       <component>DATABASE</component>
+       <component>CHMOS</component>
+   </components>
+   <commands>
+       <script type="SQLSCRIPT" name="srdc_db_sid_memorysizes_10glower.sql" timeout="300" validfor="" platform="" version="10.2">
+       </script>
+       <script type="SQLSCRIPT" name="srdc_db_sid_memorysizes_11gplus.sql" timeout="300" validfor="" platform="" version="11.1,11.2,12.1,12.2">
+       </script>
+       <script type="IPSPACK" name="ipspack" timeout="120" validfor="" platform="" version="">
+       </script>
+       <script type="TFACTL" name="rdahcve1210" timeout="120" validfor="" platform="" version="12.1,12.2">
+           tfactl run darda run rda_HCVE_12_1_0 menu menus/oracle_database.xml
+       </script>
+       <script type="TFACTL" name="rdahcve1120" timeout="120" validfor="" platform="" version="11.2">
+           tfactl run darda run rda_HCVE_11_2 menu menus/oracle_database.xml
+       </script>
+       <script type="TFACTL" name="rdahcve1110" timeout="120" validfor="" platform="" version="11.1">
+           tfactl run darda run rda_HCVE_11_1 menu menus/oracle_database.xml
+       </script>
+   </commands>
+   <runtime_flags>
+   </runtime_flags>
+</collection>
+</collections>

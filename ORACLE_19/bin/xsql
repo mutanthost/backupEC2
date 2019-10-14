@@ -1,0 +1,27 @@
+#!/bin/sh
+#
+# Copyright (c) 2003, 2017, Oracle and/or its affiliates. All rights reserved.
+#
+#
+
+unset JAVA_HOME
+JAVA_HOME=$ORACLE_HOME/jdk
+export JAVA_HOME
+
+JRECLASSPATH=$JAVA_HOME/lib/rt.jar
+JRECLASSPATH=$JRECLASSPATH:$JAVA_HOME/lib/i18n.jar
+JRECLASSPATH=$JRECLASSPATH:$ORACLE_HOME/lib/oraclexsql.jar
+JRECLASSPATH=$JRECLASSPATH:$ORACLE_HOME/lib/xsu12.jar
+JRECLASSPATH=$JRECLASSPATH:$ORACLE_HOME/jdbc/lib/ojdbc5.jar
+JRECLASSPATH=$JRECLASSPATH:$ORACLE_HOME/lib/xmlparserv2.jar
+JRECLASSPATH=$JRECLASSPATH:$ORACLE_HOME/xdk/admin
+JRECLASSPATH=$JRECLASSPATH:$ORACLE_HOME/xdk/lib/xsqlserializers.jar
+export JRECLASSPATH
+
+JAVA=$JAVA_HOME/bin/jre
+if [ ! -f $JAVA ]; then
+  JAVA=$JAVA_HOME/bin/java
+fi
+
+exec $JAVA -classpath $JRECLASSPATH oracle.xml.xsql.XSQLCommandLine "$@"
+

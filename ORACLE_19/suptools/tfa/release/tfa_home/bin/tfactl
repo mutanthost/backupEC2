@@ -1,0 +1,245 @@
+#!/bin/sh
+#
+#  tfactl(.tmpl) 
+#  wrapper for tfactl.pl
+#  delivered as tfactl.tmpl - renamed and TFA_HOME set at install time
+#
+
+#Function to get the location of commands
+getCommandLocation() {
+
+        COMMAND=$1;
+
+        if [ -f "/bin/$COMMAND" ]
+        then
+                CMDLOC="/bin/$COMMAND";
+        elif [ -f "/usr/bin/$COMMAND" ]
+        then
+                CMDLOC="/usr/bin/$COMMAND";
+        elif [ -f "/usr/local/bin/$COMMAND" ]
+        then
+                CMDLOC="/usr/local/bin/$COMMAND";
+        else
+                CMDLOC="$COMMAND";
+        fi
+
+        echo "$CMDLOC";
+}
+
+# Function to check to run TFA from TFA_HOME or User's Home Directory
+# RUNFROMTFAHOME - to run tfactl from TFA_HOME [init.tfa]
+# RUNFROMUSERHOME - to run tfactl from User's Home
+# If root and TFA_HOME exists, RUNFROMTFAHOME will be set
+# If non-root and has access to TFA, RUNFROMTFAHOME will be set
+# If non-root and ~/.tfa exists, RUNFROMUSERHOME will be set
+# If both RUNFROMTFAHOME and RUNFROMUSERHOME are not set, setup will be done
+
+getHomeDirectory() {
+
+	HOMEDIR="$ORA_TFA_USER_HOME";
+
+	if [ ! -d "$HOMEDIR" ]
+	then
+		HOMEDIR="$HOME";
+
+		if [ -n "$ADE_VIEW_NAME" ]
+		then
+			HOMEDIR="$HOMEDIR/$HOSTNAME/$ADE_VIEW_NAME";
+		fi
+	fi
+}
+
+checkTFAInHomeDir() {
+
+	getHomeDirectory;
+
+	USER_PUB_KEY=$tfa_home/.$RUSER/$RUSER"_mykey.rsa.pub";
+
+	if [ "$RUSER" != "root" ] && [ ! -f "$USER_PUB_KEY" ]
+	then
+		if [ -d "$HOMEDIR/.tfa" ]
+		then
+			tfa_setup="$HOMEDIR/.tfa/tfa_setup.txt";
+
+			if [ -f "$tfa_setup" ]
+			then
+				TFA_HOME=`$CAT $tfa_setup | $GREP '^TFA_HOME=' | $AWK -F= '{print $2}'`;
+
+				if [ -d "$TFA_HOME" ]
+				then
+					RUNFROMUSERHOME=1;
+
+					PERL=`$CAT $tfa_setup | $GREP '^PERL=' | $AWK -F= '{print $2}'`;
+				fi
+			fi
+		fi
+	else
+		if [ -d "$tfa_home" ]
+		then
+			RUNFROMTFAHOME=1;
+
+			tfa_setup="$tfa_home/tfa_setup.txt";
+
+			if [ -f "$tfa_setup" ]
+			then
+				PERL=`$CAT $tfa_setup | $GREP '^PERL=' | $AWK -F= '{print $2}'`;
+			fi
+		fi
+	fi
+}
+
+UNAME=`getCommandLocation "uname"`;
+PLATFORM=`$UNAME`;
+
+AWK=`getCommandLocation "awk"`;
+CAT=`getCommandLocation "cat"`;
+CD=`getCommandLocation "cd"`;
+CUT=`getCommandLocation "cut"`;
+DIRNAME=`getCommandLocation "dirname"`;
+ECHO=`getCommandLocation "echo"`;
+GREP=`getCommandLocation "grep"`;
+PERL=`getCommandLocation "perl"`;
+PWD_PATH=`getCommandLocation "pwd"`;
+RM=`getCommandLocation "rm"`;
+SED=`getCommandLocation "sed"`;
+
+HOSTNAME=`hostname | $CUT -d. -f1 | $PERL -ne 'print lc'`;
+
+EXITSTATUS=0;
+
+case $PLATFORM in
+Linux)
+        ID=/etc/init.d;
+        ;;
+AIX)
+        ID=/etc;
+        ;;
+SunOS)
+        ID=/etc/init.d;
+	GREP=/usr/xpg4/bin/grep;
+        ;;
+HP-UX)
+        ID=/sbin/init.d;
+        ;;
+*)     $ECHO "ERROR: Unknown Operating System";
+       exit -1;
+       ;;
+esac
+
+# Fix for Bug 24384119 
+if [ ! -n "$TFA_DISABLE_OFFLINE_MODE" ]
+then
+	if [ -n "$SERVER_FARM_RUN" ] || [ -n "$AIME_LABEL_RUN" ] || [ -n "$IFARM_RUN" ] || [ -n "$TSCLOG" ]
+	then
+		TFA_DISABLE_OFFLINE_MODE=1;
+	fi
+fi
+
+RUNFROMTFAHOME=0;
+RUNFROMUSERHOME=0;
+
+RUSER=`/usr/bin/id | $AWK '{print $1}'| $AWK -F\( '{print $2}' | $AWK -F\) '{print $1}'`;
+
+if [ -r "$ID/init.tfa" ]
+then
+	tfa_home=`$GREP '^export TFA_HOME=' $ID/init.tfa | $AWK -F"=" '{print $2}'`;
+
+	if [ ! -n "$tfa_home" ]
+	then
+		tfa_home=`$GREP '^TFA_HOME=' $ID/init.tfa | $AWK -F"=" '{print $2}'`;
+	fi
+
+	if [ ! -d "$tfa_home" ]
+	then
+		$RM -f $ID/init.tfa;
+	fi		
+
+	checkTFAInHomeDir;
+else	
+
+	getHomeDirectory;
+
+	if [ -d "$HOMEDIR/.tfa" ]
+	then
+		tfa_setup="$HOMEDIR/.tfa/tfa_setup.txt";
+
+		if [ -f "$tfa_setup" ]
+		then
+			TFA_HOME=`$CAT $tfa_setup | $GREP '^TFA_HOME=' | $AWK -F= '{print $2}'`;
+
+			if [ -d "$TFA_HOME" ]
+			then
+				RUNFROMUSERHOME=1;
+
+				PERL=`$CAT $tfa_setup | $GREP '^PERL=' | $AWK -F= '{print $2}'`;
+			fi
+		fi
+	fi
+fi
+
+if [ ! -r "." ]
+then
+	cd ~;
+fi
+
+if [ $RUNFROMTFAHOME -eq 1 ]
+then
+	$PERL $tfa_home/bin/tfactl.pl "$@";
+        EXITSTATUS=$?;
+
+elif [ $RUNFROMUSERHOME -eq 1 ]
+then
+	# Run tfactl from current view in ADE to avoid label purge issues
+	if [ -n "$ADE_VIEW_NAME" ]
+	then
+		$ORACLE_HOME/perl/bin/perl $ORACLE_HOME/tfa/lib/tfa_home/bin/tfactl.pl "$@";
+                EXITSTATUS=$?;
+	else
+		$PERL $TFA_HOME/bin/tfactl.pl "$@";
+                EXITSTATUS=$?;
+	fi
+
+else
+	# Do not configure TFA if TFA_DISABLE_OFFLINE_MODE is set to 1
+	if [ -n "$TFA_DISABLE_OFFLINE_MODE" ] && [ "$TFA_DISABLE_OFFLINE_MODE" -eq 1 ]
+	then
+        	$ECHO "TFA-00519 Oracle Trace File Analyzer (TFA) is not installed."
+		$ECHO "";
+		exit 1;
+	fi
+
+	tfactl=$0
+
+	#$CD not working in solaris so use cd. $CD work as external command and cd works as internal
+	cd `$DIRNAME $tfactl`;
+	TFA_BIN=`$PWD_PATH -P`;
+
+	if [ -f "$ORACLE_HOME/perl/bin/perl" ]
+	then
+		PERL="$ORACLE_HOME/perl/bin/perl";
+	fi
+
+        if [ -f "$TFA_BIN/tfactl.pl" ]
+	then
+		$PERL $TFA_BIN/tfactl.pl "$@";
+                EXITSTATUS=$?;
+        else
+		if [ -n "$ADE_VIEW_NAME" ] && [ -s "$SRCHOME/tfa/lib/tfa_home/bin/tfactl.pl" ]
+		then
+			$PERL $SRCHOME/tfa/lib/tfa_home/bin/tfactl.pl "$@";
+                        EXITSTATUS=$?;
+		else
+        		$ECHO "TFA-00519 Oracle Trace File Analyzer (TFA) is not installed."
+                        EXITSTATUS=1;
+		fi
+        fi
+fi
+
+if [ $EXITSTATUS -ne 0 ]
+then
+    exit 1;
+else
+    exit 0;
+fi
+
+$ECHO "";

@@ -1,0 +1,1 @@
+For full documentation see the ORAchk_and_EXAchk_User_Guide.pdf in the doc directory or for the most up to date version of the ORAchk and EXAchk User's Guide at https://docs.oracle.com/en/engineered-systems/health-diagnostics/exachk/   

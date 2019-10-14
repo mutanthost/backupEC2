@@ -1,0 +1,10 @@
+
+# 
+# $Header: echodo.sh 1.1 95/03/07 18:50:03 rdhoopar Osd<unix> $ echodo.sh 
+# 
+
+#
+# echodo - command file to echo a command and print it
+#
+echo $*
+$*

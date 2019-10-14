@@ -1,0 +1,220 @@
+#!/bin/sh
+#
+# $Id: relink /linuxamd64/5 2018/08/27 03:44:48 pkuruvad Exp $
+#
+# Copyright (c) 1999, 2018, Oracle and/or its affiliates. All rights reserved.
+#
+#    NAME
+#      relink
+#
+#    DESCRIPTION 
+#      performs relinking of Oracle product executables based
+#      on what has been installed in the ORACLE_HOME.  
+#
+#    PRECONDITIONS
+#      if ORACLE_HOME is not set, doesn't exist, or points to an
+#      invalid location, script exits.
+#
+#    MODIFIED   (MM/DD/YY)
+#    pkuruvad    08/24/18 - Bug 26261044 - set LD_LIBRARY_PATH to OH/lib
+#    davjimen    04/13/18 - Bug 27850622 rename log and pass timestamp arg
+#    pkuruvad    09/27/17 - Bug 26871603
+#    vansoni     04/13/17 - Bug 25755411 Fix
+#    dschrein    04/14/10 - add preliminary checking of O_H library/option
+#                           state and 'as_installed' argument
+#    scravind    03/30/10 - XbranchMerge scravind_bug_9499881 from
+#                           st_install_11.2.0.1.0
+#    dschrein    02/14/10 - UID is not available on HP, so extract it using
+#                           /usr/bin/id
+#    dschrein    07/09/09 - allow relink in CRS_HOME - just check first for
+#                           writability
+#    dschrein    05/26/09 - add logDir for OUI's purposes
+#    dschrein    04/02/09 - do not execute in a crshome or as root
+#    dschrein    01/28/09 - print the log location
+#    dschrein    07/07/08 - add parsing of output
+#    dschrein    05/08/08 - rewrite to invoke runInstaller. see relink.old
+#                           for original content
+#    mwidjaja    05/11/07 - Updated for new client_sharedlib makefile target
+#    mdenney     01/04/05 - fix linux syntax errors - see bug 4102441 
+#    anataraj    06/10/04 - bug fix 3643280. adding ldap to all target 
+#    mwidjaja    01/08/04 - bug 3357749: ldap relink target update for 10g
+#    anusharm    11/24/03 - bug 2899601 
+#    mdenney     03/14/02 - fix ctx renaming and backward compatibility bug # 22
+#    dschrein    05/29/01 - rm obsolete stuff
+#    dschrein    03/23/01 - fix logical or
+#    dschrein    03/07/01 - search for executables rather than hardcode them
+#    dschrein    01/04/01 - fixes for bugs 1397793, 1429271, 1429382 and simplif
+#    dschrein    07/07/00 - fix typo: cnames -> names
+#    dschrein    06/27/00 - fix for bug 1337908 - include utilities in all
+#    dschrein    06/27/00 - fix for bug 1202311
+#    dschrein    11/02/99 - emending utilities and adding hs_odbc for 8.1.6
+#    dschrein    02/11/99 - remove nau stuff, add profor
+#    dschrein    01/20/99 - fix implementation of "all", add parameter
+#                           "oemagent"
+#    dschrein    01/14/99 - Creation
+#
+
+#-------------------------------------#
+# INITIATION AND PARAMETER VALIDATION #
+#-------------------------------------#
+
+AWK=/bin/awk
+ID=/usr/bin/id
+
+#-----------------------------
+# updating path environment variable
+if [ x${PATH} != x ]; then
+    PATH=/usr/bin:/usr/ccs/bin:$PATH
+    export PATH
+else
+    PATH=/usr/bin:/usr/ccs/bin
+    export PATH
+fi
+
+#-----------------------------
+# make sure ORACLE_HOME is set
+
+if [ x${ORACLE_HOME} = x ] ;
+then
+    echo "ORACLE_HOME is not set in the environment."
+    exit 1
+fi
+
+if [ ! -d $ORACLE_HOME ];
+then
+    echo "ORACLE_HOME is not a directory."
+    exit 1
+fi
+
+#---------------------------------
+# check permissions on ORACLE_HOME
+
+if [ ! -w $ORACLE_HOME -o ! -w $ORACLE_HOME/bin ];
+then
+    echo "  The Oracle home in which you are running this relinking tool does not "
+    echo "have proper write permissions. Please run this relink script as the same"
+    echo "user who owns the Oracle home and ensure that the Oracle home has the"
+    echo "permissions from the original installation."
+    echo "  If this is a Grid Infrastructure home, please refer to the "
+    echo "documentation for the proper steps to relink and apply oneoff patches."
+    exit 1
+fi
+
+#------------------------
+# prohibit root execution
+
+USERID=`$ID | $AWK -F\( '{print $1}' | $AWK -F= '{print $2}'`
+
+if [ $USERID = 0 ]
+then
+    echo "The relink script cannot be run as root."
+    exit 1
+fi
+
+#--------------
+# help message
+
+SCRIPTNAME=relink
+ARGUMENTS="[all|as_installed]"
+USAGE="usage: $SCRIPTNAME $ARGUMENTS"
+HELPMESG="optional parameters: all, as_installed"
+
+if [ $# -gt 1 ];
+then
+    echo
+    echo $USAGE
+    echo $HELPMESG
+    echo $ARGS
+    exit 2
+fi
+
+#---------------------------
+# check for valid parameter
+
+arg=$1
+if [ $# = 1 ]; then
+    if [ $1 != "all" -a $1 != "as_installed" ] ; then
+        echo "$1 not a valid parameter"
+        echo $HELPMESG
+        exit 1
+    fi
+fi
+if [ $# = 0 ]; then
+    arg="all"
+fi
+
+#-----------------------------------
+# location of runInstaller executable
+RUNINSTALLER=$ORACLE_HOME/oui/bin/runInstaller
+
+#--------------------------
+# output of oraBaseHomeUtil executable
+OraBaseHome=`$ORACLE_HOME/bin/orabasehome`
+# if OraBaseHome returns empty value,then set it to Oracle_home value
+if [ -z "$OraBaseHome" ]; then
+OraBaseHome=$ORACLE_HOME
+fi
+#--------------------------
+#install directory where relink.log is placed
+InstallDir=$OraBaseHome/install
+# if InstallDir directory does not exist, then set it to Oracle_home/install value
+if [ ! -d "$InstallDir" ]; then
+InstallDir=$ORACLE_HOME/install
+fi
+#--------------------------
+
+# location of makeorder.xml
+DEFAULT_MAKEORDER=$ORACLE_HOME/inventory/make/makeorder.xml
+
+#-----------
+# timestamp
+#-----------
+DATE=/bin/date
+TIMESTAMP=`$DATE +%F_%I-%M-%S%p`;
+TIMESTAMP_ARG="-J-Doracle.installer.timestamp=${TIMESTAMP}";
+
+#---------
+# logfile
+# relink.log is placed under the location created when read only oracle home is enabled
+# else it will be under ORACLE_HOME/install if read only oracle home is in disabled state.  
+LOGFILE=$InstallDir/relinkActions${TIMESTAMP}.log
+
+#---------------------
+# logDir and argument
+LOGDIR=$InstallDir
+LOGDIR_ARG="-logDir $LOGDIR"
+
+#-----------------------------
+# bug 26261044
+# updating LD_LIBRARY_PATH environment variable
+export LD_LIBRARY_PATH=$ORACLE_HOME/lib:$LD_LIBRARY_PATH
+
+#--------------------------------------------------------------------
+# if argument is not as_installed, then we detect options in the home
+# for corresponding relinking
+if [ $arg != "as_installed" ] ; then
+    CURR_MAKEORDER=$ORACLE_HOME/install/current_makeorder.xml
+    $ORACLE_HOME/perl/bin/perl $ORACLE_HOME/install/modmakedeps.pl $ORACLE_HOME $ORACLE_HOME/inventory/make/makeorder.xml > $CURR_MAKEORDER
+    MAKEORDER=$CURR_MAKEORDER
+else
+    MAKEORDER=$DEFAULT_MAKEORDER
+fi
+
+#-----------------------------------
+# full argument list for runInstaller
+# 
+ARGS="-relink -waitForCompletion -maketargetsxml $MAKEORDER $LOGDIR_ARG ORACLE_HOME=$ORACLE_HOME ${TIMESTAMP_ARG}"
+
+#--------------------------
+# echo the logfile location
+echo "writing relink log to: $LOGFILE"
+
+#--------------------------------
+# execute runInstaller -relink
+$RUNINSTALLER $ARGS > $LOGFILE 2>&1
+
+#-----------------------------------
+# return the runInstaller exit code
+#
+exit_status=$?
+exit $exit_status

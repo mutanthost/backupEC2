@@ -1,0 +1,6 @@
+# ignore all of ENV 
+ENVS/*
+# ignore logs
+logs/*
+#ignore Data
+Data/*

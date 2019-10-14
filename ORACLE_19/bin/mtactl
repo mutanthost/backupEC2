@@ -1,0 +1,1153 @@
+#!/bin/bash
+#
+# $Header: rdbms_ho/src/agent/ho/hoagent/mtactl /st_rdbms_19/1 2018/11/13 11:53:49 richen Exp $
+#
+# mtactl
+#
+# Copyright (c) 2014, 2018, Oracle and/or its affiliates. All rights reserved.
+#
+#    NAME
+#      mtactl - CRS agent script for MTA extproc
+#
+#    DESCRIPTION
+#      This script is either called from Oracle Clusterware or can be called
+#      from the command line manually. Its purpose is to assist users to 
+#      start/stop/configure multithreaded agent (MTA) extproc via agtctl
+#      in an Oracle Clusterware Ready Service (CRS) environment.
+#
+#    NOTES
+#
+#      This script can be invoked in one of two ways:
+#
+#      1) To use mtactl in CRS, you must make sure that Oracle Clusterware is
+#         ready. Oracle Clusterware manages applications and processes as 
+#         resources that you register with Oracle Clusterware. The number of 
+#         resources you register with Oracle Clusterware to manage an 
+#         application depends on the application. Applications that consist of 
+#         only one process are usually represented by only one resource.
+#
+#         We use generic_application resource type to protect mtactl without 
+#         requiring additional scripts. High availability for mtactl is 
+#         achieved by defining a resource with the generic_application resource 
+#         type and providing the values for key attributes of the resource. The 
+#         generic_application resource type is derived from the cluster_resource
+#         resource type and, therefore, all resources of the generic_application
+#         resource type are cluster-aware resources.
+#
+#         Examples:
+#          crsctl start cluster -all 
+#          crsctl add resource BDSQL_hadoop_cl_1 -type generic_application \
+#           -attr "RESTART_ATTEMPTS=100, \
+#                  START_PROGRAM='/oracle/bin/mtactl start BDSQL_hadoop_cl_1', \
+#                  STOP_PROGRAM='/oracle/bin/mtactl stop BDSQL_hadoop_cl_1', \
+#                  CLEAN_PROGRAM='/oracle/bin/mtactl stop BDSQL_hadoop_cl_1', \
+#                  PID_FILES='/oracle/hs/log/extprocBDSQL_hadoop_cl_1.pid'"
+#          crsctl start resource BDSQL_hadoop_cl_1
+#          crsctl stop resource BDSQL_hadoop_cl_1
+#          crsctl delete resource BDSQL_hadoop_cl_1 -f
+#
+#      [Note that all pathnames must be full pathnames.]
+#
+#      2) To start/restart/stop/status/show/delete MTA extproc in command line
+#          mtactl {start|restart|stop|status|show|delete|bdsql} <mta_sid>
+#
+#         To set/unset MTA extproc init parameters
+#          mtactl set <init parameter> <value> <mta_sid>
+#          mtactl unset <init parameter> <mta_sid>
+#
+#         To get help
+#          mtactl <command> -help
+#
+#         Examples:
+#          mtactl start BDSQL_hadoop_cl_1 (use existing/default init parameter values)
+#          OR
+#          mtactl delete BDSQL_hadoop_cl_1
+#          mtactl set max_sessions 200 BDSQL_hadoop_cl_1
+#          mtactl set max_dispatchers 5 BDSQL_hadoop_cl_1
+#          mtactl set max_task_threads 5 BDSQL_hadoop_cl_1
+#          mtactl set listener_address "(ADDRESS=(PROTOCOL=ipc)(KEY=crs))" BDSQL_hadoop_cl_1
+#          mtactl start BDSQL_hadoop_cl_1 (use customized parameter values)
+#          OR
+#          mtactl restart BDSQL_hadoop_cl_1 (use default init parameter values)
+#
+#      This script terminates with an exit code of 0 on success, 1 or above on failure.
+#
+#    MODIFIED   (MM/DD/YY)
+#    richen      07/24/18 - Support alternate listener name
+#    richen      10/10/17 - Change behaviors of start & restart sub-commands
+#    richen      08/24/17 - Avoid lsnrctl show_log
+#    richen      05/09/17 - Bug#26025927 
+#    richen      02/23/17 - Bug#25560286 
+#    richen      05/05/16 - Bug#23223345 
+#    richen      03/14/16 - Bug#22926613: work around a CRS STOP_PROGRAM issue
+#    richen      02/29/16 - Handle corner cases when ORACLE_HOME is undefined
+#    richen      02/03/16 - Added new, enhanced mtactl commands and OSD changes
+#    richen      01/31/15 - Add mtactl show sub-command
+#    richen      01/14/15 - LRG#14842606
+#    richen      01/06/15 - Bug#20313187
+#    richen      12/23/14 - LRG#14558349
+#    richen      12/18/14 - Include MTA_HOME, MTA_ADDRESS and MTA_KEY
+#    richen      11/24/14 - Creation.
+#
+
+#
+# Private functions
+#
+
+function display_usage_and_exit
+{
+    SUB_COMMAND=$1
+
+    if [ "$SUB_COMMAND" == "start"   ] || [ "$SUB_COMMAND" == "stop"   ] ||
+       [ "$SUB_COMMAND" == "status"  ] || [ "$SUB_COMMAND" == "delete" ] ||
+       [ "$SUB_COMMAND" == "show"    ] || [ "$SUB_COMMAND" == "bdsql"  ] ||
+       [ "$SUB_COMMAND" == "restart" ]
+    then
+        echo ""
+        echo "Usage: "`basename $0`" <command> <mta_sid> [<listener_name>]"
+        echo "       "`basename $0`" <command> [-help]"
+        echo ""
+        echo "Supported commands are \"start|restart|stop|status|delete|show|bdsql|set|unset\""
+        echo ""
+    elif [ "$SUB_COMMAND" == "unset" ]
+    then
+        echo ""
+        echo "Usage: "`basename $0`" unset <parameter> <mta_sid>"
+        echo "       "`basename $0`" unset [-help]"
+        echo ""
+        echo "Valid parameters are max_dispatchers, tcp_dispatchers, max_task_threads, "
+        echo "                     max_sessions and listener_address"
+        echo ""
+    elif [ "$SUB_COMMAND" == "set" ]
+    then
+        echo ""
+        echo "Usage: "`basename $0`" set <parameter> <parameter_value> <mta_sid>"
+        echo "       "`basename $0`" set [-help]"
+        echo ""
+        echo "Valid parameters are max_dispatchers, tcp_dispatchers, max_task_threads, "
+        echo "                     max_sessions and listener_address"
+        echo ""
+    else
+        echo ""
+        echo "Usage: "`basename $0`" {start|restart|stop|status|delete|show|bdsql} <mta_sid> [<listener_name>]"
+        echo "       "`basename $0`" unset <parameter> <mta_sid>"
+        echo "       "`basename $0`" set <parameter> <parameter_value> <mta_sid>"
+        echo "       "`basename $0`" <command> [-help]"
+        echo ""
+        echo "Supported commands are \"start|restart|stop|status|delete|show|bdsql|set|unset\""
+        echo ""
+        echo "Supported parameters are max_dispatchers, tcp_dispatchers, max_task_threads, "
+        echo "                         max_sessions and listener_address"
+        echo ""
+    fi
+    exit 2
+}
+
+function display_help_and_exit
+{
+    SUB_COMMAND=$1
+
+    if [ "$SUB_COMMAND" == "start" ]
+    then
+        echo ""
+        echo "Usage: "`basename $0`" start <mta_sid> [<listener_name>]"
+        echo ""
+        echo "Use the 'start' command to start a multithreaded agent with existing"
+        echo "init parameter values stored in the repository or default values if"
+        echo "the repository doesn't exist."
+        echo "mta_sid is the SID that this multithreaded extproc agent services."
+        echo ""
+    elif [ "$SUB_COMMAND" == "restart" ]
+    then
+        echo ""
+        echo "Usage: "`basename $0`" restart <mta_sid> [<listener_name>]"
+        echo ""
+        echo "Use the 'restart' command to start a multithreaded agent with default"
+        echo "init parameter values."
+        echo "mta_sid is the SID that this multithreaded extproc agent services."
+        echo ""
+    elif [ "$SUB_COMMAND" == "stop" ]
+    then
+        echo ""
+        echo "Usage: "`basename $0`" stop <mta_sid> [<listener_name>]"
+        echo ""
+        echo "Use the 'stop' command to stop a multithreaded agent."
+        echo "mta_sid is the SID that this multithreaded extproc agent services."
+        echo ""
+    elif [ "$SUB_COMMAND" == "status" ]
+    then
+        echo ""
+        echo "Usage: "`basename $0`" status <mta_sid> [<listener_name>]"
+        echo ""
+        echo "Use the 'status' command to display a multithreaded agent status."
+        echo "mta_sid is the SID that this multithreaded extproc agent services."
+        echo ""
+    elif [ "$SUB_COMMAND" == "show" ]
+    then
+        echo ""
+        echo "Usage: "`basename $0`" show <mta_sid>"
+        echo ""
+        echo "Use the 'show' command to display a multithreaded agent's init parameters."
+        echo "mta_sid is the SID that this multithreaded extproc agent services."
+        echo ""
+    elif [ "$SUB_COMMAND" == "delete" ]
+    then
+        echo ""
+        echo "Usage: "`basename $0`" delete <mta_sid>"
+        echo ""
+        echo "Use the 'delete' command to delete a SID entry from the repository."
+        echo "All of the init paramaters of the SID will be permanently cleaned up."
+        echo ""
+    elif [ "$SUB_COMMAND" == "bdsql" ]
+    then
+        echo ""
+        echo "Usage: "`basename $0`" bdsql <mta_sid>  [<listener_name>]"
+        echo ""
+        echo "Use the 'bdsql' command to display addtional operations users can do with"
+        echo "BigDataSQL related setup for this multithreaded extproc agent."
+        echo ""
+    elif [ "$SUB_COMMAND" == "unset" ]
+    then
+        echo ""
+        echo "Usage: "`basename $0`" unset <parameter> <mta_sid>"
+        echo ""
+        echo "Use the 'unset' command to reset a parameter value."
+        echo ""
+        echo "Parameters include max_dispatchers, tcp_dispatchers, max_task_threads, "
+        echo "                   max_sessions and listener_address"
+        echo "mta_sid is the SID that this multithreaded extproc agent services."
+        echo ""
+    elif [ "$SUB_COMMAND" == "set" ]
+    then
+        echo ""
+        echo "Usage: "`basename $0`" set <parameter> <parameter_value> <mta_sid>"
+        echo ""
+        echo "Use the 'set' command to set a parameter value."
+        echo ""
+        echo "Parameters include max_dispatchers, tcp_dispatchers, max_task_threads, "
+        echo "                   max_sessions and listener_address"
+        echo ""
+        echo "max_dispatchers:  Maximum number of dispatchers"
+        echo "tcp_dispatchers:  Number of dispatchers listening on TCP (the rest are using IPC)"
+        echo "max_task_threads: Maximum number of task threads"
+        echo "max_sessions:     Maximum number of sessions for each task thread"
+        echo "listener_address: Address on which the listener is listening (needed for registration)"
+        echo ""
+        echo "mta_sid is the SID that this multithreaded extproc agent services."
+        echo ""
+    else
+        echo ""
+        echo "Usage: "`basename $0`" {start|restart|stop|status|delete|show|bdsql} <mta_sid>"
+        echo "       "`basename $0`" unset <parameter> <mta_sid>"
+        echo "       "`basename $0`" set <parameter> <parameter_value> <mta_sid>"
+        echo ""
+        echo "Valid parameters are max_dispatchers, tcp_dispatchers, max_task_threads, "
+        echo "                     max_sessions and listener_address"
+        echo ""
+    fi
+    exit 2
+}
+
+function double_check
+{
+    echo "Are you sure? (enter 'YES' if you're sure about it)"
+    read ANSWER
+    if [ "$ANSWER" != "YES" ]
+    then
+        echo "Your answer is "\'$ANSWER\' but not \'YES\'!
+        echo "Quit without further action."
+        exit 1
+    else
+        echo "Proceed with an answer '$ANSWER'..."
+    fi
+}
+
+function ps_ef_process_name
+{
+    OS_NAME=`uname`
+
+    PNAME=`ps -ef | grep $1 | grep -v grep | grep mt | awk '{ print $8 }'`
+
+    if [ "$PNAME" == "$1" ]
+    then
+        echo $PNAME
+    else
+        if [ "$OS_NAME" == "SunOS" ]  # Legacy SunOS
+        then
+            PNAME=`ps -ef | grep $1 | grep -v grep | grep mt | awk '{ print $9 }'`
+        fi
+        if [ "$PNAME" == "$1" ]
+        then
+            PNAME="$1"
+            echo $PNAME
+        else
+            echo $PNAME
+        fi
+    fi
+}
+
+function check_init_parameter
+{
+    FAILURES=0
+    echo "Checking MTA init parameters..."
+    echo ""
+
+    while IFS='' read -r nvpair || [[ -n "$nvpair" ]]; 
+    do
+        param=`echo $nvpair | cut -d' ' -f2`
+        NAME=`echo $param | awk '{print toupper($0)}' | cut -d= -f1`
+        VALUE=`echo $param | awk '{print toupper($0)}' | cut -d= -f2`
+
+        case $NAME in 
+        "TRACE_LEVEL")
+            if [ "$VALUE" == "ON" ]
+            then
+                echo "[O]  $param (i.e. max. trace level 127)"
+            elif [ "$VALUE" == "OFF" ]
+            then
+                echo "[O]  $param (i.e. min. trace level 0)"
+            elif [[ $VALUE =~ ^[-+]?[0-9]+$ ]]
+            then
+                echo "$NAME = $VALUE"
+            else
+                echo "[X]  $param   (Bad TRACE_LEVEL value. Non-fatal)"
+            fi
+        ;;
+        "INIT_LIBRARY")
+            VALUE2=`echo $param | cut -d= -f2`
+            # Substitue $ORACLE_HOME with its value
+            VALUE3="${VALUE2/\$ORACLE_HOME/$ORACLE_HOME}"
+
+            if [ -f $VALUE3 ]
+            then
+                echo "[O]  $param"
+            else
+                echo "[X]  $param   (Bad INIT_LIBRARY value)"
+                FAILURES+=1
+            fi
+        ;;
+        "INIT_FUNCTION")
+            VALUE2=`echo $param | cut -d= -f2`
+            if [ "$VALUE2" == "kubsagtMTAInit" ]
+            then
+                echo "[O]  $param"
+            else
+                echo "[X]  $param   (Bad INIT_FUNCTION value)"
+                FAILURES+=1
+            fi              
+        ;;
+        "BDSQL_CLUSTER")
+            VALUE2=`echo $param | cut -d= -f2`
+            if [ "$VALUE2" == "" ]
+            then
+                echo "[X]  $param   (Bad BDSQL_CLUSTER value)"
+                FAILURES+=1
+            else
+                echo "[O]  $param"
+            fi              
+        ;;
+        "BDSQL_CONFIGDIR")
+            VALUE2=`echo $param | cut -d= -f2`
+            # Substitue $ORACLE_HOME with its value
+            VALUE3="${VALUE2/\$ORACLE_HOME/$ORACLE_HOME}"
+
+            if [ -d $VALUE3 ]
+            then
+                echo "[O]  $param"
+                if [ -f ${VALUE3}/bigdata.properties ]
+                then
+                    FAILURES=0
+                else
+                    echo "[X]  $param/bigdata.properties"
+                    echo "     \"${VALUE3}/bigdata.properties\" doesn't exist!"
+                    FAILURES+=1
+                fi
+            else
+                echo "[X]  $param   (Bad BDSQL_CONFIGDIR value)"
+                FAILURES+=1
+            fi
+        ;;
+        *)
+            if [ "${nvpair:0:1}" != "" ] && [ "${nvpair:0:1}" != "#" ]
+            then
+                echo "[O]  $nvpair"
+            fi
+        ;;
+        esac
+
+    done < "$1"
+}
+
+function check_init_file
+{
+    if [ -f $ORACLE_HOME/hs/admin/init$1.ora ]
+    then
+        check_init_parameter $ORACLE_HOME/hs/admin/init$1.ora
+        echo ""
+    elif [ -f $ORACLE_HOME/hs/admin/extproc.ora ]
+    then
+        check_init_parameter $ORACLE_HOME/hs/admin/extproc.ora
+        echo ""
+    else
+        echo "ERROR! MTA init file doesn't exist."
+        echo ""
+        exit 1
+    fi
+
+    if [ $FAILURES -gt 1 ]
+    then
+        echo "ERROR!  There are $FAILURES fatal init parameters."
+        echo ""
+    elif [ $FAILURES -gt 0 ]
+    then
+        echo "ERROR!  There is $FAILURES fatal init parameter."
+        echo ""
+    fi
+}
+
+function common_status_header
+{
+    CURRENT_LISTENER=$3
+
+    echo ""
+    echo "ORACLE_HOME =" \"$ORACLE_HOME\"
+
+    if [ -f $ORACLE_HOME/hs/admin/init$2.ora ]
+    then
+        echo "MTA init file =" \"$ORACLE_HOME/hs/admin/init$2.ora\"
+    elif [ -f $ORACLE_HOME/hs/admin/extproc.ora ]
+    then
+        echo "MTA init file =" \"$ORACLE_HOME/hs/admin/extproc.ora\"
+        echo "NOTE: init$2.ora doesn't exist so that extproc.ora is used by default."
+    else
+        echo "ERROR! MTA init file doesn't exist."
+        FAILURES+=1
+    fi
+    echo ""
+
+    PNAME=$(ps_ef_process_name extproc$2)
+
+    if [ "$PNAME" == "extproc$2" ]
+    then
+       echo `ps -aef | grep extproc$2 | grep -v grep`
+
+       if [ "$1" != "start" ] && [ "$1" != "restart" ]
+       then
+          if [ "$1" == "stop" ]
+          then
+             echo "Stopping MTA process \"extproc$2 -mt\"..."
+          else
+             echo "MTA process \"extproc$2 -mt\" is already running!"
+          fi
+       else
+          echo "MTA process \"extproc$2 -mt\" is already running!"
+          FAILURES+=1
+       fi
+    else
+       echo "MTA process \"extproc$2 -mt\" is not running!"
+       WARNINGS=1
+       exit_code=1
+    fi
+
+    if [ -x $BIN_DIR/lsnrctl ]
+    then
+       LNAME=`$BIN_DIR/lsnrctl status $CURRENT_LISTENER | grep "No listener"`
+       if [ "$LNAME" != "" ]
+       then
+          echo "WARNING! Oracle listener is not up and running!"
+       fi
+    else
+       echo "ERROR! Oracle listener control utility \"lsnrctl\" doesn't exist!"
+       FAILURES+=1
+    fi
+    echo ""
+}
+
+function common_status_trailer
+{
+    CURRENT_LISTENER=$3
+
+    if [ -x $BIN_DIR/lsnrctl ]
+    then
+       LNAME=`$BIN_DIR/lsnrctl status $CURRENT_LISTENER | grep "No listener"`
+       if [ "$LNAME" != "" ]
+       then
+          echo "WARNING! Oracle listener is not up and running!"
+       else
+          echo ""
+          echo "lsnrctl status $CURRENT_LISTENER:"
+          $BIN_DIR/lsnrctl status $CURRENT_LISTENER
+       fi
+    else
+       echo "ERROR! Oracle listener control utility \"lsnrctl\" doesn't exist!"
+       FAILURES+=1
+    fi
+    echo ""
+}
+
+
+# full path name of the running mtactl utility (i.e. argv0)
+fullpathname=$0
+token1="/mtactl"
+token2="/bin"
+
+# drop part of fullpathname from last occurrence of `token` to the end
+# this will effectively get the home directory of mtactl
+pathname1=${fullpathname%$token1*}
+pathname2=${pathname1%$token2*}
+
+# If no ORACLE_HOME, set it to the home of mtactl
+if [ "$ORACLE_HOME" == "" ]
+then
+    if [ $pathname1 != $pathname2 ] && [ -d $pathname1 ] && [ -d $pathname2 ]
+    then
+        ORACLE_HOME=${pathname2}
+    else
+      echo ""
+      echo "ERROR! $fullpathname failed."
+      echo "ERROR! ORACLE_HOME is undefined and $pathname2 is not a legit ORACLE_HOME."
+      echo ""
+      exit 2
+    fi
+fi
+
+# MTA_HOME takes precedence over ORACLE_HOME
+if [ "$MTA_HOME" != "" ]
+then
+    ORACLE_HOME=${MTA_HOME}
+fi
+export ORACLE_HOME
+
+LD_LIBRARY_PATH=${ORACLE_HOME}/lib:$LD_LIBRARY_PATH
+export LD_LIBRARY_PATH
+
+declare -i FAILURES 
+declare -i WARNINGS 
+
+BIN_DIR=${ORACLE_HOME}/bin
+AGTCTL=agtctl
+MTA_SID=$2
+PROCESS_NAME=extproc$2
+MTACTL_LOG=${ORACLE_HOME}/hs/log/${PROCESS_NAME}.log
+MTACTL_PID=${ORACLE_HOME}/hs/log/${PROCESS_NAME}.pid
+FAILURES=0
+WARNINGS=0
+exit_code=0
+
+if [ ! -d $BIN_DIR ]
+then
+    echo "mtactl start failed! $ORACLE_HOME/bin doesn't exist."
+    exit 2
+fi
+
+if [ "$AGTCTL_ADMIN" != "" ]
+then
+    export AGTCTL_ADMIN
+fi
+
+if [ "$MTA_ADDRESS" != "" ]
+then
+    LSNR_ADDRESS=${MTA_ADDRESS}
+else
+    if [ "$MTA_KEY" != "" ]
+    then
+       LSNR_ADDRESS="(ADDRESS=(PROTOCOL=ipc)(KEY=${MTA_KEY}))"
+       if [ "$ORACLE_SID" == "" ]
+       then
+          ORACLE_SID=$MTA_KEY
+       fi
+    fi
+fi
+
+#=========================================================
+# Keep the dispatcher/task threads ratio at 1/10 for now.
+#=========================================================
+
+if [ "$MTA_MAX_DISPATCHERS" != "" ]
+then
+    MAX_DISPATCHERS=${MTA_MAX_DISPATCHERS}
+else
+    MAX_DISPATCHERS=30
+fi
+
+if [ "$MTA_MAX_THREADS" != "" ]
+then
+    MAX_THREADS=${MTA_MAX_THREADS}
+else
+    MAX_THREADS=300
+fi
+
+if [ "$MTA_MAX_SESSIONS" != "" ]
+then
+    MAX_SESSIONS=${MTA_MAX_SESSIONS}
+else
+    MAX_SESSIONS=300
+fi
+
+if [ "$ORACLE_SID" == "" ]
+then
+    ORACLE_SID="dummy"
+fi
+export ORACLE_SID
+
+PID1=`ps -ef | grep ${PROCESS_NAME} | grep -v grep | grep mt | awk '{ print $2 }'`
+
+case $1 in
+'start')
+    if [ $# -lt 2 ] || [ $# -gt 3 ]
+    then
+       display_usage_and_exit "start"
+    fi
+
+    # help is a reserved word
+    if [ $2 == "-help" ]
+    then
+       display_help_and_exit "start"
+    fi
+
+    common_status_header $1 $2 $3
+    if [ $FAILURES -gt 0 ]
+    then
+        FAILURES=0
+        exit 1
+    else
+       check_init_file $2
+       if [ $FAILURES -gt 0 ]
+       then
+           FAILURES=0
+           exit 1
+       fi
+    fi
+
+    if [ "$PID1" != "" ]
+    then
+       status_p1="is already running"
+    else
+       if [ -x $BIN_DIR/$AGTCTL ]
+       then
+          ts=`date +%y%m%d-%X | awk '{print $1}'`
+          if [ -f ${MTACTL_LOG} ]
+          then
+             mv ${MTACTL_LOG} ${MTACTL_LOG}_${ts}
+             touch ${MTACTL_LOG}
+          fi
+
+          if [ "$MTA_ADDRESS" == "" ] && [ "$MTA_KEY" == "" ]
+          then
+             if [ -x $BIN_DIR/lsnrctl ]
+             then
+                MTA_KEY=`lsnrctl status $3 | grep -i description | grep -i address | grep -i protocol | grep -i ipc | grep -i key | sed -r "s/[[:alnum:]]+=/\n&/g" | awk -F= 'toupper($1)=="KEY"{print $2}' | sed -e 's/)//g'`
+
+                if [ "$MTA_KEY" != "" ]
+                then
+                   LSNR_ADDRESS="(ADDRESS=(PROTOCOL=ipc)(KEY=${MTA_KEY}))"
+                else
+                   lsnrctl status $3
+                   echo
+                   echo "mtactl start failed! IPC protocol KEY doesn't exist."
+                   ${BIN_DIR}/${AGTCTL} delete ${MTA_SID} >> ${MTACTL_LOG} 2>&1
+                   exit 2
+                fi
+             else
+                echo "mtactl start failed! $ORACLE_HOME/bin/lsnrctl doesn't exist."
+                ${BIN_DIR}/${AGTCTL} delete ${MTA_SID} >> ${MTACTL_LOG} 2>&1
+                exit 2
+             fi
+          fi
+
+          # If there is no existing MTA extproc, create init params with the default
+          # else re-use the existing MTA init parameters to start MTA.
+          tmp="`${BIN_DIR}/${AGTCTL} show listener_address ${MTA_SID} | grep default`"
+
+          if [[ "$tmp" == "<default>" ]]
+          then
+#            echo "Debugging: $tmp"
+             echo ${BIN_DIR}/${AGTCTL} delete ${MTA_SID} >> ${MTACTL_LOG}
+             ${BIN_DIR}/${AGTCTL} delete ${MTA_SID} >> ${MTACTL_LOG} 2>&1
+             echo ${BIN_DIR}/${AGTCTL} set max_sessions ${MAX_SESSIONS} ${MTA_SID} >> ${MTACTL_LOG}
+             ${BIN_DIR}/${AGTCTL} set max_sessions ${MAX_SESSIONS} ${MTA_SID} >> ${MTACTL_LOG} 2>&1
+             echo ${BIN_DIR}/${AGTCTL} set max_dispatchers ${MAX_DISPATCHERS} ${MTA_SID} >> ${MTACTL_LOG}
+             ${BIN_DIR}/${AGTCTL} set max_dispatchers ${MAX_DISPATCHERS} ${MTA_SID} >> ${MTACTL_LOG} 2>&1
+             echo ${BIN_DIR}/${AGTCTL} set max_task_threads ${MAX_THREADS} ${MTA_SID} >> ${MTACTL_LOG}
+             ${BIN_DIR}/${AGTCTL} set max_task_threads ${MAX_THREADS} ${MTA_SID} >> ${MTACTL_LOG} 2>&1
+             echo ${BIN_DIR}/${AGTCTL} unset listener_address ${MTA_SID} >> ${MTACTL_LOG}
+             ${BIN_DIR}/${AGTCTL} unset listener_address ${MTA_SID} >> ${MTACTL_LOG} 2>&1
+
+             if [ "$LSNR_ADDRESS" != "" ]
+             then
+                echo ${BIN_DIR}/${AGTCTL} set listener_address \"${LSNR_ADDRESS}\" ${MTA_SID} >> ${MTACTL_LOG}
+                ${BIN_DIR}/${AGTCTL} set listener_address ${LSNR_ADDRESS} ${MTA_SID} >> ${MTACTL_LOG} 2>&1
+             fi
+          fi
+
+          echo ${BIN_DIR}/${AGTCTL} startup extproc ${MTA_SID} >> ${MTACTL_LOG}
+          ${BIN_DIR}/${AGTCTL} startup extproc ${MTA_SID} >> ${MTACTL_LOG} 2>&1
+
+          ERRSTR=`grep ORA-28593 ${MTACTL_LOG}`
+          if [ "$ERRSTR" != "" ]
+          then
+#            echo "Debugging: $ERRSTR"
+             echo ${BIN_DIR}/${AGTCTL} delete ${MTA_SID} >> ${MTACTL_LOG}
+             ${BIN_DIR}/${AGTCTL} delete ${MTA_SID} >> ${MTACTL_LOG} 2>&1
+             echo ${BIN_DIR}/${AGTCTL} set max_sessions ${MAX_SESSIONS} ${MTA_SID} >> ${MTACTL_LOG}
+             ${BIN_DIR}/${AGTCTL} set max_sessions ${MAX_SESSIONS} ${MTA_SID} >> ${MTACTL_LOG} 2>&1
+             echo ${BIN_DIR}/${AGTCTL} set max_dispatchers ${MAX_DISPATCHERS} ${MTA_SID} >> ${MTACTL_LOG}
+             ${BIN_DIR}/${AGTCTL} set max_dispatchers ${MAX_DISPATCHERS} ${MTA_SID} >> ${MTACTL_LOG} 2>&1
+             echo ${BIN_DIR}/${AGTCTL} set max_task_threads ${MAX_THREADS} ${MTA_SID} >> ${MTACTL_LOG}
+             ${BIN_DIR}/${AGTCTL} set max_task_threads ${MAX_THREADS} ${MTA_SID} >> ${MTACTL_LOG} 2>&1
+             echo ${BIN_DIR}/${AGTCTL} unset listener_address ${MTA_SID} >> ${MTACTL_LOG}
+             ${BIN_DIR}/${AGTCTL} unset listener_address ${MTA_SID} >> ${MTACTL_LOG} 2>&1
+             echo ${BIN_DIR}/${AGTCTL} set listener_address \"${LSNR_ADDRESS}\" ${MTA_SID} >> ${MTACTL_LOG}
+             ${BIN_DIR}/${AGTCTL} set listener_address ${LSNR_ADDRESS} ${MTA_SID} >> ${MTACTL_LOG} 2>&1
+             echo ${BIN_DIR}/${AGTCTL} startup extproc ${MTA_SID} >> ${MTACTL_LOG}
+             ${BIN_DIR}/${AGTCTL} startup extproc ${MTA_SID} >> ${MTACTL_LOG} 2>&1
+          fi
+
+          if [ -f ${MTACTL_PID} ] 
+          then
+             mv ${MTACTL_PID} ${MTACTL_PID}_${ts}
+          fi
+          echo `ps -ef | grep extproc$2 | grep -v grep | grep mt | awk '{ print $2 }'` > ${MTACTL_PID}
+          status_p1="started"
+       else
+          echo `basename $0`": Executable $BIN_DIR/$AGTCTL not found!"
+          exit_code=1
+       fi
+    fi
+
+    echo "MTA process \"${PROCESS_NAME} -mt\" $status_p1!"
+    echo `ps -aef | grep extproc$2 | grep -v grep`
+    echo ""
+#   common_status_trailer $1 $2 $3
+    exit $exit_code
+    ;;
+
+'restart')
+    if [ $# -lt 2 ] || [ $# -gt 3 ]
+    then
+       display_usage_and_exit "restart"
+    fi
+
+    # help is a reserved word
+    if [ $2 == "-help" ]
+    then
+       display_help_and_exit "restart"
+    fi
+
+    common_status_header $1 $2 $3
+    if [ $FAILURES -gt 0 ]
+    then
+        FAILURES=0
+        exit 1
+    else
+       check_init_file $2
+       if [ $FAILURES -gt 0 ]
+       then
+           FAILURES=0
+           exit 1
+       fi
+    fi
+
+    if [ "$PID1" != "" ]
+    then
+       status_p1="is already running"
+    else
+       if [ -x $BIN_DIR/$AGTCTL ]
+       then
+          ts=`date +%y%m%d-%X | awk '{print $1}'`
+          mv ${MTACTL_LOG} ${MTACTL_LOG}_${ts}
+
+          echo Re-starting ${MTA_SID}... 
+          echo Re-starting ${MTA_SID}... > ${MTACTL_LOG}
+
+          # Delete existing MTA init parameters and re-start MTA with the default
+          echo ${BIN_DIR}/${AGTCTL} delete ${MTA_SID} > ${MTACTL_LOG}
+          ${BIN_DIR}/${AGTCTL} delete ${MTA_SID} >> ${MTACTL_LOG} 2>&1
+          echo ${BIN_DIR}/${AGTCTL} set max_sessions ${MAX_SESSIONS} ${MTA_SID} >> ${MTACTL_LOG}
+          ${BIN_DIR}/${AGTCTL} set max_sessions ${MAX_SESSIONS} ${MTA_SID} >> ${MTACTL_LOG} 2>&1
+          echo ${BIN_DIR}/${AGTCTL} set max_dispatchers ${MAX_DISPATCHERS} ${MTA_SID} >> ${MTACTL_LOG}
+          ${BIN_DIR}/${AGTCTL} set max_dispatchers ${MAX_DISPATCHERS} ${MTA_SID} >> ${MTACTL_LOG} 2>&1
+          echo ${BIN_DIR}/${AGTCTL} set max_task_threads ${MAX_THREADS} ${MTA_SID} >> ${MTACTL_LOG}
+          ${BIN_DIR}/${AGTCTL} set max_task_threads ${MAX_THREADS} ${MTA_SID} >> ${MTACTL_LOG} 2>&1
+          echo ${BIN_DIR}/${AGTCTL} unset listener_address ${MTA_SID} >> ${MTACTL_LOG}
+          ${BIN_DIR}/${AGTCTL} unset listener_address ${MTA_SID} >> ${MTACTL_LOG} 2>&1
+
+          if [ "$MTA_ADDRESS" == "" ] && [ "$MTA_KEY" == "" ]
+          then
+             if [ -x $BIN_DIR/lsnrctl ]
+             then
+                MTA_KEY=`lsnrctl status $3 | grep -i description | grep -i address | grep -i protocol | grep -i ipc | grep -i key | sed -r "s/[[:alnum:]]+=/\n&/g" | awk -F= 'toupper($1)=="KEY"{print $2}' | sed -e 's/)//g'`
+
+                if [ "$MTA_KEY" != "" ]
+                then
+                   LSNR_ADDRESS="(ADDRESS=(PROTOCOL=ipc)(KEY=${MTA_KEY}))"
+                else
+                   echo "mtactl start failed! IPC protocol KEY doesn't exist."
+                   exit 2
+                fi
+             else
+                echo "mtactl start failed! $ORACLE_HOME/bin/lsnrctl doesn't exist."
+                exit 2
+             fi
+          fi
+
+          if [ "$LSNR_ADDRESS" != "" ]
+          then
+             echo ${BIN_DIR}/${AGTCTL} set listener_address \"${LSNR_ADDRESS}\" ${MTA_SID} >> ${MTACTL_LOG}
+             ${BIN_DIR}/${AGTCTL} set listener_address ${LSNR_ADDRESS} ${MTA_SID} >> ${MTACTL_LOG} 2>&1
+          fi
+
+          echo ${BIN_DIR}/${AGTCTL} startup extproc ${MTA_SID} >> ${MTACTL_LOG}
+          ${BIN_DIR}/${AGTCTL} startup extproc ${MTA_SID} >> ${MTACTL_LOG} 2>&1
+
+          ERRSTR=`grep ORA-28593 ${MTACTL_LOG}`
+          if [ "$ERRSTR" != "" ]
+          then
+             echo "ERROR! There is no pre-existing init parameter values stored in the repository."
+             echo ""
+             exit_code=1
+             exit $exit_code
+          fi
+
+          mv ${MTACTL_PID} ${MTACTL_PID}_${ts}
+          echo `ps -ef | grep extproc$2 | grep -v grep | grep mt | awk '{ print $2 }'` > ${MTACTL_PID}
+          status_p1="started"
+       else
+          echo `basename $0`": Executable $BIN_DIR/$AGTCTL not found!"
+          exit_code=1
+       fi
+    fi
+
+    echo "MTA process \"${PROCESS_NAME} -mt\" $status_p1!"
+    echo `ps -aef | grep extproc$2 | grep -v grep`
+    echo ""
+    exit $exit_code
+    ;;
+
+'stop')
+    if [ $# -lt 2 ] || [ $# -gt 3 ]
+    then
+       display_usage_and_exit "stop"
+    fi
+
+    # help is a reserved word
+    if [ $2 == "-help" ]
+    then
+       display_help_and_exit "stop"
+    fi
+
+    common_status_header $1 $2 $3
+    if [ $exit_code -gt 0 ]
+    then 
+        exit $exit_code
+    fi
+
+    PROCESS_NAME=$(ps_ef_process_name extproc$2)
+
+    PID2=`ps -ef | grep $PROCESS_NAME | grep -v grep | grep mt | awk '{ print $2 }'`
+    if [ "$PID2" != "" ]
+    then
+       echo ${BIN_DIR}/${AGTCTL} shutdown ${MTA_SID} >> ${MTACTL_LOG} 2>&1
+       ${BIN_DIR}/${AGTCTL} shutdown ${MTA_SID} >> ${MTACTL_LOG} 2>&1
+
+       PID2=`ps -ef | grep $PROCESS_NAME | grep -v grep | grep mt | awk '{ print $2 }'`
+       if [ "$PID2" != "" ]
+       then
+          echo "WARNING! shutdown retry..."
+          echo ${BIN_DIR}/${AGTCTL} shutdown ${MTA_SID} retry... >> ${MTACTL_LOG}
+          ${BIN_DIR}/${AGTCTL} shutdown ${MTA_SID} >> ${MTACTL_LOG} 2>&1
+       fi
+       
+       PID2=`ps -ef | grep $PROCESS_NAME | grep -v grep | grep mt | awk '{ print $2 }'`
+       if [ "$PID2" != "" ]
+       then
+          echo "ERROR! Failed to stop MTA process \"${PROCESS_NAME} -mt\"."
+          echo "ERROR! MTA process \"${PROCESS_NAME} -mt\" is still running!"
+          exit_code=2
+       else
+          echo "MTA process \"${PROCESS_NAME} -mt\" stopped!"
+          exit_code=0
+       fi
+       echo ""
+    else
+       echo "MTA process \"${PROCESS_NAME} -mt\" doesn't exist!"
+       echo ""
+       exit_code=1
+    fi
+    common_status_trailer $1 $2 $3
+    exit $exit_code
+    ;;
+
+'clean')
+    if [ $# -ne 2 ]
+    then
+       display_usage_and_exit "clean"
+    fi
+
+    PID2=`ps -ef | grep $PROCESS_NAME | grep -v grep | grep mt | awk '{ print $2 }'`
+    if [ "$PID2" != "" ]
+    then
+       echo ${BIN_DIR}/${AGTCTL} shutdown ${MTA_SID} >> ${MTACTL_LOG}
+       ${BIN_DIR}/${AGTCTL} shutdown ${MTA_SID} >> ${MTACTL_LOG} 2>&1
+       exit 0
+    fi
+    ;;
+
+'status')
+    if [ $# -lt 2 ] || [ $# -gt 3 ]
+    then
+       display_usage_and_exit "status"
+    fi
+
+    # help is a reserved word
+    if [ $2 == "-help" ]
+    then
+       display_help_and_exit "status"
+    fi
+
+    common_status_header $1 $2 $3
+    if [ $FAILURES -gt 0 ] || [ $WARNINGS -gt 0 ]
+    then
+        FAILURES=0
+        exit 1
+    else
+       check_init_file $2
+       if [ $FAILURES -gt 0 ]
+       then
+           FAILURES=0
+           exit 1
+       fi
+    fi
+
+    PNAME=$(ps_ef_process_name extproc$2)
+
+    if [ "$PNAME" == "extproc$2" ]
+    then
+       TNS_ERR=`lsnrctl status $3 | grep "no listener" | awk '{print $1}'`
+
+       if [ "$TNS_ERR" == "TNS-12541:" ]
+       then
+           echo "ERROR! Listener is not running."
+           echo ""
+           exit 1
+       else
+           echo "lsnrctl service:"
+           LSNR_SERVICE=`lsnrctl service $3 | grep $2`
+
+           if [ "$LSNR_SERVICE" == "" ]
+           then
+               echo "WARNING! Instance \"$2\" is not registered with $3 yet, retry!"
+           else
+               echo $LSNR_SERVICE
+               echo ""
+               echo "lsnrctl log_file status:"
+               LSNR_LOG=`lsnrctl status $3 | grep "Listener Log File" | awk '{print $4}'`
+
+               if [ "$LSNR_LOG" == "" ]
+               then
+                   echo "WARNING! Instance \"$2\" is not registered with $3 yet, retry!"
+               else
+                   cat $LSNR_LOG | grep $2 | tail -1
+               fi
+           fi
+           echo ""
+           common_status_trailer $1 $2 $3
+           exit 0
+       fi
+    else
+       exit 1
+    fi
+    ;;
+
+'show')
+    if [ $# -lt 2 ] || [ $# -gt 3 ]
+    then
+       display_usage_and_exit "show"
+    fi
+
+    # help is a reserved word
+    if [ $2 == "-help" ]
+    then
+       display_help_and_exit "show"
+    fi
+
+    common_status_header $1 $2 $3
+    common_status_trailer $1 $2 $3
+    if [ $FAILURES -gt 0 ]
+    then
+        FAILURES=0
+        exit 1
+    else
+       check_init_file $2
+       if [ $FAILURES -gt 0 ]
+       then
+           FAILURES=0
+           exit 1
+       fi
+    fi
+
+    MTA_SID=$2
+
+    echo MTA SID \"${MTA_SID}\" init parameters:
+    echo ""
+    la=`${BIN_DIR}/${AGTCTL} show listener_address ${MTA_SID} | tail -1`
+    echo listener_address = \"$la\"
+    md=`${BIN_DIR}/${AGTCTL} show max_dispatchers ${MTA_SID} | tail -1`
+    echo max_dispatchers = $md \(default: 30\)
+    td=`${BIN_DIR}/${AGTCTL} show tcp_dispatchers ${MTA_SID} | tail -1`
+    echo tcp_dispatchers = $td \(default: 0\)
+    mt=`${BIN_DIR}/${AGTCTL} show max_task_threads ${MTA_SID} | tail -1`
+    echo max_task_threads = $mt \(default: 300\)
+    ms=`${BIN_DIR}/${AGTCTL} show max_sessions ${MTA_SID} | tail -1`
+    echo max_sessions = $ms \(default: 300\)
+    echo ""
+    exit 0
+    ;;
+
+'unset')
+    if [ $# -ne 3 ]
+    then
+       # help is a reserved word
+       if [ $# -eq 2 ] && [ $2 == "-help" ]
+       then
+          display_help_and_exit "unset"
+       else
+          display_usage_and_exit "unset"
+       fi
+    fi
+
+    MTA_SID=$3
+    PROCESS_NAME=extproc$3
+    PNAME=$2
+    PID2=`ps -ef | grep ${PROCESS_NAME} | grep -v grep | grep mt | awk '{ print $2 }'`
+
+    if [ "$PID2" != "" ]
+    then
+       echo ""
+       echo "Process \"${PROCESS_NAME} -mt\" is still running!"
+       echo "ERROR! Your operation 'UNSET' is not accepted."
+       echo ""
+       exit 1
+    else
+       echo ""
+       echo ${BIN_DIR}/${AGTCTL} unset ${PNAME} ${MTA_SID} >> ${MTACTL_LOG}
+       ${BIN_DIR}/${AGTCTL} unset ${PNAME} ${MTA_SID} >> ${MTACTL_LOG} 2>&1
+       val=`${BIN_DIR}/${AGTCTL} show ${PNAME} ${MTA_SID} | tail -1`
+       echo ${PNAME} = $val 
+       echo ""
+       exit 0
+    fi
+    ;;
+
+'set')
+    if [ $# -ne 4 ]
+    then
+       # help is a reserved word
+       if [ $# -eq 2 ] && [ $2 == "-help" ]
+       then
+          display_help_and_exit "set"
+       else
+          display_usage_and_exit "set"
+       fi
+    fi
+
+    MTA_SID=$4
+    PROCESS_NAME=extproc$4
+    PNAME=$2
+    PVALUE=$3
+
+    PID2=`ps -ef | grep ${PROCESS_NAME} | grep -v grep | grep mt | awk '{ print $2 }'`
+
+    if [ "$PID2" != "" ]
+    then
+       echo ""
+       echo "ERROR! Process \"${PROCESS_NAME} -mt\" is still running!"
+       echo "ERROR! Your operation 'SET' is not accepted."
+       echo ""
+       exit 1
+    else
+       echo ""
+       echo ${BIN_DIR}/${AGTCTL} set ${PNAME} ${PVALUE} ${MTA_SID} >> ${MTACTL_LOG}
+       ${BIN_DIR}/${AGTCTL} set ${PNAME} ${PVALUE} ${MTA_SID} >> ${MTACTL_LOG} 2>&1
+       val=`${BIN_DIR}/${AGTCTL} show ${PNAME} ${MTA_SID} | tail -1`
+       echo ${PNAME} = $val 
+       echo ""
+       exit 0
+    fi
+    ;;
+
+'delete')
+    if [ $# -lt 2 ] || [ $# -gt 3 ]
+    then
+       display_usage_and_exit "delete"
+    fi
+
+    # help is a reserved word
+    if [ $2 == "-help" ]
+    then
+       display_help_and_exit "delete"
+    fi
+
+    MTA_SID=$2
+    PROCESS_NAME=extproc$2
+
+    PID2=`ps -ef | grep ${PROCESS_NAME} | grep -v grep | grep mt | awk '{ print $2 }'`
+
+    if [ "$PID2" != "" ]
+    then
+       echo ""
+       echo "ERROR! Process \"${PROCESS_NAME} -mt\" is still running!"
+       echo "ERROR! Your operation 'DELETE' is not accepted."
+       echo ""
+       exit 1
+    else
+       double_check
+       echo ""
+       echo ${BIN_DIR}/${AGTCTL} delete ${MTA_SID} >> ${MTACTL_LOG}
+       ${BIN_DIR}/${AGTCTL} delete ${MTA_SID} >> ${MTACTL_LOG} 2>&1
+       exit 0
+    fi
+    ;;
+
+'bdsql')
+    if [ $# -lt 2 ] || [ $# -gt 3 ]
+    then
+       display_usage_and_exit "bdsql"
+    fi
+
+    # help is a reserved word
+    if [ $2 == "-help" ]
+    then
+       display_help_and_exit "bdsql"
+    fi
+
+    common_status_header $1 $2 $3
+    common_status_trailer $1 $2 $3
+    if [ $FAILURES -gt 0 ] || [ $WARNINGS -gt 0 ]
+    then
+        FAILURES=0
+        exit 1
+    else
+       check_init_file $2
+       if [ $FAILURES -gt 0 ]
+       then
+           FAILURES=0
+           exit 1
+       fi
+    fi
+
+    echo "Run the following SQL statement to check that if you have database links"
+    echo "created for your mta_sid '$2' for BigDataSQL."
+    echo ""
+    echo "SELECT db_link, host FROM all_db_links WHERE db_link LIKE 'BDSQL$%';"
+    echo ""
+    ;;
+
+*)
+    if [ $# -eq 1 ] 
+    then
+       display_usage_and_exit ""
+    fi
+    display_usage_and_exit "*"
+    ;;
+esac

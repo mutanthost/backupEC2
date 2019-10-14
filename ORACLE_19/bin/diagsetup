@@ -1,0 +1,250 @@
+#!/bin/sh
+#
+# Copyright (c) 1997, 2013, Oracle and/or its affiliates. All rights reserved.
+#
+#    NAME
+#      diagsetup - Shell script to run diagsetup tool in
+#                  standalone mode.
+#
+#    DESCRIPTION
+#      Runs diagsetup Java application.  This file comes
+#      in two forms - its original, with a .sbs extension, and its 
+#      final, without a .sbs extension.  The .sbs version is 
+#      source for the final version which the Oracle Universal Installer 
+#      creates by doing variables substitution at install time.
+#
+#      Here are some assumptions made in this script:
+#        o Most servers are 64-bit, but there are still 32-bit clients
+#        o This script calls Java, and Solaris and HP-UX uses a special flag
+#          ("-d64") that specifies 64-bit mode for Java when installing 64-bit
+#        o The "-d64" option is only valid for Solaris and HP-UX
+#        o SHLIB_PATH is only used for HP-UX (but it also uses LD_LIBRARY_PATH)
+#        o LIBPATH is only used for AIX
+#        o LD_LIBRARY_PATH is used by Linux, Solaris and HP-UX
+#
+#    MODIFIED   (MM/DD/YY)
+#    mfallen     11/14/13  - remove srvmhas.jar
+#    mfallen     05/08/12  - bug 13737024: fix zLinux path
+#    mfallen     05/09/11  - bug 12532369: handle multiple libraries found
+#    mfallen     05/10/10  - bug 9689282: handle quotes in 'file' output
+#    mfallen     04/20/10  - bug 9551918: parse file output correctly
+#    abhrao      11/09/09  - bug 9089791
+#    ysarig      10/29/09  - Fixing bug 8692771
+#    mfallen     10/15/09  - bug 9019626: check installer word size
+#    mfallen     07/04/08  - bug 7214612: use 64-bit libraries where needed
+#    ysarig      06/28/08  - Fixing bug# 7214612
+#    mlfeng      07/06/07  - make changes to handle different unix-based
+#                            platforms
+#    mlfeng      07/05/07  - export the ORACLE_HOME
+#    mlfeng      06/27/07  - make changes to have the proper environment
+#                            variables for each platform
+#    mlfeng      06/07/07  - remove oracle_home check since install does not
+#                            have oracle_home. install will pass in the 
+#                            oracle_home through the command line (bug 6120551)
+#    mlfeng      05/15/07  - add LD_LIBRARY_PATH
+#    mlfeng      03/06/07  - more classes
+#    mlfeng      02/22/07  - include more jars
+#    mlfeng      02/20/07  - model after trcsess
+#    mlfeng      02/20/07  - creation
+#
+
+###############################################################################
+# Generic part: setup Oracle Home, get platform name, setup directory variables
+###############################################################################
+
+# Set the Oracle Home
+ORACLE_HOME=/u01/app/oracle/product/19.0.0/dbhome_1
+export ORACLE_HOME
+
+# Get the platform name
+PLATFORM=`uname`
+
+# Unset existing JAVA_HOME variable to ensure the JRE we want is used
+unset JAVA_HOME
+
+# External directory variables set by the Installer
+JRE_HOME=/u01/app/oracle/product/19.0.0/dbhome_1/jdk/jre/
+JLIBDIR=/u01/app/oracle/product/19.0.0/dbhome_1/jlib
+LIBDIR=/u01/app/oracle/product/19.0.0/dbhome_1/lib
+RDBMSJLIBDIR=/u01/app/oracle/product/19.0.0/dbhome_1/rdbms/jlib
+OUIJLIBDIR=/u01/app/oracle/product/19.0.0/dbhome_1/oui/jlib
+INVENTORYLOC=/u01/app/oracle/product/19.0.0/dbhome_1/inventory/prereqs/oui
+
+###############################################################################
+# Unix-generic part: figure out 32-bit or 64-bit installer
+###############################################################################
+
+# Start out looking for this file - .so on most ports, .sl on HP-UX IA64
+FNAME="/u01/app/oracle/product/19.0.0/dbhome_1/oui/lib/*/liboraInstaller.s?";
+
+# Count the iterations to avoid infinite loops
+CNT=0
+MAX=25
+
+# Loop until file output doesn't show symbolic link
+while [ $CNT -le $MAX ]
+do
+  CNT=`expr $CNT + 1`;
+
+  FILE_OUTPUT=`file $FNAME | head -1 | cut -d ':' -f 2`
+  case $FILE_OUTPUT in
+    *symbolic*link*to*)
+        FNAME=`echo $FILE_OUTPUT | sed -e 's/symbolic link to //'`
+        FNAME=`echo $FNAME | sed -e 's/\`//' -e "s/'//"` 
+      ;;
+    *)
+        break
+      ;;
+  esac
+done
+
+# Check installer bits
+case $FILE_OUTPUT in
+  *32*)
+      ARCH=32
+    ;;
+  *64*)
+      ARCH=64
+    ;;
+  *)
+      # If we have to guess
+      ARCH=32
+    ;;
+esac
+
+###############################################################################
+# Port-specific part: setup library paths and special flags per port
+###############################################################################
+
+# Set LD_LIBRARY_PATH to set the path for shared objects
+
+case $PLATFORM in
+
+  ### AIX ########################################
+
+  AIX)
+    # For AIX:
+    #   set some special Java compiler flags
+    #   don't set LD_LIBRARY_PATH
+    #   set LIBPATH
+
+    # set flags
+    JAVA_COMPILER=NONE
+    export JAVA_COMPILER
+
+    # set library path
+    LIBPATH=$LIBDIR:$LIBPATH
+    export LIBPATH;
+
+    # end of AIX section
+    ;;
+
+  ### Solaris ########################################
+
+  SunOS)
+
+    # For Solaris:
+    #   set special Java flags if software is 64-bit
+    #   set LD_LIBRARY_PATH
+
+    # setup paths
+    if [ "$ARCH" = "64" ]; then
+      # set flags
+      JRE64FLAG="-d64"
+      export JRE64FLAG
+    fi
+
+    # set library path
+    LD_LIBRARY_PATH=$LIBDIR:$LD_LIBRARY_PATH
+    export LD_LIBRARY_PATH
+
+    # end of Solaris section
+    ;;
+
+  ### Linux ########################################
+
+  Linux)
+
+    # For Linux:
+    #   set some special Java compiler flags
+    #   set LD_LIBRARY_PATH
+
+    # set flags
+    THREADS_FLAG=native
+    export THREADS_FLAG
+
+    # set library path
+    LD_LIBRARY_PATH=$LIBDIR:$LD_LIBRARY_PATH
+    export LD_LIBRARY_PATH
+
+    MACH_HARDWARE=`uname -m`
+
+    # check machine type
+    case $MACH_HARDWARE in
+      ppc64)
+          JRE_HOME=/u01/app/oracle/product/19.0.0/dbhome_1/jdk/jre//jre
+          ;;
+    esac
+
+    # end of Linux section
+    ;;
+
+  ### HP-UX ########################################
+  HP-UX)
+
+    # For HP-UX:
+    #   set SHLIB_PATH
+    #   set LD_LIBRARY_PATH
+
+    # setup paths
+    if [ "$ARCH" = "64" ]; then
+      # set flags
+      JRE64FLAG="-d64"
+      export JRE64FLAG
+    fi
+
+    # set library path
+    SHLIB_PATH=$LIBDIR:$SHLIB_PATH
+    export SHLIB_PATH
+
+    # set another library path
+    LD_LIBRARY_PATH=$LIBDIR:$LD_LIBRARY_PATH
+    export LD_LIBRARY_PATH
+
+    # end of HP-UX section
+    ;;
+
+  ### DEFAULT ########################################
+  *)
+    # Currently, all supported ports are covered above
+
+    # set library path
+    LD_LIBRARY_PATH=$LIBDIR:$LD_LIBRARY_PATH
+    export LD_LIBRARY_PATH
+
+    # end of default section
+    ;;
+
+# end of PLATFORM case
+esac
+
+###############################################################################
+# Generic part: setup Java variables and invoke utility
+###############################################################################
+
+# JRE executable and class file variables
+JRE_CLASSPATH=$JRE_HOME/lib:$JRE_HOME/lib/rt.jar
+
+# Oracle jars to include 
+OUI_JAR=$OUIJLIBDIR/OraInstaller.jar:$OUIJLIBDIR/OraPrereqChecks.jar:$INVENTORYLOC/OraPrereqChecks.jar
+SRVM_JAR=$JLIBDIR/srvm.jar:$JLIBDIR/srvmasm.jar:$JLIBDIR/share.jar
+
+# diagsetup file variables
+DIAGSETUP_JAR=$RDBMSJLIBDIR/diagsetup.jar
+
+# Set Classpath for diagsetup
+CLASSPATH=$DIAGSETUP_JAR:$JRE_CLASSPATH:$SRVM_JAR:$OUI_JAR
+
+# Run diagsetup
+$JRE_HOME/bin/java $JRE64FLAG -classpath $CLASSPATH -Doracle.diagsetup.oraclehome=/u01/app/oracle/product/19.0.0/dbhome_1 oracle.diagfw.adr.diagsetup.DiagSetup "$@"
+exit $status

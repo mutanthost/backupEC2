@@ -1,0 +1,29 @@
+<?xml version="1.0"?>
+
+<!--  $Header: tfa/src/v2/tfa_home/resources/mappingAutoSrdc.xml /main/1 2018/08/15 16:55:52 bburton Exp $ -->
+
+<!-- 
+ Copyright (c) 2018, Oracle and/or its affiliates. All rights reserved.
+
+   NAME
+     mappingAutoSrdc.xml - <one-line expansion of the name>
+
+   DESCRIPTION
+     <short description of component this file declares/defines>
+
+   NOTES
+     <other useful comments, qualifications, etc.>
+
+   MODIFIED   (MM/DD/YY)
+   recornej    07/02/18 - File with the Available Auto SRDC's with their
+                          parameters.
+   recornej    07/02/18 - Creation
+
+-->
+<auto_srdcs>
+  <srdc name="ORA-00600" filename="srdc_ora600.xml" parameters="database,event_time"/>
+  <srdc name="ORA-04030" filename="srdc_ora4030.xml" parameters="database,event_time"/>
+  <srdc name="ORA-04031" filename="srdc_ora4031.xml" parameters="database,event_time"/>
+  <srdc name="ORA-07445" filename="srdc_ora7445.xml" parameters="database,event_time"/>
+</auto_srdcs>
+

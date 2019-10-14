@@ -1,0 +1,35 @@
+@ECHO OFF
+set TFA_HOME=
+
+REM Get PERL to use from tfa_setup.txt
+for /f "tokens=1,2 delims==" %%a in ('type %TFA_HOME%\tfa_setup.txt ^| findstr PERL') do set perl=%%b
+
+call :strlen len perl
+IF %len%==0 (
+	set perl=perl
+)
+
+REM echo FOUND PERL : %perl%
+REM Unnecessary loading of external PERL5LIB modules may lead to conflict
+REM Hence setting it to null for current sessions
+set PERL5LIB=
+%perl% %TFA_HOME%\bin\tfactl.pl %*
+
+
+:strlen <resultVar> <stringVar>
+(   
+    setlocal EnableDelayedExpansion
+    set "s=!%~2!#"
+    set "len=0"
+    for %%P in (4096 2048 1024 512 256 128 64 32 16 8 4 2 1) do (
+        if "!s:~%%P,1!" NEQ "" ( 
+            set /a "len+=%%P"
+            set "s=!s:~%%P!"
+        )
+    )
+)
+( 
+    endlocal
+    set "%~1=%len%"
+    exit /b
+)

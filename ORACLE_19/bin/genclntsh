@@ -1,0 +1,510 @@
+#!/bin/sh
+#
+# $Id: genclntsh.sh /linuxamd64/58 2018/08/01 01:27:19 kmohan Exp $
+# Copyright (c) 1996, 2018, Oracle and/or its affiliates. All rights reserved.
+#
+# genclntsh.sh	(for Linux)
+# Script to create single shared client library for OCI, Pro*C, and XA
+#
+#  MODIFIED   (MM/DD/YY)
+#  kmohan      07/26/18 - Make ons statically get into libclntsh
+#  surikuma    07/17/18 - Bug 28357343 - ipc libs for ntmq
+#  jdavison    03/29/18 - Add __svml_feature_flag to sysliblist
+#  iraisr      11/30/17 - revert gcc build changes from DKC PT branch
+#  iraisr      11/20/17 - gcc build
+#  jboyce      06/06/17 - use libvsnst.a, if present
+#  bhshanmu    05/04/17 - bhshanmu_bug-26003322_linux
+#  vzsridha    12/26/16 - remove exacloud stubs
+#  vzsridha    12/19/16 - fix inclusion of edsstubs
+#  vzsridha    12/15/16 - add exacloud libs
+#  rpingte     03/21/16 - Bug 22972113: use -z noexecstack
+#  vlakkund    09/14/15 - Use lzopro5 if available
+#  vlakkund    05/14/13 - Bug 16604236 : remove dependency of libipgo for
+#                         non-profile_collect phases
+#  ekarichk    01/20/12 - bug/13517928: use ld for relnking
+#  kmohan      05/23/11 - add ons
+#  sksamudr    05/24/11 - bug 12575782
+#  rpingte     11/22/10 - fix xdk linkage
+#  rpingte     09/10/10 - client shared library now depends on libclntcore
+#  nmuthukr    08/04/10 - x86-x64 unification
+#  slari       11/05/09 - set LD_RUNTIME (and -R) only if SRCHOME is not set,
+#                         i.e. not in a development environment
+#  mlfallon    04/17/09 - Make sure to use PIC verisons of Intel C runtime in
+#                         shared libraries
+#  mlfallon    01/12/09 - Adding -m32 to link line
+#  jboyce      09/06/07 - in SRCHOME, examine symlink is $SRCHOME/lib
+#  bemeng      04/10/07 - add aio library for asynchronous I/O
+#  jboyce      02/13/07 - 10->11
+#  rpingte     03/01/07 - export everything from CORE and NLS
+#  tnallath    08/31/06 - add gssapi library
+#  tnallath    03/15/06 - Remove libnsslb 
+#  tnallath    12/22/05 - new library libzt10 
+#  jboyce      06/30/04 - Just remove soft-link to library.
+#  jboyce      02/26/04 - Use shrept.lst from XDK
+#  mkrohan     01/22/04 - Honour exit codes 
+#  mkrohan     10/28/03 - Do not auto generate static client library 
+#  ajgupta     07/24/03 - 
+#  amckinst    08/25/03 - merge fwd RDBMS_MAIN_SOLARIS_030822
+#  jboyce      06/27/03 - remove xsd dependency (3024453)
+#  ekarichk    02/05/03 - arg list too long in qa environment
+#  kecallan    12/02/02 - Include libcore10.a 
+#  jboyce      11/20/02 - remove reference to $(SRCHOME)/lib/libcore9.a
+#  mkrohan     11/14/02 - Use 10 libraries where available
+#  mkrohan     11/21/02 - Remove wtc
+#  tkarren     11/15/02 - Assign LNZ to libnnz9.a
+#  kecallan    11/07/02 - Use /usr/bin/ar instead of /usr/ccs/bin/ar which doens't exist
+#  jciminsk    10/09/02 - refine native net linking
+#  ycao        09/12/02 - Add LSNLSRTL into the shared lib
+#  skalyana    08/06/02 - Add NZ shared lib to libclntsh link line
+#  vgoel       06/28/02 - 10i merges
+#  madivi      05/10/02 - Removed -lrt option and added stubs to link line.
+#  jciminsk    04/03/02 - add native net/skgxp
+#  bkhaladk    11/18/01 - add XSD dependency.
+#  sichandr    07/11/01 - add XDK
+#  mkrohan     03/05/01 - Remove echo
+#  mkrohan     03/05/01 - Drop libnent9
+#  mkrohan     12/13/00 - Fix symlinking
+#  mkrohan     12/07/00 - Final cleanup
+#  mkrohan     11/27/00 - Add support static library map file
+#  mkrohan     11/08/00 - Search for product 9 libraries
+#  mkrohan     10/26/00 - Update to version 9
+#  rachacos    11/25/98 - use naming adapter libraries
+#  rachacos    07/30/98 - use GS LDAP package
+#  hpiao       11/12/97 - Make libcommon$$.a writable
+#  jweisz      06/30/97 - ADE support: if lib is symlink, copy it
+#  mluong      05/30/97 - Read entry points from $PRODUCT/admin/shrept.lst
+#  hpiao       04/04/97 - Modify for 803
+#  dkozlows    05/01/95 - File created
+#
+
+#------------------------------------------------------------------------------
+# Process arguments
+#------------------------------------------------------------------------------
+
+CLNT_CORE=1
+CLNT_SH=1
+while [ x"$1" != x ]; do
+    case $1 in 
+        -core)    CLNT_CORE=1; CLNT_SH=; shift ;;
+        -clntsh)  CLNT_CORE=;  CLNT_SH=1; shift ;;
+        -all)     CLNT_CORE=1;CLNT_SH=1; shift ;;
+        *)        CLNT_CORE=1;CLNT_SH=1; shift ;;
+    esac
+done
+
+
+## If there's a SRCHOME home, look there instead of ORACLE_HOME
+####
+#if [ "$SRCHOME" ]; then
+#    CLNT_CORE_SHREPT=$SRCHOME/rdbms/admin/$CLNT_CORE_SHREPT_FILE
+#    CLNT_SHREPT=$SRCHOME/rdbms/admin/$CLNT_SHREPT_FILE
+#    CLNT_CORE_DEF=$SRCHOME/rdbms/admin/$CLNT_CORE_DEF_FILE
+#    LIB_DIR=$SRCHOME/rdbms/lib
+#fi
+
+
+#
+# Utility functions
+
+#
+# Error
+#
+# Print an error message and exit
+#
+
+Error () {
+	Status=$1
+	Msg="$2"
+	echo "genclntsh: $Msg" 1>&2
+	exit $Status
+}
+
+#
+# Check_Status
+#
+# Check an exit status, if non-zero, raise an error
+#
+
+Check_Status () {
+	Status=$1
+	Msg="$2"
+	[ $Status -ne 0 ] && Error $Status "$Msg"
+}
+
+#
+# Remove_File
+#
+# Remove a file verifying it has been removed
+#
+
+Remove_File () {
+	File=$1
+	/bin/rm -f $File
+	[ ! -r $File ]
+	Check_Status $? "Failed to remove $File"
+}
+
+#
+# List the required symbols from a product's shrept.lst file
+listf () {
+	product=$1
+	entryList=$ORACLE_HOME/$product/admin/shrept.lst
+	grep -v '#' $entryList | \
+		grep $product | \
+		awk '{ printf (" -u %s", $3); }'
+}
+
+#
+# Main line starts here
+#
+
+# Print archive table of contents
+ARPRINT="/usr/bin/ar t"
+
+#
+# Explicit path to ensure that we're using the correct commands
+PATH=/bin:/usr/bin:/usr/local/bin
+export PATH
+
+# Asynchronous I/O library (port specific)
+LAIO=
+
+
+# Initialize arch specific variables, default for x86.
+case `uname -m` in  
+"x86_64")          
+  LD_MACH_OPT=-m64
+  if [ "$PROFILE_ON" = "collect" ]
+  then
+    LIB_INTEL_LIBS="-lipgo"
+  else
+    LIB_INTEL_LIBS=""
+  fi
+  # LD does not seem to recognize -Wl,-relax, which CC needs
+  #
+  # -u __intel_new_proc_init is temporary to ease migration of component labels
+  # to icc14. icc12 compiled binaries require __intel_new_proc_init; binaries 
+  # compiled with icc14 will not have references to __intel_new_proc_init
+  # and -u __intel_new_proc_init will be removed.
+  SYSLIBS="-Wl,-relax -u __svml_feature_flag -u __intel_sse2_strncpy -u __intel_new_proc_init `cat $ORACLE_HOME/lib/sysliblist` ${LIB_INTEL_LIBS} -lc ${LAIO}"
+  ;;
+*)
+  LD_MACH_OPT=-m32
+  if [ "$PROFILE_ON" = "collect" ]
+  then
+    LIB_INTEL_LIBS="-lirc_pic -lipgo_pic"
+  else
+    LIB_INTEL_LIBS="-lirc_pic"
+  fi
+  # LD does not seem to recognize -Wl,-relax, which CC needs
+  SYSLIBS="-Wl,-relax  -ldl -lm -lpthread -lnsl ${LIB_INTEL_LIBS} -lc ${LAIO}"
+  ;;
+esac
+
+#
+# To avoid arg list too long errors, unset not essential environment variables
+unset T_SOURCE T_SYSTEM T_LOG T_SQL T_DATA T_SRC T_COM T_DATA T_SOSD
+unset MIGRATE_T_SOURCE MIGRATE_T_SQL CLASSES_12 CLASSPATH JDK_CLASSES
+unset CLASSES_111 EJBCLASSES_11 ORDIMCLASSPATH ORDIMCLASSPATHSHIP CLASSES_102
+
+#
+# each product _must_ provide a $PRODUCT/admin/shrept.lst
+ErrFiles=
+for product in rdbms precomp plsql ldap network
+do
+	SHREPT=$ORACLE_HOME/$product/admin/shrept.lst
+	if [ ! -f $SHREPT ]
+	then
+		ErrFiles="$ErrFiles $SHREPT"
+	fi
+done
+[ ! -z "$ErrFiles" ] && Error 1 "genclntsh: Could not locate $ErrFiles"
+
+#
+# library definitions
+OLIB=${ORACLE_HOME}/lib
+CUSMK=$ORACLE_HOME/rdbms/lib/env_rdbms.mk
+LIBVER=`grep '^LIBMAJORVSN *=' $CUSMK | cut -f2 -d=`
+
+# Precomp
+LSQL="-lsql$LIBVER"
+
+# PL/SQL
+LPLSQL="-lpls$LIBVER"
+
+# RDBMS
+LMM="-lmm"
+LCLIENT="-lclient$LIBVER"
+LCOMMON="-lcommon$LIBVER"
+LGENERIC="-lgeneric$LIBVER"
+LIPPCP="-lippcp"
+if [ -r ${OLIB}/libvsnst$LIBVER.a ]
+then
+    LVSN="-lvsnst$LIBVER"
+else
+    LVSN=""
+fi
+
+# NLSRTL & CORE
+LNLSRTL="-lnls$LIBVER"
+LUNLSRTL="-lunls$LIBVER"
+LSNLSRTL="-lsnls$LIBVER"
+LCORE="-lcore$LIBVER"
+LXDK="-lxml$LIBVER"
+LIPPBZ2="-lipp_bz2"
+LIPPZ="-lipp_z"
+LIPPCORE="-lippcore"
+LIPPS="-lipps"
+LIPPDC="-lippdc"
+LORAZ="-loraz"
+LLZOPRO="-llzopro"
+if [ -r ${OLIB}/liblzopro5.a ]
+then
+    LLZOPRO="-llzopro5"
+else
+    LLZOPRO="-llzopro"
+fi
+LORAZSTD="-lorazstd"
+LORALZ4="-loralz4"
+
+LORABZ2="-lorabz2"
+
+# LDAP
+LLDAP="-lldapclnt$LIBVER"
+LZT="-lzt$LIBVER"
+
+# ONS
+LONS="${OLIB}/libons.a"
+
+# Native Net
+LNNET_ON="-lnnet$LIBVER"
+LNNET_OFF="-lnnetd$LIBVER"
+LSKGXP="-lskgxp$LIBVER"
+
+# Network
+LDFLAGS="`cat ${ORACLE_HOME}/lib/ldflags`"
+LNENT=
+[ -r ${OLIB}/libnent$LIBVER.a ] && LNENT="-lnent$LIBVER"
+# NZ
+LNZ=
+[ -r ${OLIB}/libnnz$LIBVER.so ] && LNZ="-lnnz$LIBVER -lzt$LIBVER"
+LZTGSS="-lztkg$LIBVER"
+LNCRYPT="-lncrypt$LIBVER -ln$LIBVER -lnl$LIBVER -lnro$LIBVER"
+LNETWORK="${LDFLAGS} ${LNENT} ${LNZ} ${LNCRYPT} ${LZTGSS} ${LDFLAGS}"
+
+# IPC libs
+# For network ntmq adapter : required only on Linux & Solaris
+IPC_VER=1
+IPC_LIBS="${OLIB}/libmql${IPC_VER}.a ${OLIB}/libipc${IPC_VER}.a"
+
+#
+# Create lists of symbols to pass to ld
+SYMS_NLS="-Wl,--whole-archive $LNLSRTL $LUNLSRTL $LSNLSRTL -Wl,--no-whole-archive"
+SYMS_CORE="-Wl,--whole-archive $LCORE -Wl,--no-whole-archive"
+SYMS_OCIC="`listf rdbms` ${LCLIENT}"
+SYMS_SQL="`listf precomp` ${LSQL}"
+SYMS_PLSQL="`listf plsql` ${LPLSQL}"
+SYMS_LDAP="`listf ldap` ${LLDAP}"
+SYMS_NETWORK="`listf network` ${LNETWORK}"
+SYMS_XDK="`listf xdk` ${LXDK}"
+#
+# Library names and locations
+CLNT_NAM=clntsh					# (short) library name
+CLNT_VER=$LIBVER.1					# library version number
+CLNT_LNK=lib${CLNT_NAM}.so			# name of symlink to library
+CLNT_LIB=${CLNT_LNK}.${CLNT_VER}		# actual library file name
+LIB_DIR=${ORACLE_HOME}/lib			# lib. destination directory
+
+#------------------------------------------------------------------------------
+# client library names and locations
+#------------------------------------------------------------------------------
+
+# Library to generate
+###
+CLNT_CORE_NAM=${CLNT_NAM}core                   # (short) core library name
+
+# clntsh core library name and locations (used to build full library)
+##
+CLNT_CORE_LNK=lib$CLNT_CORE_NAM.so              # library version number
+CLNT_CORE_LIB=$CLNT_CORE_LNK.$CLNT_VER          # actual library file name
+
+# Base library map file
+CLNT_CORE_DEF_FILE=libclntcore.def
+CLNT_CORE_DEF=$ORACLE_HOME/rdbms/admin/$CLNT_CORE_DEF_FILE
+
+# Destination directory for produced library
+###
+LIB_DIR=$OLIB
+
+if [ ! -z "$SRCHOME" ]
+then
+    TEMP_DIR="`ls -l ${SRCHOME}/lib/${CLNT_LIB} 2>/dev/null | cut -f2 -d\> | cut -f3-4 -d/ `"
+    if [ ! -z "$TEMP_DIR" ]
+    then
+	LIB_DIR=$SRCHOME/${TEMP_DIR}
+    else
+	LIB_DIR=${SRCHOME}/rdbms/lib		# lib. destination directory
+    fi
+fi
+
+#
+# If in ADE, the library may be a symlink to the label server.  If so,
+# delete it
+if [ -h ${LIB_DIR}/${CLNT_LIB} ]
+then
+    echo "removing soft link ${CLNT_LIB}"
+    Remove_File ${LIB_DIR}/${CLNT_LIB}
+fi
+
+#
+# Linker command and options
+
+if [ -z ${LDOBJSZ} ]
+then
+    LDOBJSZ=${LD_MACH_OPT}
+fi
+
+LDCOM="${ORACLE_HOME}/bin/orald"
+test -x "${LDCOM}" || LDCOM=gcc
+
+LD="${LDCOM} -shared -Wl,-relax ${LDOBJSZ} -L${ORACLE_HOME}/lib -z noexecstack" # shared library link command
+if [ -z "$SRCHOME" ]
+then
+    LD_RUNTIME="-Wl,-R${ORACLE_HOME}/lib"
+else
+    LD_RUNTIME=""
+fi
+LD_SELF_CONTAINED=
+
+#
+# Oracle library dependencies
+NAUTAB="${ORACLE_HOME}/lib/nautab.o"
+NAETAB="${ORACLE_HOME}/lib/naeet.o ${ORACLE_HOME}/lib/naect.o"
+NAEDHS="${ORACLE_HOME}/lib/naedhs.o" 
+XAONDY="${ORACLE_HOME}/rdbms/lib/xaondy.o"
+
+OLIBS="${LCLIENT}"
+OLIBS="${OLIBS} ${LSQL}"
+OLIBS="${OLIBS} ${LNETWORK}"
+OLIBS="${OLIBS} ${LCLIENT}"
+OLIBS="${OLIBS} ${LCOMMON}"
+OLIBS="${OLIBS} ${LGENERIC}"
+OLIBS="${OLIBS} ${LMM}"
+OLIBS="${OLIBS} ${XAONDY}"
+OLIBS="${OLIBS} ${LNETWORK}"
+OLIBS="${OLIBS} ${LCLIENT}"
+OLIBS="${OLIBS} ${LCOMMON}"
+OLIBS="${OLIBS} ${LGENERIC}"
+OLIBS="${OLIBS} ${LVSN}"
+OLIBS="${OLIBS} ${LONS}"
+OLIBS="${OLIBS} ${LTRACE}"
+OLIBS="${OLIBS} ${LXDK}"
+OLIBS="${OLIBS} ${LZT}"
+OLIBS="${OLIBS} ${LORAZ}"
+OLIBS="${OLIBS} ${LLZOPRO}"
+OLIBS="${OLIBS} ${LORABZ2}"
+OLIBS="${OLIBS} ${LIPPZ}"
+OLIBS="${OLIBS} ${LIPPBZ2}"
+OLIBS="${OLIBS} ${LORAZSTD}"
+OLIBS="${OLIBS} ${LORALZ4}"
+OLIBS="${OLIBS} ${LIPPDC}"
+OLIBS="${OLIBS} ${LIPPS}"
+OLIBS="${OLIBS} ${LIPPCORE}"
+OLIBS="${OLIBS} ${LIPPCP}"
+OLIBS="${OLIBS} ${IPC_LIBS}"
+
+# 
+# Native net.  During a from-scratch build, when genclntsh.sh is first called,
+# (before p2icd is linked) neither libnnet10.a nor libskgxp10.a
+# exist.  Therefore pull in libnnetd10.a (native net disabled).
+# Also, if called in a customer install (in which case libnnete10.a does not
+# exist), pull in libnnetd10.a.
+# Otherwise, pull in libnnet10.a.  This file is just a copy of either 
+# libnnete10.a or libnnetd10.a, depending on whether native net is enabled
+# or disabled.  If it's the disabled version, don't pull in libskgxp, otherwise
+# do pull it in.
+#
+if [ ! -r ${OLIB}/libnnet$LIBVER.a ] || [ ! -r ${OLIB}/libnnete$LIBVER.a ]
+then
+    OLIBS="${OLIBS} ${LNNET_OFF}"
+else
+    OLIBS="${OLIBS} ${LNNET_ON}"
+    if ${ARPRINT} ${OLIB}/libnnet$LIBVER.a|grep kpf_stubs > /dev/null 2>&1
+    then
+       :
+    else
+       [ -r ${OLIB}/libskgxp$LIBVER.so ] && OLIBS="${OLIBS} ${LSKGXP}"
+    fi
+fi
+
+    
+
+
+# Introducing stubs for compatibility with higher version of glibc
+STUBS=-L${ORACLE_HOME}/lib/stubs
+
+# Create library
+if [ "$CLNT_CORE" ]; then
+#
+# Define the name of the map file
+MAPFILE=${LIB_DIR}/${CLNT_CORE_NAM}.map
+
+	LD_OPT="-Wl,-Map ${MAPFILE} -Wl,-h${CLNT_CORE_LIB}" # name inserted into library
+	LD_OUT="-o ${LIB_DIR}/${CLNT_CORE_LIB}"		 # output specification
+	SYMS_NLS="-Wl,--whole-archive $LNLSRTL $LUNLSRTL $LSNLSRTL -Wl,--no-whole-archive"
+	SYMS_CORE="-Wl,--whole-archive $LCORE -Wl,--no-whole-archive"
+
+	Remove_File ${LIB_DIR}/${CLNT_CORE_LIB}
+	Remove_File ${MAPFILE}
+
+	${LD} ${LD_RUNTIME} ${STUBS} ${LD_OPT} ${LD_OUT} ${LD_SELF_CONTAINED} \
+		${SYMS_NLS} ${SYMS_CORE} \
+		${SYSLIBS} ${USRLIBS} \
+		> ${MAPFILE}
+	Check_Status $? "Failed to link ${CLNT_CORE_LIB}"
+
+	# Create ".so" link to library in a non-development environment only
+	# and generate the client static library
+	if [ -z "${SRCHOME}" ]
+	then
+		if [ -s ${LIB_DIR}/${CLNT_CORE_LIB} ]
+		then
+			cd ${LIB_DIR}
+			Remove_File ${CLNT_CORE_LNK}
+			ln -s ${CLNT_CORE_LIB} ${CLNT_CORE_LNK}
+			Check_Status $? "Failed to create ${CLNT_CORE_LNK}"
+		fi
+	fi
+fi
+
+if [ "$CLNT_SH" ]; then
+#
+# Define the name of the map file
+MAPFILE=${LIB_DIR}/${CLNT_NAM}.map
+
+	Remove_File ${LIB_DIR}/${CLNT_LIB}
+	Remove_File ${MAPFILE}
+	LD_OPT="-Wl,-Map ${MAPFILE} -Wl,-h${CLNT_LIB}"	 # name inserted into library
+	LD_OUT="-o ${LIB_DIR}/${CLNT_LIB}"		 # output specification
+	${LD} ${LD_RUNTIME} ${STUBS} ${LD_OPT} ${LD_OUT} ${LD_SELF_CONTAINED} \
+		${NAUTAB} ${NAETAB} ${NAEDHS} ${SYMS_SQL} ${SYMS_XDK} \
+		${SYMS_PLSQL} ${SYMS_OCIC} ${SYMS_LDAP} ${SYMS_NETWORK} \
+		${OLIBS} ${SYSLIBS} ${USRLIBS} ${LIB_DIR}/${CLNT_CORE_LIB} \
+								> ${MAPFILE}
+	Check_Status $? "Failed to link ${CLNT_LIB}"
+
+	# Create ".so" link to library in a non-development environment only
+	# and generate the client static library
+	if [ -z "${SRCHOME}" ]
+	then
+		if [ -s ${LIB_DIR}/${CLNT_LIB} ]
+		then
+			cd ${LIB_DIR}
+			Remove_File ${CLNT_LNK}
+			ln -s ${CLNT_LIB} ${CLNT_LNK}
+			Check_Status $? "Failed to create ${CLNT_LNK}"
+		fi
+	fi
+fi
+
+exit 0

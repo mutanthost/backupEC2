@@ -1,0 +1,299 @@
+#!/usr/bin/bash
+#
+# Copyright (c) 2016, Oracle and/or its affiliates. All rights reserved.
+#
+# ident "@(#)cluster_check_os_check.sh 1.3     16/06/28"
+#
+# This script is intended to be run by the ORAchk health-check tool
+# as an OS CHECK operation, to parse the output from the OS COLLECT
+# task which ran "cluster check". This avoids the need to include all
+# this bash code, duplicated, in each check.
+#
+# This script ships with both ORAchk and Solaris Cluster. ORAchk will
+# always invoke the script it ships but, in case the installed cluster
+# software has a more recent version, we check and will use the cluster
+# one if it is newer.
+#
+# Note that this "version" variable *must* always be incremented
+# if this script is changed, and a copy of the new script supplied to
+# the ORAchk team. See the README in the cluster source directory for
+# details.
+
+version=10
+
+#
+# This script parses both *single node* checks, those which begin
+# with a letter "S", and *multinode* checks, those which begin with
+# a letter "M"
+#
+# Although parsing XML is arguably easier in Perl with something
+# like XML::Parser, the small amount of parsing that needs to be
+# done makes the use of standard shell scripting acceptable, and
+# more convenient.
+#
+# Takes one parameter which can be either:
+# $1 = the lowercase string "version", the script will exit with
+#      the current version number, or:
+# $1 = a single check number, one of the list given to OS COLLECT
+#
+# The script will print a text status to stdout, which will be a
+# report containing the status of the check on each cluster node,
+# This report must be caught and assigned to a variable by the
+# OS Command part of the ORAchk code so that it can be printed
+# by the "report" section.
+# No other output to stdout is permitted.
+#
+# Normal exit status:
+#     0 = PASS
+# non-0 = FAIL
+#
+# The exit status from the script will be used to generate a pass
+# or fail status message within the ORAchk code.
+#
+
+if [[ "$1" == "version" ]]; then
+	exit $version
+fi
+
+#
+# Check to see if there's a more recent script in the cluster directory.
+#
+osc_ver=1
+CLUSTER_SCRIPT="/usr/cluster/lib/sc/cluster_check_os_check"
+if [[ -x ${CLUSTER_SCRIPT} && "$0" != ${CLUSTER_SCRIPT}  ]]; then
+	${CLUSTER_SCRIPT} "version" > /dev/null 2>&1
+	osc_ver=$?
+fi
+# If so, use it instead.
+if (( $osc_ver > $version)); then
+        exec ${CLUSTER_SCRIPT} $@
+fi
+
+# The severity values we care about. These indicate the severity
+# of the test result *for tests which are violated*. If the test
+# passes, the severity is of no interest.
+
+sevarray=('pass' 'information-only' 'warning' 'low' 'moderate' \
+	'high' 'critical')
+
+typeset -i cchk_status=0
+# Default is a Pass, so severity is not applicable.
+typeset -i severity=0
+
+typeset -i count
+typeset -l ctype="unknown"
+
+# Single- or Multi- node?
+if [[ "$1" =~ [M|m][0-9]{7,} ]]; then
+    ctype="multi"
+elif [[ "$1" =~ [S|s][0-9]{7,} ]]; then
+    ctype="single"
+fi
+
+if [[ ("$ctype" != "single") && ("$ctype" != "multi") ]]; then
+    CLUSTER_CHECK_OUTPUT="Internal error: Usage: $0 <check_number>"
+    # Fail
+    cchk_status=1
+    # 'high' severity
+    severity=5
+else
+    CHECKID="$1"
+    checknum=$( echo "$CHECKID" | /usr/bin/tr '[:upper:]' '[:lower:]' )
+    typeset -a resarray
+    plist=""
+    flist=""
+    node_output=""
+    CLUSTER_CHECK_OUTPUT=""
+
+    # OUTPUTDIR is present in the ORAchk environment.
+    RESULTDIR=${OUTPUTDIR}/outfiles/cluster_check
+    RESULTFILE=${RESULTDIR}/checkresults.xml
+    if [[ ! -f "${RESULTFILE}" ]]; then
+	CLUSTER_CHECK_OUTPUT=$( printf "Results file \"%s\" not found"\
+		"${RESULTFILE}" )
+	cchk_status=1
+	severity=5
+    else
+	# Extract the result section for this particular check. Replace
+	# newlines with "&&&&" (illegal in XML, so never found in the
+	# source). They'll be stripped later but we need to know where
+	# they were so we can put them back for the "analysis" section.
+	chk_result=$( /usr/bin/sed -n '/<checkresult /,/<\/checkresult>/p' \
+		${RESULTFILE} | /usr/bin/nawk '!/<\/checkresult>/ \
+		{ printf "%s&&&&", tolower($0) }; /<\/checkresult>/ \
+		{ print tolower($0) }' | /usr/bin/egrep \
+		"<check_id>.*$checknum.*<\/check_id>" )
+
+	# Get the check analysis, for failure report, and
+	# put the newlines back in the analysis string.
+	# For single-node checks this will concatenate all
+	# the analysis values for every node, but we don't
+	# care, we only use the analysis string in the
+	# multinode case.
+	chk_analysis=$( echo "${chk_result}" | sed -n '
+	/.*<analysis>/,/\"/s/.*<analysis>//
+	/<\/analysis>.*/s/<\/analysis>.*//
+	s/&&&&/\\n/gp' )
+
+	# Now cleanup whitespace and strip the newline-replacements
+	# in the result string. Real newlines will then only be found
+	# between <checkresult /> sections.
+	chk_result=$( echo "${chk_result}" | \
+		/usr/bin/tr -s '[:space:]' | sed -n 's/&&&&//gp' )
+
+	# Separate it into an array, one element per node.
+	IFS=$'\n' read -rd '' -a resarray <<<"${chk_result}"
+	nodecount=${#resarray[@]}
+	if [[ $nodecount -eq 0 ]]; then
+	    CLUSTER_CHECK_OUTPUT=$( printf \
+		"No results found for Cluster Check %s in \"%s\"" \
+		"$CHECKID" "${RESULTFILE}" )
+	    cchk_status=1
+	    severity=5
+	fi
+	# For multinode tests there should only be one result
+	# section, if there are more we'll just use the first
+	# one.
+	if [[ "$ctype" == "multi" ]]; then
+	    nodecount=1
+	fi
+    fi
+fi
+
+# If we have a valid check, and valid results, then format them.
+if [[ $cchk_status -eq 0 ]]; then
+    ctitle=$( echo ${resarray[0]}  | sed -n '
+    /.*<check_title>/,/\"/s/.*<check_title>//
+    /<\/check_title>.*/s/<\/check_title>.*//p' )
+
+    # For each node in the results (only one, for the
+    # multinode case)
+    for ((i=0 ; i < ${nodecount} ; i++ )); do
+	# Check status
+        cstatus=$( echo ${resarray[$i]} | sed -n '
+        /.*<checkresult.*status=\"/,/\"/s/.*<checkresult.*status=\"//
+        /\".*<\/checkresult>.*/s/\".*<\/checkresult>.*//p' )
+
+	# Check severity
+	csev=$( echo ${resarray[$i]} | sed -n '
+        /.*<checkresult.*severity=\"/,/\"/s/.*<checkresult.*severity=\"//
+        /\".*<\/checkresult>.*/s/\".*<\/checkresult>.*//p' )
+
+	# For single-node checks, get the node where the
+	# check was run.
+	if [[ "$ctype" != "multi" ]]; then
+            cnode=$( echo ${resarray[$i]}  | sed -n '
+        	/.*<check_nodes>/,/\"/s/.*<check_nodes>//
+        	/<\/check_nodes>.*/s/<\/check_nodes>.*//p' )
+	    separator=": "
+	else
+	    cnode=""
+	    separator=""
+	fi
+	# Map the status to a pass/fail value
+        case "${cstatus}" in
+        # These are all PASS statuses, in the sense that they aren't FAIL
+            "not applicable")
+                node_output="${cnode}${separator}Check is not applicable.";
+                node_status="pass";
+                ;;
+            "passed")
+                node_output="${cnode}${separator}Check Passed.";
+                node_status="pass";
+                ;;
+            "information only")
+                node_output="${cnode}${separator}Check is information only.";
+                node_status="pass";
+                ;;
+        # These are all FAIL statuses
+            "violated")
+                node_output="${cnode}${separator}Check Violated.";
+                node_status="fail";
+                ;;
+            "insufficient data")
+                node_output="${cnode}${separator}Insufficient Data for Check, see log.";
+                node_status="fail";
+                ;;
+            "execution error")
+                node_output="${cnode}${separator}Execution Error during Check, see log.";
+                node_status="fail";
+                ;;
+            "warning")
+                node_output="${cnode}${separator}Check retured Warning status.";
+                node_status="fail";
+                ;;
+            "no such check")
+                node_output="${cnode}${separator}Check does not exist.";
+                node_status="fail";
+                ;;
+            *)
+                node_output="${cnode}${separator}Unknown Check status."
+                node_status="fail"
+                ;;
+        esac
+
+	if [[ "$ctype" != "multi" ]]; then
+	    # single-node checks, need to collatre messages from all
+	    # nodes and determine the most severe error.
+
+            if [[ "$node_status" == "pass" ]]; then
+        	[[ -z "$plist" ]] && plist="$cnode" || plist="$plist,$cnode"
+            else
+		[[ -z "$flist" ]] && flist="$cnode" || flist="$flist,$cnode"
+
+		# It failed, assume least severity associated with a fail.
+		severity=1
+
+		# map the severity string to something useful. This will
+		# determine the exit status of the script. Store the highest
+		# severity found across all nodes.
+
+		count=0
+		for sev in "${sevarray[@]}"; do
+		    if [ "$sev" == "$csev" ]; then
+			if [ $count -gt $severity ]; then
+			    severity=$count
+			fi
+			break
+		    fi
+		    count=$((count+1))
+		done
+	    fi
+
+	    if [[ -z "$CLUSTER_CHECK_OUTPUT" ]]; then
+		CLUSTER_CHECK_OUTPUT=$( printf "Cluster Check %s \"%s\"\n%s" \
+		    "$CHECKID" "$ctitle" "$node_output")
+	    else
+		CLUSTER_CHECK_OUTPUT=$( printf "%s\n%s" "$CLUSTER_CHECK_OUTPUT" \
+		    "$node_output")
+	    fi
+	else
+	    # Multi-node checks, only one set of results so
+	    # just format it, with the analysis string.
+	    if [[ "$node_status" == "pass" ]]; then
+		CLUSTER_CHECK_OUTPUT=$( printf "Cluster Check %s \"%s\"\n%s" \
+		    "$CHECKID" "$ctitle" "$node_output")
+	    else
+		# Map the single severity value to a string
+		severity=1
+	        count=0
+	        for sev in "${sevarray[@]}"; do
+	            if [ "$sev" == "$csev" ]; then
+	                severity=$count
+	                break
+	            fi
+	            count=$((count+1))
+	        done
+		CLUSTER_CHECK_OUTPUT=$( printf "Cluster Check %s \"%s\"\n%s\n%s" \
+		    "$CHECKID" "$ctitle" "$node_output" "$chk_analysis")
+	    fi
+	fi
+    done
+fi
+
+# This is the message that will be stored for the report
+echo "$CLUSTER_CHECK_OUTPUT"
+
+# Exit with the maximum severity that was encountered, which will
+# be 0 (Pass) if there were no failures.
+exit $severity

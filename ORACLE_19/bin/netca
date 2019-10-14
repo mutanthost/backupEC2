@@ -1,0 +1,183 @@
+#!/bin/sh
+#
+# $Header: assistants/bin/netca.sh /main/25 2017/09/01 08:20:06 mstalin Exp $
+#
+# Copyright (c) 1997, 2017, Oracle and/or its affiliates. All rights reserved.
+#
+#    NAME
+#      netca - Shell script to run the Net Configuration Assistant in
+#              standalone mode.
+#
+#    DESCRIPTION
+#      Runs Net Configuration Assistant Java application.  This file comes
+#      in two forms its original, with a .sbs extension, and its final, without
+#      a .sbs extension.  The .sbs version is source for the final
+#      version which the Oracle Universal creates by doing
+#      variables substitution at install time.
+#
+#    MODIFIED   (MM/DD/YY)
+#    mstalin 08/30/17 - 20555895 LDAP jclient jar file change
+#    mstalin 06/01/17 - 26140038 Add umask for logs with correct permissions
+#    mstalin 04/25/17 - Load srvm jars prior to OUI jars
+#    psainza 11/27/15 - Addition of the DB Installer framework as the version
+#                       comparison was standarized to InstallUtils
+#    mstalin 07/23/11 - Remove Dbcontrol
+#    rajpras 09/24/09 - bug 8929658
+#    asaral  07/22/09 - Bug#8618761: DISPLAY not required for help
+#    svsathe 06/15/09 - use dot notation for source
+#    svsathe 05/31/09 - use platform common
+#    asaral  12/18/08 - Bug#7641136, Also fixed the script in accordance with other CA scripts.
+#    rajpras 09/26/08 - 
+#    rajpras 09/26/08 - added a root check
+#    asaral  09/16/08 - add -DORACLE_HOME
+#    spanchu 06/18/08 - add help
+#    asaral  05/14/08 - Bug#7041088: emca.jar classpath
+#    prapati 03/28/08 - xbranchmerge of prapatil_deinst_without_display
+#    svsathe 03/20/08 - Add cvu.jar
+#    asaral	 10/03/07 - Added srvmasm.jar in classpath
+#    asaral	 04/10/07 - Creation
+#
+
+PLATFORM_OS=Linux
+
+ORACLE_HOME=/u01/app/oracle/product/19.0.0/dbhome_1 
+export ORACLE_HOME;
+
+# Check for silent or help
+SILENT="false"
+for i in $*
+do
+   if [ $i = "-silent" ] || [ $i = "/silent" ] || [ $i = "-deinst" ] || [ $i = "/deinst" ] || [ $i = "-migrate" ] || [ $i = "/migrate" ] || [ $i = "-crsupgrade" ] || [ $i = "/crsupgrade" ] || [ $i = "-help" ] || [ $i = "/help" ] || [ $i = "--help" ] || [ $i = "-h" ] || [ $i = "/h" ]; then
+      SILENT="true"
+      break
+   fi
+done
+
+# Check for DISPLAY
+if [ $SILENT = "false" ]; then
+    case $DISPLAY in
+	"") echo "****DISPLAY environment variable not set!"
+	    echo "    Oracle Net Configuration Assistant is a GUI tool"
+	    echo "    which requires that DISPLAY specify a location"
+	    echo "    where GUI tools can display."
+	    echo "    Set and export DISPLAY, then re-run."
+	    exit 1;;
+    esac
+fi   
+
+# Get or set the platform.
+PLATFORM=`uname`
+
+# Unset any existing JAVA_HOME variable to ensure that only
+# the JRE we want to use is used.
+unset JAVA_HOME
+
+# Some platform may need other JVM environment variables set
+# or unset as appropriate.
+case $PLATFORM in "AIX")
+   JAVA_COMPILER=NONE
+   export JAVA_COMPILER   
+esac
+case $PLATFORM in "Linux")
+   THREADS_FLAG=native
+   export THREADS_FLAG
+esac
+
+# RAC Support
+# Properties to pass directly to java
+if [ "X$SRVM_PROPERTY_DEFS" = "X" ]
+then 
+  SRVM_PROPERTY_DEFS=""
+fi
+ 
+# Check for OPSM tracing (RAC)
+if [ "X$SRVM_TRACE" != "X" ]
+then
+  SRVM_PROPERTY_DEFS="$SRVM_PROPERTY_DEFS -DTRACING.ENABLED=true -DTRACING.LEVEL=2"
+fi
+
+# External Directory Variables set by the Installer
+JRE_DIR=/u01/app/oracle/product/19.0.0/dbhome_1/jdk/jre
+JLIB_DIR=/u01/app/oracle/product/19.0.0/dbhome_1/jlib
+
+
+# JRE Executable and Class File Variables
+JRE=$JRE_DIR/bin/java
+JRE_JAR=$JRE_DIR/lib/rt.jar:$JRE_DIR/lib/i18n.jar
+
+# External File Variables set by the Installer
+EWT3_JAR=$JLIB_DIR/ewt3.jar
+EWT_COMP_JAR=$JLIB_DIR/ewtcompat.jar
+HELP4_JAR=$JLIB_DIR/help4.jar
+JEWT4_JAR=$JLIB_DIR/jewt4.jar
+JNDI_JAR=$JLIB_DIR/jndi.jar
+LDAPJCLNT11_JAR=$JLIB_DIR/%cs_ldapjclnt11%
+LDAPJCLNT12_JAR=$JLIB_DIR/%cs_ldapjclnt18%
+NETCFG_JAR=$JLIB_DIR/netcfg.jar
+ICE_BROWSER_JAR=$JLIB_DIR/oracle_ice.jar
+ICE5_BROWSER_JAR=$JLIB_DIR/oracle_ice5.jar
+SHARE_JAR=$JLIB_DIR/share.jar
+CVU_JAR=$JLIB_DIR/cvu.jar
+
+# NetCA HELP directory variable
+NETCA_DOC_DIR=/u01/app/oracle/product/19.0.0/dbhome_1/assistants/netca/doc
+
+# Net Configuration Assistant File Variable
+NETCA_JAR=/u01/app/oracle/product/19.0.0/dbhome_1/assistants/netca/jlib/netca.jar
+NETCA_HELP_JAR=$NETCA_DOC_DIR/netcahelp.jar:$NETCA_DOC_DIR/netcahelp_es.jar:$NETCA_DOC_DIR/netcahelp_de.jar:$NETCA_DOC_DIR/netcahelp_fr.jar:$NETCA_DOC_DIR/netcahelp_ja.jar:$NETCA_DOC_DIR/netcahelp_it.jar:$NETCA_DOC_DIR/netcahelp_pt_BR.jar:$NETCA_DOC_DIR/netcahelp_ko.jar:$NETCA_DOC_DIR/netcahelp_zh_CN.jar:$NETCA_DOC_DIR/netcahelp_zh_TW.jar
+
+# OUI Jar File Variables
+INSTALLER_JAR=/u01/app/oracle/product/19.0.0/dbhome_1/oui/jlib/OraInstaller.jar
+PREREQ_JAR=/u01/app/oracle/product/19.0.0/dbhome_1/oui/jlib/OraPrereq.jar
+PREREQ_CHECKS_JAR_1=/u01/app/oracle/product/19.0.0/dbhome_1/oui/jlib/OraPrereqChecks.jar
+PREREQ_CHECKS_JAR_2=/u01/app/oracle/product/19.0.0/dbhome_1/inventory/prereq/oui/OraPrereqChecks.jar
+
+# OPSM Cluster Support File Variables
+SRVM_JAR=$JLIB_DIR/srvm.jar
+SRVMHAS_JAR=$JLIB_DIR/srvmhas.jar
+SRVMASM_JAR=$JLIB_DIR/srvmasm.jar
+SUPERCLUSTER_JAR=/u01/app/oracle/product/19.0.0/dbhome_1/opsm/jlib/supercluster.jar
+SUPERCLUSTER_COMMON_JAR=/u01/app/oracle/product/19.0.0/dbhome_1/opsm/jlib/supercluster-common.jar
+
+# XMLParser Jar File Variable
+XMLPARSER2_JAR=/u01/app/oracle/product/19.0.0/dbhome_1/lib/xmlparserv2.jar
+
+# Network Tools Directory Variables
+NET_TOOLS_DIR=/u01/app/oracle/product/19.0.0/dbhome_1/network/tools
+
+#Assistants Common Jar File Variable
+ASSISTANTS_COMMON_JAR=/u01/app/oracle/product/19.0.0/dbhome_1/assistants/jlib/assistantsCommon.jar
+
+#Installer Common Jar files Variable
+DB_INSTALLER_FRAMEWORK=$ORACLE_HOME/install/jlib/installcommons_1.0.0b.jar
+
+# Set Classpath for Net Configuration Assistant
+CLASSPATH=$DB_INSTALLER_FRAMEWORK:$ASSISTANTS_COMMON_JAR:$EWT3_JAR:$EWT_COMP_JAR:$HELP4_JAR:$JEWT4_JAR:$JNDI_JAR:$LDAPJCLNT12_JAR:$LDAPJCLNT11_JAR:$NETCA_JAR:$NETCFG_JAR:$ICE_BROWSER_JAR:$ICE5_BROWSER_JAR:$SRVM_JAR:$SRVMHAS_JAR:$SRVMASM_JAR:$SUPERCLUSTER_JAR:$SUPERCLUSTER_COMMON_JAR:$INSTALLER_JAR:$PREREQ_JAR:$PREREQ_CHECKS_JAR_1:$PREREQ_CHECKS_JAR_2:$JRE_JAR:$SHARE_JAR:$NET_TOOLS_DIR:$XMLPARSER2_JAR:$NETCA_HELP_JAR:$CVU_JAR
+
+# Basic oracle home error checking
+case $ORACLE_HOME in
+    "") echo "****ORACLE_HOME environment variable not set!"
+        echo "    ORACLE_HOME should be set to the main"
+        echo "    directory that contains oracle products"
+        echo "    Set and export ORACLE_HOME, then re-run."
+        exit 1;;
+esac
+
+
+#call platform_common script
+. $ORACLE_HOME/bin/platform_common
+
+# Check if user is non-root
+if [ "$RUID" = "0" ]; then
+        echo "Oracle Net Configuration Assistant cannot be run as root."
+        exit 1;
+fi
+
+
+JRE_OPTIONS="${JRE_OPTIONS} -mx64m -Dsun.java2d.font.DisableAlgorithmicStyles=true -Dice.pilots.html4.ignoreNonGenericFonts=true"
+
+umask 027
+# Run Net Configuration Assistant
+cd $NET_TOOLS_DIR
+$JRE  $JRE_OPTIONS -classpath $CLASSPATH oracle.net.ca.NetCA $*  
+exit $status

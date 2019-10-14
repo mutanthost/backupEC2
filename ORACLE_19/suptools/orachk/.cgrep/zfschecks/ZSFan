@@ -1,0 +1,59 @@
+printf("==========START_OF_REPORT_chkZSFan.aksh==========\n");
+var founderrors = false;
+
+function fan_check(chassis_o, chassis_index){
+    faulted_fans = "";
+
+    // Initialize chassis components				
+	chassis_o.fans = new Array();				
+
+    run('select fan');
+	output = run('list').split('\n');
+
+	for (j = 3; (j < output.length) && (output[j].lastIndexOf("fan-")>=0); j++)  { // go through all the IOMs;
+		line = output[j].replace(/\s+/g, " ");
+		items = line.split(' ');
+		
+		pos = items[0];
+		status = items[3];
+		
+		//print("select "+ pos + "\n");
+		run("select "+ pos);										
+		fan = {"label": get("label"), "present": get("present"), "faulted": get("faulted"), "status": status};
+						
+		if (fan["faulted"].toString() == "true") {
+            founderrors = true;			
+		}
+		
+		if ((fan["faulted"].toString() == "true") ||
+		    (fan["present"].toString() =="false") ||
+		    (output[j].lastIndexOf("ok")<0)){
+			faulted = fan.label + " - " + status;  //takes disk location and status
+			faulted_fans = faulted_fans + "      " +faulted + ";\n";								
+		}
+		else {
+			try{
+				fan.pn = get("part");		
+			}
+			catch(e){
+				fan.pn = "-";	
+			}
+		}					
+		// move one level up, back to all the fans
+		run("cd ..");					
+		chassis_o.fans.push(fan);
+	}
+	
+	return faulted_fans;
+}		
+							
+var hardwareTable = new printTable({name:"Fan Check", headNames:["Name", "Status", "Details"]});
+appl.hardware 	= new Array();	
+failed_hw_components(fan_check);
+printReportTable(hardwareTable);
+							
+
+printf("==========END_OF_REPORT_chkZSFan.aksh==========\n");
+printf("==========START_OF_AUDIT_CHECK_chkZSFan.aksh==========\n");
+printf("fan_status = %d\n", founderrors);
+printf("==========END_OF_AUDIT_CHECK_chkZSFan.aksh==========\n");			

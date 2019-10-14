@@ -1,0 +1,53 @@
+printf("==========START_OF_REPORT_chkMirrorProfile.aksh==========\n");
+//
+//
+// This script will check whether the only supported storage pool profile "mirror" is set.
+//
+
+var founderrors = false; // Track error findings
+var auditcheck = 0;
+var report = 1;
+var storage_pool,configuration_cluster;
+
+function checkMirrorProfile() {
+	getHostname();
+
+	if(clusterExists()) {	
+		try { 
+			var profileStatus;
+				
+			run('cd /');
+			run('configuration cluster');
+			headStatus = safeGet('state');
+            configuration_cluster = run('show');
+			run('cd /');
+	    
+            checkMirrorProfileOnePool();
+
+			run('cd /');		
+		}
+		catch(err) {
+            var passive_patt = /not yet configured on the appliance/;
+            if ( passive_patt.test(err) )
+                founderrors = false;
+            
+			printreport("An error is caught: \n" + err + "\n");            
+		}
+	}
+	else {
+		founderrors = false;
+	}
+}
+
+checkMirrorProfile();
+
+// Report Command
+if ( founderrors == false )
+    printreport("OK: " + host_name +" Pool Profile Status Check Completed: Pool profile status of the ZFS storage head is correctly set.\n");
+else
+    printreport("WARNING: " + host_name + " Pool Profile Status Check Completed: Pool profile status of the ZFS storage head is not correctly set.\n");
+
+printf("==========END_OF_REPORT_chkMirrorProfile.aksh==========\n");
+printf("==========START_OF_AUDIT_CHECK_chkMirrorProfile.aksh==========\n");
+printf("profile_status_check_status = %d\n", founderrors);
+printf("==========END_OF_AUDIT_CHECK_chkMirrorProfile.aksh==========\n");

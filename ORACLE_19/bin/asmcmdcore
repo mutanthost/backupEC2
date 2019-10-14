@@ -1,0 +1,2394 @@
+#!$ORACLE_HOME/perl/bin/perl -w
+#
+# Copyright (c) 2004, 2018, Oracle and/or its affiliates. All rights reserved.
+#
+#    NAME
+#      asmcmdcore - ASM CoMmanD line interface (Driver Program)
+#
+#    DESCRIPTION
+#      ASMCMD is a Perl utility that provides easy nagivation of files within
+#      ASM diskgroups.  Simple UNIX shell-like commands allow directory
+#      traversal, directory creation and deletion, user alias creation and
+#      deletion, and file deletion capabilities, among other features.
+#      We implement this utility as a wrapper around existing SQL statements,
+#      and we use the Perl DBI Module to connect to an ASM instance and to
+#      issue these SQL statements.
+#
+#    NOTES
+#      usage: asmcmdcore [-V] [--nocp] [--privilege <sysasm|sysdba>]
+#                        [-v {errors | warnings | normal | info | debug}]
+#                        [--inst <instance_name>] [-p] [command]
+#
+#    MODIFIED  (MM/DD/YY)
+#    prabbala   06/26/18 - 28218832: set tempdir to /tmp/.oracle in AIX/HPUX
+#    prabbala   05/31/18 - 27948050: move tempdir to /var/tmp/.oracle
+#    sanselva   02/13/18 - 27303785: use orabase to find out ORACLE_BASE
+#    sanselva   11/28/17 - RTI#20772974: change asmcmd trace path
+#    jdavison   11/27/17 - 27178251: Use library version
+#    anovelo    10/05/17 - 26927584: Updating directory for oraversion
+#    anovelo    09/21/17 - 26734430: Remove hard-coded version from code.
+#    bhshanmu   05/05/17 - bhshanmu_bug-26003322_linux
+#    diguzman   09/22/16 - 11736372: Filter semicolon from user's input
+#    diguzman   05/30/16 - 19654070: Connect to ASM only when it is needed
+#    anovelo    01/07/16 - Bug#21182361: Fixed path if system cmd is used 
+#    dacavazo   12/07/15 - 22223809: undef function before dl_find_symbol
+#    anovelo    12/01/15 - Bug#21500055: Don't append $PATH if env is unset
+#    dacavazo   11/27/15 - 20766180: Make bg pipe filename contain its pid
+#    byyang     06/04/15 - Bug#21204705: Do not corrupt ARGV in foreground
+#    dacavazo   03/04/15 - Redirected daemon's STDERR to /dev/null
+#    prabbala   01/30/15 - log more info on pipe write failure
+#    anovelo    10/22/14 - 19783114: List commands with error ASMCMD-8022
+#    dacavazo   10/15/14 - 19445832: BG pipe will be opened only when needed
+#    anovelo    08/22/14 - Added ASM version pull from C
+#    dacavazo   07/25/14 - 19234907: strip single quotes from arguments
+#    shlian     05/20/14 - Bug#18355789: check if user-entered cmd was valid
+#    dacavazo   05/15/14 - Added support for multiple concurrent FG processes
+#    pvenkatr   01/23/14 - Bug #18113228 Added check for SYSASM req0uirment
+#    pvenkatr   01/15/14 - Bug # 18080252 - remove the check to allow only to
+#                          ASM instance.
+#    pvenkatr   11/06/13 - #17395893 - Added discover flag for ASMCMD
+#    pvenkatr   04/30/13 - Fixed LRG #8953219 -restting iostat "running" flag
+#                          added more traces.
+#    pvenkatr   04/17/13 - Fix for Bug# 15952019 - setting owner/group/
+#                          permission for log/diag/asmcmd/ dir for tracing.
+#    shmubeen   02/15/13 - Fix for bug# 16384206 /Lrg #8710957 - FG ensures
+#                          that background process is in wait mode before
+#                          sending SIGUSR1
+#    pvenkatr   02/01/13 - Skip printing blank line in show_commands if empty.
+#    mchimang   12/24/12 - XbranchMerge mchimang_bug-15895228_2 from
+#                          st_rdbms_12.1.0.1
+#    sanselva   12/05/12 - use ORACLE_BASE if set for tracing
+#    moreddy    11/22/12 - 14142633: asmcmd needs to reconnect for flex asm
+#    shmubeen   11/20/12 - bug fix# 15859633, close STDOUT in child(bg) process
+#    mchimang   11/02/12 - bug14631873: Fix the path
+#    shmubeen   10/16/12 - Fix for 14184571 - Fix for  CPU spin on
+#                          background pipe's read
+#    pvenkatr   10/05/12 - 14195852 - Register Daemon for canshutdown
+#    skiyer     05/28/12 - 13952494:set exit return status for asmcmd commands
+#    adileepk   03/30/12 - Fix for Connection Pooling rogue output issue.
+#    adileepk   12/21/11 - Fix for bug-13106171.
+#    adileepk   11/23/11 - Fix for bug-13412679.
+#    pvenkatr   10/07/11 - removed noinstance, flags
+#    adileepk   10/03/11 - Fix fr lrg-5705736.
+#    adileepk   09/12/11 - Fix for bug 12970899. Adding option to opt out of
+#                          connection pooling.
+#    adileepk   08/22/11 - Fix for lrg 5840040. Solution for race condition in
+#                          Connection Pooling.
+#    adileepk   06/19/11 - Connection Pooling.
+#    moreddy    05/26/11 - fix bug 12555747 help for invalid command
+#    adileepk   11/30/10 - Changes made to integrate parser module with asmcmd.
+#    moreddy    08/23/10 - bug 6969662 improve rm command performance
+#    shmubeen   08/19/10 - bugfix# 9703627, get the current logged in user
+#    canuprem   07/16/10 - bug 9499720 : Load module that are existent
+#    moreddy    05/06/10 - bug 8667038 NLS for error messages
+#    shmubeen   04/27/10 - fix of 7193021 for windows
+#    amitroy    04/29/10 - BUG 8933243 - USE DIFFERENT CHARACTER IN ASMCMD TO
+#                          "HIDE COLUMN DETAILS" INSTEAD OF -H; REPLACE -a
+#                           TO --privilege FOR asmcmd
+#    pvenkatr   03/31/10 - Syntax, Description, Example - all from XML
+#    shmubeen   03/30/10 - fix for #7193021
+#    moreddy    03/22/10 - Adding more tracing
+#    moreddy    03/23/10 - fixed bug 9412680
+#    moreddy    03/22/10 - Adding more tracing
+#    sanselva   03/15/10 - clean up asmcmdbase_connect, get rid of
+#                          unused asmcmdglobal_hash variables
+#    mchimang   02/23/10 - Made change to handle CNTRL-C in Noninteractive Mode
+#    moreddy    01/08/10 - Adding tracing infrastructure
+#    danagara   08/06/09 - Cntrl + C handled properly bug-8646861
+#    lajain     07/24/09 - Fix dsset --profile -f
+#    gayavenk   06/11/09 - reconnect after dsset
+#    sanselva   06/04/09 - Enable consistencychk when 'c' option used
+#    heyuen     04/20/09 - add spbackup
+#    heyuen     12/03/08 - reconnect after spmove
+#    heyuen     11/10/08 - fix asmcmd prompt in windows
+#    heyuen     10/14/08 - use dynamic modules
+#    heyuen     08/02/08 - add verbose
+#    heyuen     07/28/08 - rewrite asmcmdcore to use getopt
+#    heyuen     06/16/08 - force disk scan during startup
+#    heyuen     05/14/08 - reconnect after spcopy
+#    heyuen     04/15/08 - bug 6957288
+#    heyuen     03/26/08 - reconnect at instance startup
+#    heyuen     03/21/08 - enable lsdsk in non connected mode
+#    heyuen     02/15/08 - add history
+#    hqian      11/29/07 - #5661841, #5629952: enable ASMCMD for RDBMS instance
+#    heyuen     09/20/07 - flush error messages as well as pending messages
+#                          before the prompt
+#    heyuen     08/09/07 - refresh from main
+#    heyuen     07/24/07 - add error message for connection failure
+#    hqian      07/06/07 - #6174647: set $ENV{'PATH'} to include
+#                          $ENV{'ORACLE_HOME'}/bin
+#    hqian      06/25/07 - Reset $ENV{'PATH'} for security reasons
+#    heyuen     04/02/07 - remove error message when issuing asmcmd help-
+#                          and not being able to connect to ASM
+#    hqian      03/09/07 - Notify user when failed to connect to ASM
+#    hqian      03/02/07 - add asmcmdcore_get_asm_version
+#    jilim      02/19/07 - fix for invalid $dbh after the cp
+#    hqian      11/21/06 - fix signal_handler
+#    jilim      09/27/06 - bug-5402303: added passing arg, contype,
+#                          for asmcmdbase_connect()
+#    averhuls   07/06/06 -
+#    hqian      07/12/06 - 11gR1: enable AMBR, disk repair, and other features
+#    hqian      06/26/06 - disable asmcmddisk and asmcmdambr for initial merge
+#    hqian      06/15/06 - add asmcmddisk module
+#    msharang   03/28/06 - Add asmcmdambr
+#    hqian      01/26/06 - rename asmcmdbase_global to asmcmdglobal_hash
+#    hqian      01/24/06 - #4939032: split off callback defs into asmcmdglobal
+#    hqian      01/20/06 - #4939032: rename bad_cmd() to show_commands()
+#    hqian      01/18/06 - #4939032: support additional modules
+#    hqian      01/18/06 - #4939032: keep only main() and shell()
+#    hqian      01/18/06 - #4939032: split up asmcmd into modules
+#    hqian      07/19/05 - Remove RCS header
+#    hqian      06/23/05 - #4450221: support wildcards for CD
+#    hqian      05/18/05 - Mention 'missing view attributes' in help ls
+#    hqian      05/03/05 - #4329688: improve SQL efficiency
+#    hqian      04/13/05 - ls_get_file_info() -> ls_process_file()
+#    hqian      04/08/05 - Improve implementation of ls
+#    hqian      04/08/05 - Improve help documentation
+#    hqian      04/07/05 - LRG 1843355: include seconds in mod-time
+#    hqian      04/01/05 - #4261342: use asmcmd messages for certain errors
+#    hqian      02/28/05 - #4204122: change NLS date format for minute to 'MI'
+#    hqian      10/27/04 - hqian_asmcmd_13306_linux_3
+#    hqian      10/19/04 - Rename asmcmd0 to asmcmdcore
+#    hqian      08/03/04 - hqian_asmcmd_13306_linux_2
+#    hqian      07/28/04 - Add % as wildcard char in addition to *.
+#    hqian      07/13/04 - Add implementation of find [-t <type>].
+#    hqian      06/30/04 - Make code that uses BigInt work for both Perl 5.6.1
+#                          and Perl 5.8.3; take out -c <connect_string>
+#                          functionality.
+#    hqian      06/29/04 - Fix 10gR1 compatibility issues; fix alias name
+#                          case-sensitive bug, should be case insensitive
+#                          but case retentive.
+#    hqian      06/25/04 - Rename the main program from asmcmd to asmcmd0, so
+#                          that we can name the wrapper script asmcmd; rename
+#                          global constants, global variables, and function
+#                          names so that they are prefixed by 'asmcmd0_',
+#                          as per coding style standards; fix ORA-15128 bug.
+#    hqian      06/23/04 - Inaccurate error message bug: add error message
+#                          8004, do not print error when '*' matches nothing;
+#                          fix rm -rf * double error message bug; fix find
+#                          diskgroup bug; fix print header in empty directory
+#                          bug; fix space in alias name bug.
+#    hqian      06/22/04 - Give the option to turn off the functionality of
+#                          the -c flag; add constants for better code design.
+#    hqian      06/09/04 - Fix bugs; improve comments.
+#    hqian      06/07/04 - Organize code for better maintenance; code review
+#                          changes (suggested by Dave Friedman).
+#    hqian      06/01/04 - Fix some bugs.
+#    hqian      05/24/04 - Implement rm [-rf] and rm *; some code review fixes.
+#    hqian      05/20/04 - Implement help, instance_type security check,
+#                        - connection error checks, and debug mode.
+#    hqian      05/18/04 - Implement ls flags and lsct.
+#    hqian      05/14/04 - hqian_asmcmd_13306
+#    hqian      04/21/04 - Creation
+#
+#
+#
+#############################################################################
+#
+############################ Functions List #################################
+#
+# Top Level Routines
+#   asmcmdcore_main
+#   asmcmdcore_shell
+#   asmcmdcore_parse_asmcmd_args
+#   asmcmdcore_module_driver
+#   asmcmdcore_process_help
+#   asmcmdcore_show_commands
+#   asmcmdcore_is_cmd
+#   asmcmdcore_check_global_callbacks
+#   asmcmdcore_syntax_error
+#############################################################################
+
+use strict;
+
+# load global modules
+use asmcmdglobal;
+use asmcmdshare;
+use asmcmdparser;
+
+use Getopt::Long qw(:config no_ignore_case bundling);
+use Term::ReadLine;
+use File::Path;
+use Sys::Hostname;
+use POSIX;
+
+use List::Util qw[min max];
+use Fcntl qw[:flock];
+require DynaLoader;
+
+#find all the modules that exist, and include them
+my (%asm_modules);
+my @staleMods;
+
+foreach (@INC)
+{
+  if (-d $_)
+  {
+    my ($dir)   = $_;
+    my (@files) = ();
+
+    opendir (MODDIR, $dir);
+    @files = readdir(MODDIR);
+    foreach (@files)
+    {
+      if ( $_ =~ /^asmcmd/ && $_ =~ /pm$/ )
+      {
+        # Load the modules only if the symlinks(if there are any) are
+        # not stale.
+        if (defined(open(TMPFILE  , "$dir/$_")))
+        {
+          close(TMPFILE);
+
+          my (@temp) = (split(/\./, $_))[0];
+          $asm_modules{$temp[0]} = $dir . '/' . $_;
+        }
+        else
+        {
+          push(@staleMods, "$dir/$_");
+        }
+      }
+    }
+    closedir(MODDIR);
+  }
+}
+
+delete($asm_modules{'asmcmdglobal'});
+delete($asm_modules{'asmcmdshare'});
+
+
+# If the module does not belong to asmcmd, remove it
+my @not_mod = ();
+my ($module);
+foreach $module(keys %asm_modules)
+{
+  require "$module.pm";
+  my ($is_asm) = $module. "::is_asmcmd()";
+
+  eval ($is_asm);
+  push (@not_mod, $module) if ($@);
+}
+
+foreach (@not_mod)
+{
+  delete ($asm_modules{$_});
+}
+
+# import modules
+foreach $module(sort(keys %asm_modules))
+{
+  $module->import;
+}
+
+#$$$$$$$$---CHANGE THIS TO ORACLE/LIB WHEN THE SYMLINK IS CREATED #
+my $file;
+
+# clear the array to prevent loading asmperl from unknown locations
+@DynaLoader::dl_library_path = ();
+
+#26734430: Obtain latest ASM version number from oraversion. This will be used
+#          to obtain the library number.
+my $ver = `$ENV{ORACLE_HOME}/bin/oraversion -libVersion`;
+chomp($ver);
+
+if ($^O eq "MSWin32")
+{
+  push(@DynaLoader::dl_library_path, $ENV{ORACLE_HOME}."/bin");
+  push(@DynaLoader::dl_library_path, $ENV{ORACLE_HOME}."/rdbms/bin");
+  $file = "oraasmperl".$ver.".dll";
+}
+else
+{
+  push(@DynaLoader::dl_library_path, $ENV{ORACLE_HOME}."/lib");
+  push(@DynaLoader::dl_library_path, $ENV{ORACLE_HOME}."/rdbms/lib");
+  $file = "libasmperl".$ver.".so";
+}
+
+# Get the full path of asmperl shared library
+my @file_path = DynaLoader::dl_findfile($file);
+if ($#file_path < 0)
+{
+  die "Error: library $file not found\n";
+}
+
+#try loading the file using full path
+$asmcmdglobal_hash{'asmperl'} = DynaLoader::dl_load_file($file_path[0], 0);
+defined($asmcmdglobal_hash{'asmperl'}) or
+                    die "Error:\n", DynaLoader::dl_error();
+
+######################## ASMCMDCORE Global Variables ########################
+#                                                                           #
+# Each module needs to specify its initialization function here.
+my (@asmcmdcore_init_modules) = ();
+foreach $module(sort(keys %asm_modules))
+{
+  push (@asmcmdcore_init_modules, $module . "::init()");
+}
+our (%asmcmdcore_cmds) = (asmcmd  => {}
+                         );
+
+  %asmcmdglobal_cmds = (%asmcmdglobal_cmds, %asmcmdcore_cmds);
+
+############################ Top Level Routines ##############################
+#
+# Routines that calls exit():
+#   asmcmdcore_main              - exit 0
+#   asmcmdcore_syntax_error      - exit 0
+#   asmcmdbase_show_commands     - exit 0
+#   asmcmdbase_check_insttype    - exit 0
+#   asmcmdshare_signal_exception  - exit 1
+#   asmcmdcore_shell             - exit -1
+#   asmcmddisk_process_lsdsk     - exit -1 0 1 2
+########
+# NAME
+#   asmcmdcore_main
+#
+# DESCRIPTION
+#   This function is the main function of ASMCMD.  It is the first
+#   function that is called.
+#
+# PARAMETERS
+#   None.
+#
+# RETURNS
+#   Null.
+#
+########
+sub asmcmdcore_main
+{
+  my ($dbh);
+  my ($module);
+  my ($mypath);
+  my ($childpid);
+  my ($foreground_success);
+  my ($cmd);
+  my ($cdet);
+  my ($vers);
+  my ($lib) = $asmcmdglobal_hash{'asmperl'};
+
+  $mypath = $ENV{'PATH'};
+  $asmcmdshare_logheader = "ASMCMD (PID = $$): ";
+
+  # 1. $ORACLE_HOME/bin is appended for NT compatibility.
+  # NT has the necessary dll's in that directory.
+  # 2. Original path is necessary for finding uname, dirnam in srvctl.
+  # (asmcmdpasswd module invokes srvctl. Refer bug14631873
+  # 21500055: Check if $PATH is set; if so, append current value.
+  if (defined($mypath))
+  {
+    $ENV{'PATH'} = "$ENV{'ORACLE_HOME'}/bin:" . $mypath;
+  }
+  else
+  {
+    $ENV{'PATH'} = "$ENV{'ORACLE_HOME'}/bin";
+  }
+
+  # 27948050: Pipes created under /tmp might get deleted erroneously.
+  # Let us move it to /var/tmp/.oracle 
+  # 28218832: AIX & HPUX uses /tmp/.oracle; not /var/tmp/.oracle
+  if ($^O eq "MSWin32")
+  {
+    $asmcmdglobal_hash{'tempdir'} = File::Spec->tmpdir();
+  } 
+  elsif (($^O =~ /linux/i) || ($^O =~ /solaris/i))
+  {
+    $asmcmdglobal_hash{'tempdir'} = "/var/tmp/.oracle";
+  }
+  else
+  {
+    $asmcmdglobal_hash{'tempdir'} = "/tmp/.oracle";
+  }
+
+  # Parse for consistency check option before calling init_modules
+  asmcmdcore_consistency_check();
+  asmcmdcore_trace();
+
+  # Print warnings about the stale links
+  if (scalar(@staleMods) > 0)
+  {
+    foreach (@staleMods)
+    {
+      asmcmdshare_trace(2, "$_ either does not exist or it is a stale link",
+                        "Y", "N");
+    }
+  }
+
+  #28218832: Check the temp directory exists and writable for pipe creation
+  if (!(-d $asmcmdglobal_hash{'tempdir'} and -w $asmcmdglobal_hash{'tempdir'}))
+  {
+    my @eargs = $asmcmdglobal_hash{'tempdir'};
+
+    # Log the dir name in console itself.
+    asmcmdshare_trace(0, $eargs[0] . " is missing or not writable.", 'y', 'y');
+
+    # ASMCMD-9463 operation failed due to lack of write permissions
+    asmcmdshare_error_msg (9463, \@eargs);
+    
+    # The dir is needed only for connection pooling. Do not exit; continue with
+    # non connection pooling.
+    # exit;
+  } 
+  
+  # Initialize modules.
+  for $module (@asmcmdcore_init_modules)
+  {
+    eval($module);
+  }
+
+  # Obtain the latest ASM version from C
+  undef &ASMCMDGetASMVersion;
+  $cdet = DynaLoader::dl_find_symbol($lib, "XS_ASMCMDCLNT_GetASMVersion");
+  DynaLoader::dl_install_xsub("ASMCMDGetASMVersion", $cdet);
+  $vers = ASMCMDGetASMVersion();
+  $asmcmdglobal_hash{'acver'} = $vers;
+
+  # Check to see if all the modules have initialized the global callbacks
+  # correctly.
+  asmcmdcore_check_global_callbacks();
+  asmcmdcore_get_system_endian();
+  asmcmdcore_parse_asmcmd_args();
+
+  eval
+  {
+    $foreground_success = 0;
+    $asmcmdshare_foreground_retries = -1;
+    $asmcmdshare_started_daemon = 0;
+    while (!$foreground_success)
+    {
+      # Each iteration of this while loop is an attempt by the foreground
+      # process to retrieve output from the deamon.
+      # $asmcmdshare_foreground_retries keeps track of the number of retrys.
+      # The foreground would take an action only if it detects that the pipe
+      # used to communicate with the daemon has been removed, in which case
+      # it restarts the daemon and resends the command.
+      # If the pipe still exists, the foreground process waits one more cycle.
+      # The foreground would be unable to detect whether the daemon has
+      # abruptly died without cleaning up the pipe.
+      $asmcmdshare_foreground_retries++;
+      if ($asmcmdshare_foreground_retries > 1)
+      {
+        asmcmdshare_trace(3, "ASMCMD (PID = $$): Could not connect to ASM " .
+                          "using Connection Pooling. Reverting to " .
+                          "legacy method after " .
+                          "$asmcmdshare_foreground_retries tries.",
+                          'y', 'n');
+        die $asmcmdshare_disablecp_string;  # If we have attempted twice
+                                            # already, then disable
+                                            # connection pooling and move
+                                            # to legacy method for
+                                            # connections
+      }
+      # Excluding 'cp', 'orapwusr' & 'passwd' from connection pooling
+      # since these commands need the user to enter a password which cannot
+      # be passed through the pipe in plain text.
+      $cmd = $asmcmdglobal_hash{'cmd'};
+      $asmcmdglobal_hash{'cwdnm'} = '+';
+      if ($^O ne "MSWin32" &&
+          $asmcmdglobal_hash{'mode'} eq 'n' &&
+          $asmcmdglobal_hash{'nocp'} == 0 &&
+          !asmcmdshare_is_no_instance_cmd($asmcmdglobal_hash{'cmd'}) &&
+          !defined($asmcmdglobal_cp_excluded_cmds{$cmd}))
+      {
+        # Anything done between this point and until the fork will be
+        # inherited by both the processes (fore and back)
+        $asmcmdglobal_hash{'ispooled'} = 1;
+
+        # Backup the STDIN STDOUT STDERR filehandles for both the processes.
+        asmcmdshare_backup_stdio() if ($asmcmdshare_foreground_retries == 0);
+
+        # Fork the undivided process if there is no asmcmd daemon running.
+        if (!asmcmdcore_is_bg_alive())
+        {
+          # If the fork is unsuccessful, the exception would be caught by
+          # the enclosing eval block.
+          $childpid = asmcmdcore_fork_background();
+          if ($childpid) # If this is the parent/foreground process.
+          {
+            $asmcmdshare_started_daemon = 1;
+            if ($asmcmdshare_foreground_retries == 0)
+            {
+              asmcmdshare_trace(3, "ASMCMD Foreground (PID = $$):  " .
+                                "Created the ASMCMD Daemon (PID = " .
+                                "$childpid)", 'y', 'n');
+            }
+            else
+            {
+              asmcmdshare_trace(3, "ASMCMD Foreground (PID = $$):  " .
+                                "Restarted the ASMCMD Daemon (PID = " .
+                                "$childpid)", 'y', 'n');
+            }
+
+          }
+          else # If this is the child process/bp
+          {
+            asmcmdcore_background($mypath);
+            return;
+          }
+        }
+        $foreground_success = asmcmdcore_foreground($mypath);
+
+      }# if block
+      else
+      {
+        $foreground_success = 1;
+      }
+    }# while loop
+
+    # Foreground process clean up and exit.
+    if ($asmcmdglobal_hash{'ispooled'})
+    {
+      exit $asmcmdglobal_hash{'e'};
+    }
+  }; # eval block
+  # If something goes wrong, disable connection pooling and revert to
+  # traditional asmcmd connection.
+  if ($@)
+  {
+    $asmcmdglobal_hash{'ispooled'} = 0;
+    $asmcmdglobal_hash{'nocp'} = 1;
+    $asmcmdshare_started_daemon = 0;
+    asmcmdshare_trace(3, "ASMCMD (PID = $$) Could not proceed with " .
+                      "connection pooling. Switching to non " .
+                      "connection-pooled mode\nException - $@", 'y', 'n');
+    asmcmdshare_removefgpipe();
+    asmcmdshare_removebgpipe();
+
+    # if connection pooling is forced, error out here.
+    my @eargs = ("Connection pooling failed.", $@);
+    asmcmdshare_assert(0, \@eargs) if defined($ENV{'ASMCMD_FRC_CONNPOOL'});
+  }
+  # Now run the appropriate routine to process command(s).
+  $dbh = asmcmdcore_shell($mypath) if (!$asmcmdglobal_hash{'ispooled'});
+
+  # End the database connection iff this is an interactive session, ie.
+  # iff this is not a pooled session.
+  asmcmdbase_disconnect($dbh) if (!$asmcmdglobal_hash{'ispooled'} &&
+                                  defined ($dbh));
+  asmcmdbase_disconnect($asmcmdglobal_hash{'proxy_dbh'})
+                        if (!$asmcmdglobal_hash{'ispooled'} &&
+                          defined ($asmcmdglobal_hash{'proxy_dbh'}));
+
+  # Always exit zero here.  Exiting non-zero is done only from exception
+  # routine.  See asmcmdcore_signal_exception().
+  exit 0;
+}
+asmcmdcore_main();
+
+
+########
+# NAME
+#   asmcmdcore_background
+#
+# DESCRIPTION
+#   This routine is invoked by the asmcmd daemon to process commands and return
+#   output to the foreground process through pipes (specified by the
+#   user, privilege).
+#
+# PARAMETERS
+#   $mypath (IN) - The path environment variable.
+#
+# RETURNS
+#   Null.
+#
+########
+sub asmcmdcore_background
+{
+  my ($dbh);
+  my ($line);                                 # One line of input from user. #
+  my (@eargs);
+  my @temp_array = ();
+  my @token      = ();
+  my ($mypath)   = shift;
+  my ($connected_once);
+  my ($cmd);
+  my ($sth);
+
+  $asmcmdshare_logheader = "ASMCMD Background (PID = $$): ";
+
+  # Sets the process name. This affects the output of the ps command on some
+  # platforms, but not all.
+  $0 = "asmcmd daemon";
+
+  # Clear the command list. This is useful when asmcmd daemon
+  # is respawn where as asmcmdshare_commandlist was populated in
+  # the earlier execution.
+  undef(@asmcmdshare_commandlist);
+
+  # Redirected background's STDOUT to /dev/null to fix bug# 15859633
+  # Background has inherited foreground i.e. parent's STDOUT, hence
+  # redirecting it to null
+  open(STDOUT, '>', '/dev/null');
+  # 19863551: STDERR should also be redirected to /dev/null
+  open(STDERR, '>', '/dev/null');
+
+  # Create the background pipe.
+  $asmcmdglobal_hash{'bgpipe'} = $asmcmdglobal_hash{'tempdir'} .
+                                 "/asmcmd_bg_" . $< . "_" .
+                                 $asmcmdglobal_hash{'contyp'} . "_" . $$;
+  # If the command is unsuccessful, the exception would be caught by the
+  # enclosing eval block.
+  mkfifo($asmcmdglobal_hash{'bgpipe'}, 0700) ||
+         die "Couldn't create a pipe. Switching to non " .
+         "connection-pooled mode\n";
+  asmcmdshare_trace(3, "$asmcmdshare_logheader Created the pipe " .
+                    $asmcmdglobal_hash{'bgpipe'}, 'y', 'n');
+
+  # This is the right place for registering the signal handler. Initially it
+  # was registered when the modules were loaded in global scope. Handling
+  # the ctrl-C signal before connecting to the ASM instance (and starting
+  # ASM command prompt)
+
+  $SIG{INT} = \&asmcmdshare_signal_handler;# Signal handler for asmcmd daemon #
+  $SIG{USR1} = \&asmcmdshare_signal_handler;
+
+  $SIG{ALRM} = sub { die "ALARM" };
+  $ENV{'PATH'} = $mypath;
+  $connected_once = 0;
+
+  # Bugfix - 14184571:
+  # 1. BG process would be waiting in a while loop
+  # 2. FG process will send USR1 signal to BG process
+  #    2.1: FG to be aware of PID of BG process, PID of BG is saved in the
+  #         bgpipe, which is created in temp directory when a BG is spawn.
+  #    2.2: bgpipe will be deleted when BG process exits.
+  #    2.3: bgpipe has to be deleted manually if BG process has to be killed
+  #         manually.
+  # 3. BG would proceed to read the bgpipe upon receiving SIGUSR1.
+  $asmcmdglobal_hash{'bgpid'}    = $$;
+  $asmcmdglobal_hash{'isdaemon'} = 1;
+  $asmcmdglobal_hash{'bgpid'} = $$;
+  $asmcmdglobal_hash{'fgpid'} = undef;
+  $asmcmdshare_pipetoread = \$asmcmdglobal_hash{'bgpipe'};
+  $asmcmdshare_pipetowrite = \$asmcmdglobal_hash{'fgpipe'};
+  $asmcmdshare_process_status = "RUNNING";
+
+  # NOTE:  The environment variable 'PATH' is not set as in the foreground
+  #        process.
+
+  # Wait on the pipe to read more commands. Exit after 5mins of inactivity.
+  while (1)
+  {
+    $asmcmdglobal_hash{'fgpipe'} = undef;
+    $asmcmdglobal_hash{'fgpid'} = undef;
+    $asmcmdglobal_hash{'cwdnm'} = '+';
+
+    # Read in more commands from the pipe if there are no more commands
+    # left to be processed in the array.
+    if ($#asmcmdshare_commandlist == -1)
+    {
+      asmcmdshare_readcommands();
+    }
+    $line = shift @asmcmdshare_commandlist;
+    next if (!$line);
+    asmcmdshare_trace(3, "$asmcmdshare_logheader Processing $line", 'y','n');
+    # The lines will be of the format: <PID of Foreground process>#<Command>\n
+    $line =~ m/(\d+)#(.*)/;
+    $asmcmdglobal_hash{'fgpid'} = $1;
+    $line = $2;
+    chomp $line;
+    $asmcmdglobal_hash{'fgpipe'} = $asmcmdglobal_hash{'tempdir'} .
+                                   "/asmcmd_fg_" . $asmcmdglobal_hash{'fgpid'};
+    unless (-p $asmcmdglobal_hash{'fgpipe'})
+    {
+      eval
+      {
+        mkfifo($asmcmdglobal_hash{'fgpipe'}, 0700);
+
+        asmcmdshare_trace(3, "$asmcmdshare_logheader Created pipe " .
+                          $asmcmdglobal_hash{'fgpipe'}, 'y', 'n');
+        asmcmdshare_openwritepipe();
+      };
+      if ($@)
+      {
+        asmcmdshare_trace(3, "$asmcmdshare_logheader Could not " .
+                "create the pipe $asmcmdglobal_hash{'fgpipe'}.", 'y', 'n');
+        # This information cannot be communicated to the foreground.
+        # Hence, nothing further to be done, proceed to next command.
+        # Need CRS integration to handle this appropriately. #CRSINTEGRATION
+        next;
+      }
+    }
+
+    # Parse $line into an array of arguments.
+    @token = ();
+    if (asmcmdbase_parse_int_cmd_line($line, \@token))
+    {                      # asmcmdcore_parse_int_cmd_line() returned error. #
+      asmcmdshare_error_msg(8007, undef);
+      asmcmdshare_print($asmcmdshare_term_string);
+      asmcmdshare_closewritepipe();
+      next;
+    }
+
+    if ($token[0] eq '')                      # Empty line, so skip command. #
+    {
+      asmcmdshare_print($asmcmdshare_term_string);
+      asmcmdshare_closewritepipe();
+      next;
+    }
+
+    $cmd = $asmcmdglobal_hash{'cmd'} = shift(@token);   # Save command name. #
+    @ARGV = @token;     # Save in global @ARGV for internal command parsing. #
+
+    $asmcmdglobal_hash{'e'} = 0;  # Reset exit status to 0 for each command  #
+    eval
+    {
+      if (defined($dbh))
+      {
+        # We have a defined DB Handle
+        if (asmcmdshare_check_dbh_alive($dbh))
+        {
+          # And the DB Handle is alive (Connected to a live ASM Instance)
+          # Proceed with the command
+          $asmcmdglobal_hash{'ver'} = asmcmdshare_get_asm_version($dbh);
+          # Invoke the module driver to handle the command.
+          eval {
+            asmcmdcore_module_driver($dbh);
+          };
+
+          if (asmcmdexceptions::catch())
+          {
+            my $err = asmcmdexceptions::getExceptionstring ();
+            asmcmdshare_trace(3, "Unhandled Exception valid db conn $err",
+                              'y', 'n');
+            # Set exit status to -1
+            $asmcmdglobal_hash{e} = -1;
+          }
+        }
+        else
+        {
+          # The DB Handle is stale, probably the ASM instance went down
+          # since the execution of the last command
+          asmcmdshare_trace(3, "Connected to an idle instance.", 'y', 'y')
+                            if($cmd eq 'startup');
+          asmcmdshare_trace(3, "$asmcmdshare_logheader Lost " .
+                      "connection to ASM. Requesting the Foreground process " .
+                      "to restart the ASMCMD Background process and retry.",
+                      'y', 'n');
+          asmcmdshare_print($asmcmdshare_reconnect_string);
+          undef(@asmcmdshare_commandlist);
+          exit;
+        }
+      }
+      else
+      {
+        # The DB Handle is not defined
+        asmcmdshare_trace(3, "Connected to an idle instance.", 'y', 'y')
+                          if($cmd eq 'startup');
+        asmcmdbase_disconnect($dbh) if defined ($dbh);
+
+        $dbh = asmcmdbase_connect(undef);
+        if (defined $dbh)
+        {
+          # register the Background process for later cleanup
+          $sth = $dbh->prepare (q{
+            begin
+            dbms_diskgroup.registeracmdbg;
+            end;
+            });
+          $sth->execute();
+
+          asmcmdshare_trace(3, "Registered Daemon process.", 'y', 'n');
+
+          $connected_once = 1 if (!$connected_once);
+          $asmcmdglobal_hash{'ver'} = asmcmdshare_get_asm_version($dbh);
+          # Invoke the module driver to handle the command.
+          eval {
+            asmcmdcore_module_driver($dbh);
+          };
+
+          if (asmcmdexceptions::catch())
+          {
+            my $err = asmcmdexceptions::getExceptionstring ();
+            asmcmdshare_trace (3,
+                          "Unhandled Exception after daemon registration $err",
+                          'y', 'n');
+            # Set exit status to -1
+            $asmcmdglobal_hash{e} = -1;
+          }
+        }
+        else
+        {
+          # Log the error so it can be diagnosed if needed.
+          asmcmdshare_trace(3, $DBI::errstr, 'y', 'n');
+          # The DB Handle is not defined (Connection failed)
+          asmcmdshare_trace(3, "$asmcmdshare_logheader Unable to " .
+                      "connect to ASM. Requesting the foreground process to " .
+                      "retry the command after disabling connection pooling.",
+                      'y', 'n');
+          asmcmdshare_print($asmcmdshare_disablecp_string);
+          asmcmdshare_removebgpipe();
+          exit;
+        }
+      }
+
+
+      # Send a terminating string to the foreground process to signal end
+      # of output from the server.
+      asmcmdshare_print ($asmcmdglobal_hash{'e'} . $asmcmdshare_term_string);
+      asmcmdshare_closewritepipe();
+      undef $asmcmdglobal_hash{'fgpipe'};
+
+      asmcmdshare_trace(3, "$asmcmdshare_logheader Processed command " .
+                        "- $line", 'y', 'n');
+
+      if (defined ($asmcmdglobal_reconnect_cmds{$cmd}))
+      {
+        # disconnect from asm instance after the cp #
+        # this must be done since $dbh is now invalidated by the cp #
+        asmcmdbase_disconnect($dbh) if defined ($dbh);
+        undef $dbh;
+      }
+      if ($cmd eq 'shutdown')
+      {
+        asmcmdshare_removebgpipe();
+        exit(0);
+      }
+    };
+    if ($@)
+    {
+      asmcmdshare_trace (3,
+                      "(Process=$$) BG unhandled exception before exiting $@",
+                      'y', 'n');
+      asmcmdshare_removebgpipe();
+      exit(0);
+    }
+  };
+  return;
+}
+
+########
+# NAME
+#   asmcmdcore_is_bg_alive
+#
+# DESCRIPTION
+#   Checks whether the background is alive or not.
+#
+# PARAMETERS
+#   None.
+#
+# RETURNS
+#   1 - if bg is alive.
+#   0 - if bg is not alive.
+#
+# NOTES
+########
+sub asmcmdcore_is_bg_alive
+{
+  # Get the PID of the background process to send the signal. If bgpid is
+  # already defined, try with that because a connection could already be
+  # established with it. Calling asmcmdcore_getbg_pid() could change the bgpid
+  # if multiple background pipes exist.
+  if (!defined($asmcmdglobal_hash{'bgpid'}))
+  {
+    asmcmdcore_getbg_pid();
+    return 0 if (!defined($asmcmdglobal_hash{'bgpid'}));
+  }
+
+  # This checks whether the background (background process's pid)
+  # process is alive or not.
+  my $bgfilename = $asmcmdglobal_hash{'tempdir'} . "/asmcmd_bg_" .
+                   $< . "_" . $asmcmdglobal_hash{'contyp'} . "_" .
+                   $asmcmdglobal_hash{'bgpid'};
+  if (!-e $bgfilename)
+  {
+    # Getting here means the bgpid has a value, but the pipe is not found.
+    # Undefine the pid and call asmcmdcore_is_bg_alive() again; that will force
+    # a rescan for the bgpid.
+    asmcmdshare_trace(2, "$asmcmdshare_logheader Background pipe " .
+                      "'$bgfilename' not found, invalid background PID " .
+                      "$asmcmdglobal_hash{'bgpid'}.", 'y', 'n');
+    $asmcmdglobal_hash{'bgpid'}  = undef;
+    $asmcmdglobal_hash{'bgpipe'} = undef;
+    return asmcmdcore_is_bg_alive();
+  }
+
+  # If a background pipe file exists, the background must be reachable.
+  if (!kill(SIGCHLD, $asmcmdglobal_hash{'bgpid'}))
+  {
+    $asmcmdshare_logheader = "(PID: $$)" if (!defined($asmcmdshare_logheader));
+    asmcmdshare_trace(2, "$asmcmdshare_logheader Background pipe " .
+                      "'$bgfilename' found, but process is not responding.",
+                      'y', 'n');
+    $asmcmdglobal_hash{'bgpipe'} = $bgfilename;
+    asmcmdshare_removebgpipe();
+    # Try to rescan if there is any other background alive.
+    $asmcmdglobal_hash{'bgpid'}  = undef;
+    $asmcmdglobal_hash{'bgpipe'} = undef;
+    return asmcmdcore_is_bg_alive();
+  }
+  return 1;
+}
+
+########
+# NAME
+#   asmcmdcore_getbg_pid
+#
+# DESCRIPTION
+#   This routine extracts the PID of the background process which is deposited
+#   with the file name in the temp directory. If there are multiple background
+#   pipes, it will always get the smallest pid.
+#
+# PARAMETERS
+#   None.
+#
+# RETURNS
+#   Nothing
+#
+# NOTES
+########
+sub asmcmdcore_getbg_pid
+{
+  my ($filename);
+  my (@bgpid);
+  my (@FILES);
+  my ($bgfilename);
+  my ($tmpdir);
+
+  $bgfilename = "asmcmd_bg_" . $< . "_" . $asmcmdglobal_hash{'contyp'} . "_";
+  $tmpdir = $asmcmdglobal_hash{'tempdir'};
+  opendir(DIR, "$tmpdir");
+  @FILES= readdir(DIR);
+
+  $asmcmdglobal_hash{'bgpid'} = undef;
+  foreach $filename (@FILES)
+  {
+    if ("$filename" =~ "$bgfilename")
+    {
+      @bgpid = split("_", $filename);
+      # There should always be only one background, but in case others are
+      # found we should keep the smallest pid always.
+      if (!defined($asmcmdglobal_hash{'bgpid'}) ||
+          $bgpid[$#bgpid] < $asmcmdglobal_hash{'bgpid'})
+      {
+        $asmcmdglobal_hash{'bgpid'} = $bgpid[$#bgpid];
+      }
+    }
+  }
+  closedir(DIR);
+}
+
+########
+# NAME
+#   asmcmdcore_fork_background
+#
+# DESCRIPTION
+#   This routine forks the present undivided process, creating a child process
+#
+# PARAMETERS
+#   None.
+#
+# RETURNS
+#   $pid - It returns the pid of the child to the parent and 0 to the child..
+#
+# NOTES
+########
+sub asmcmdcore_fork_background
+{
+   my $pid;
+   defined($pid = fork())       || die "can't fork: $!";
+   return $pid if $pid;
+
+   # Makes the child process (The asmcmd daemon) a session leader.
+   # This prevents it from being automatically killed when the parent porcess
+   # (The first foreground process) exits.
+   (setsid() != -1)                || die "Can't start a new session: $!";
+
+   return $pid;
+}
+
+########
+# NAME
+#   asmcmdcore_get_system_endian
+#
+# DESCRIPTION
+#   This routine gets the system's endianness and stores it in a global
+#   variable.
+#
+# PARAMETERS
+#    None.
+#
+# RETURNS
+#   Null.
+#
+# NOTES
+########
+sub asmcmdcore_get_system_endian
+{
+  # The first bit of a little endian system is 1, and that of big endian
+  # system is 0.
+  if (unpack("b*", pack("s", 1)) =~ /^1/)
+  {
+    # System is little endian.
+    $asmcmdglobal_hash{'endn'} = 1;
+  }
+  else
+  {
+    # System is big endian.
+    $asmcmdglobal_hash{'endn'} = 0;
+  }
+}
+
+########
+# NAME
+#   asmcmdcore_foreground
+#
+# DESCRIPTION
+#   This routine gets the system's endianness and stores it in a global
+#   variable.
+#
+# PARAMETERS
+#   $mypath (IN) - Path to the directory.
+#
+# RETURNS
+#   1 - if run was successful
+#   0 - if there were errors, will trigger a retry if necessary
+#
+# NOTES
+########
+sub asmcmdcore_foreground
+{
+  my ($line);                                 # One line of input from user. #
+  my (@eargs);
+  my ($mypath) = shift;
+  my ($moreoutput);
+  my ($waittime) = $asmcmdshare_readpipewait + 5; # FG Wait time for
+
+  $SIG{ALRM} = sub { die "ALARM" };
+  $asmcmdshare_logheader = "ASMCMD Foreground (PID = $$): ";
+
+  # Set foreground pipe name.
+  $asmcmdglobal_hash{'fgpipe'} = $asmcmdglobal_hash{'tempdir'} .
+                                 "/asmcmd_fg_" . $$;
+
+  # Wait until background has created the pipe to know its pid.
+  if (!asmcmdcore_is_bg_alive())
+  {
+    asmcmdshare_trace(3, "$asmcmdshare_logheader Waiting for the " .
+                      "background process to appear", 'y', 'n');
+    eval
+    {
+      alarm $asmcmdshare_openpipewait;
+      while (!asmcmdcore_is_bg_alive())
+      {
+        # Do nothing, just keep checking until the background is alive.
+        # Using select() instead of sleep() because sleep() often uses SIGALRM
+        # so it cannot be used alongside alarm.
+        select(undef, undef, undef, 0.25);
+      }
+      alarm 0;
+    };
+    if ($@)
+    {
+      asmcmdshare_trace(3, "$asmcmdshare_logheader Could not find the " .
+                        "background process, retrying", 'y', 'n');
+      return 0;
+    }
+  }
+  asmcmdshare_trace(3, "$asmcmdshare_logheader Background process found " .
+                    "with PID = $asmcmdglobal_hash{'bgpid'}", 'y', 'n');
+  $asmcmdglobal_hash{'bgpipe'} = $asmcmdglobal_hash{'tempdir'} .
+                                 "/asmcmd_bg_" . $< . "_" .
+                                 $asmcmdglobal_hash{'contyp'} .
+                                 "_" . $asmcmdglobal_hash{'bgpid'};
+
+  # BG to be in wait mode
+  $asmcmdshare_pipetoread = \$asmcmdglobal_hash{'fgpipe'};
+  $asmcmdshare_pipetowrite = \$asmcmdglobal_hash{'bgpipe'};
+  $asmcmdglobal_hash{'fgpid'} = $$;
+  $asmcmdglobal_hash{'bgpid'} = undef;
+  $asmcmdshare_process_status = "RUNNING";
+
+  if (!$asmcmdshare_foreground_retries || $asmcmdshare_started_daemon)
+  {
+    # This is the right place for registering the signal handler. Initially it
+    # was registered when the modules were loaded in global scope. Handling
+    # the ctrl-C signal before connecting to the ASM instance (and starting
+    # ASM command prompt)
+    $SIG{INT} = \&asmcmdshare_signal_handler;# Signal handler for asmcmd     #
+    $SIG{USR1} = \&asmcmdshare_signal_handler;
+    $ENV{'PATH'} = $mypath;
+
+    # Construct the command arguments from ARGV and pass the entire command
+    # to the asmcmd daemon.
+    my ($i,$token);
+    # bug#21204705: ARGV should not be corrupted as it can be used in shell
+    # if foreground fails
+    my (@args) = ();
+    for ($i = 0; $i<= $#ARGV; $i++)
+    {
+      $token = $ARGV[$i];
+      if ($token !~ /^-/ && $token =~ /\W/ && $token !~ /'/)
+      {
+        $args[$i] = "'$token'"; # Put back the single quotes for tokens like
+                                # patterns, etc. The quotes are stripped by
+                                # the shell.
+      }
+      else
+      {
+        $args[$i] = $token;
+      }
+    }
+    $line = join(" ", @args);
+    eval
+    {
+      # 05/24/2012 adileepk_cpbug2
+      # Operation: Send command to the background through the pipe
+      # pipe_<userid>_<privilege>.
+      # Here exceptions can be thrown from two functions
+      # 1. asmcmdshare_openwritepipe() - If open fails or times out.
+      #    Situation is handled internally by asmcmdshare_alarm_handler()
+      #    which logs the situation and attempts to remove the unresponsive
+      #    pipe and then throws another exception so that it can be caught
+      #    at this level.
+      # 2. asmcmdshare_printpipe() - If the background is found to have
+      #    died or the filehandle is broken or the pipe has been removed.
+      #    Again attempts to remove the unresponsive pipe if it exists
+      #    and throws an exception to be caught here.
+      #
+      # If an exception is caught, then returns 0.
+      # A return 0 from this function triggers a retry (with connection
+      # pooling enabled). After two such retries, the calling function
+      # asmcmdcore_main() would disable connection pooling and proceed with
+      # the legacy method.
+      my $string_delimiter = "!!!!!";
+      asmcmdshare_openwritepipe();
+
+      # Get exclusive lock on background pipe
+      if ($asmcmdshare_writehandle)
+      {
+        flock($asmcmdshare_writehandle, LOCK_EX);
+      }
+
+      # Send the command through the pipe
+      if ($line)
+      {
+        asmcmdshare_trace(3, "$asmcmdshare_logheader Given command - ".
+                          $asmcmdglobal_hash{'cmd'} . " $line", 'y', 'n')
+                          if (!$asmcmdshare_foreground_retries);
+        asmcmdshare_printpipe($string_delimiter . $$ . "#" .
+                              $asmcmdglobal_hash{'cmd'} . " $line" .
+                              $string_delimiter . "\n");
+      }
+      else
+      {
+        asmcmdshare_trace(3, "$asmcmdshare_logheader Given command - ".
+                          $asmcmdglobal_hash{'cmd'}, 'y', 'n')
+                          if (!$asmcmdshare_foreground_retries);
+        asmcmdshare_printpipe($string_delimiter . $$ . "#" .
+                              $asmcmdglobal_hash{'cmd'} .
+                              $string_delimiter . "\n");
+      }
+      flock($asmcmdshare_writehandle, LOCK_UN);
+      asmcmdshare_closewritepipe();
+    };
+    if ($@)
+    {
+      # Could not write the command to the pipe.
+      # Retry.
+      asmcmdshare_trace(3, "$asmcmdshare_logheader Could not write command.\n" .
+                        "err:", join('', $@) . " ret:$? err:$! oserr:$^E \n" .
+                        "retrying...", 'y', 'n');
+      return 0;
+    }
+  }
+  elsif ($asmcmdshare_foreground_retries && $asmcmdshare_started_daemon)
+  {
+    asmcmdshare_trace(3, "$asmcmdshare_logheader restarted the ASMCMD " .
+                      "Background process. Retrying command.", 'y', 'n');
+  }
+
+  # Try to open the read pipe for as long as the background is alive. It might
+  # be busy with other foregrounds.
+  my $success = 0;
+  while (!$success)
+  {
+    # Check if the BG is alive before reading the pipe. If it is not, abort
+    # immediately instead of waiting for the timeout. This will disable
+    # connection pooling for the foreground and avoid hanging until the
+    # timeout.
+    if (!asmcmdcore_is_bg_alive())
+    {
+      asmcmdshare_trace(3, "$asmcmdshare_logheader BG died unexpectedly, ".
+                           "retrying", 'y', 'n');
+      return 0;
+    }
+
+    # Wait for the pipe to appear
+    my $i = $asmcmdshare_wait4pipeCrt;
+    while ($i-- && !(-p $asmcmdglobal_hash{'fgpipe'}))
+    {
+      sleep(1);
+    }
+
+    eval
+    {
+      # 05/24/2012 adileepk_cpbug2
+      # Open pipe to receive the output from background process.
+      # asmcmdshare_openreadpipe() can throw an exception if
+      # if anything goes wrong with the pipe 'pipe_<pidOfForeground>'.
+      # The situation is logged and the unresponsive pipe is removed if it
+      # exists and then throws an exception which is caught here.
+      #
+      # Return 0 from this function which triggers a retry at the calling
+      # function, asmcmdcore_main().
+      asmcmdshare_openreadpipe();
+      $success = 1;
+    };
+    if ($@)
+    {
+      asmcmdshare_trace(3, "$asmcmdshare_logheader Could not read pipe " .
+                        "$asmcmdglobal_hash{'fgpipe'}", 'y', 'n');
+      return 0;
+    }
+  }
+  my $output_expected = 1;
+  while ($output_expected)
+  {
+    # Check if bg is still alive, otherwise retry immediately
+    if (!asmcmdcore_is_bg_alive())
+    {
+      asmcmdshare_trace(3, "$asmcmdshare_logheader BG died unexpectedly, ".
+                        "retrying", 'y', 'n');
+      return 0;
+    }
+    # Read and print the output from the pipe until a terminating string
+    # is received.
+    eval
+    {
+      alarm $asmcmdshare_readpipewait;
+      $asmcmdshare_process_status = "RECEIVINGOUTPUT";
+      $output_expected = asmcmdshare_output($asmcmdglobal_hash{'fgpipe'});
+      alarm 0;
+    };
+    if ($@)
+    {
+      asmcmdshare_trace(4, "$asmcmdshare_logheader Timeout read output - ".
+                        "$asmcmdshare_readpipewait seconds", 'y', 'n');
+      # If the background process has requested that connection pooling be
+      # disabled then proceed with legacy method.
+      if (!asmcmdcore_is_bg_alive())
+      {
+        asmcmdshare_trace(3, "$asmcmdshare_logheader BG died unexpectedly, ".
+                          "retrying", 'y', 'n');
+        return 0;
+      }
+      if ($@ =~ $asmcmdshare_disablecp_string)
+      {
+        die $asmcmdshare_disablecp_string;
+      }
+      else
+      {
+        # 05/24/2012 adileepk_cpbug2
+        # Output timed out. Perhaps the Background process exited after
+        # the command was sent.
+        # If an exception is caught then return 0 from this function which
+        # would trigger a retry at the calling function, asmcmdcore_main()
+        asmcmdshare_closereadpipe();
+        $asmcmdshare_process_status = "RUNNING";
+        # Wait until BG process exits in case it's still alive.
+        while (asmcmdcore_is_bg_alive())
+        {
+          sleep(1);
+        }
+        return 0;
+      }
+    }
+  }
+  $asmcmdshare_process_status = "RECEIVEDOUTPUT";
+  asmcmdshare_trace(3, "$asmcmdshare_logheader Received the " .
+                    "terminating string from ASMCMD Background, exiting.",
+                    'y', 'n');
+  return 1;
+}
+
+########
+# NAME
+#   asmcmdcore_connect
+#
+# DESCRIPTION
+#   This routine initiates a conneciton to the ASM instance.  Calls
+#    asmcmdbase_connect().
+#
+# PARAMETERS
+#    None.
+#
+# RETURNS
+#   Null.
+#
+# NOTES
+########
+sub asmcmdcore_connect
+{
+  my ($dbh);
+
+  # Connect to ASM instance first
+  $dbh = asmcmdbase_connect(undef);
+
+  if (defined ($dbh))
+  {
+    my ($qry, $sth, $row);
+
+    # Bugs 5661841 and 5629952: now that these bugs are fixed, ASMCMD
+    # can work on both ASM and RDBMS instances. No need to check instance
+    # type, anymore.
+
+    # Initialize global variables, including getting group_number and name
+    # of the first diskgroup.
+    asmcmdbase_init_global($dbh);
+  }
+
+  return $dbh;
+}
+
+########
+# NAME
+#   asmcmdcore_shell
+#
+# DESCRIPTION
+#   This routine contains the top-level shell loop that prompts the user for
+#   for commands and calls other routines to process them.
+#
+# PARAMETERS
+#   dbh   (IN) - initialized database handle, must be non-null.
+#
+# RETURNS
+#   Null.
+#
+# NOTES
+#   Should call asmcmdcore_connect to initialize $dbh before calling this
+#   routine.
+########
+sub asmcmdcore_shell
+{
+  my ($dbh);
+
+  my ($line);                                 # One line of input from user. #
+  my ($prompt) = 'ASMCMD> ';                  # ASMCMD user prompt value.    #
+  my ($term);
+  my (@eargs);
+  my ($lastflag) = 0;        #Flag to indicate last iteration of while loop
+  my ($mypath) = shift;
+  my ($cmd);
+  my ($mode);
+  my ($no_instance_cmd);
+
+  # This is the right place for registering the signal handler. Initially it
+  # was registered when the modules where loaded in global scope. Handling
+  # sthe ctrl-C ignal before connecting to the ASM instance (and starting
+  # ASM command prompt)
+
+  $SIG{INT} = \&asmcmdshare_signal_handler;# Signal handler for asmcmd       #
+
+  # Try to connect to ASM if the command is different from help or if it needs
+  # to connect to ASM instance
+  $cmd             = $asmcmdglobal_hash{'cmd'};
+  $mode            = $asmcmdglobal_hash{'mode'};
+  $no_instance_cmd = asmcmdshare_is_no_instance_cmd($cmd);
+
+  if ($mode eq 'i' or ($cmd ne 'help' and $no_instance_cmd <= 0))
+  {
+    $dbh = asmcmdcore_connect();
+
+    if (defined($dbh))
+    {
+      $asmcmdglobal_hash{'ver'} = asmcmdshare_get_asm_version($dbh);
+
+      # $$$ In order to test different version numbers of ASM and their
+      # relative behaviors on ASMCMD, comment out the line above and
+      # uncomment the line below. Set the version number to the one
+      # that's to be tested. Note that this testing method works only
+      #
+      # $asmcmdglobal_hash{'ver'} = '11.1.0.3.0';
+    }
+    else
+    {
+      # Inform user that connection to ASM failed, except when the issued
+      # command is help, startup, shutdown, or lsdsk
+
+      asmcmdshare_trace(5, $DBI::errstr, 'y', 'y');
+      @eargs = ($ENV{'ORACLE_SID'}) if defined($ENV{'ORACLE_SID'});
+      if ($asmcmdglobal_hash{'verbose'} eq 'debug')
+      {
+        asmcmdshare_error_msg (8103, \@eargs);
+      }
+      asmcmdshare_trace(3, "Connected to an idle instance.", 'y', 'y');
+    }
+  }
+
+  # If non-interactive mode, process command and return.
+  if ($mode eq 'n')
+  {
+    asmcmdshare_trace(3, "Connection Pooling has been disabled.",
+                      'y', 'n') if ($asmcmdglobal_hash{'nocp'} == 1);
+    # Construct the command arguments from ARGV and log it
+    my ($i,$token);
+    my (@args) = ();
+
+    for ($i = 0; $i<= $#ARGV; $i++)
+    {
+       $token = $ARGV[$i];
+       if ($token !~ /^-/ && $token =~ /\W/ && $token !~ /'/)
+       {
+          $args[$i] = "'$token'"; # Put back the single quotes for tokens like
+                                  # patterns, etc. The quotes are stripped by
+                                  # the shell.
+       }
+       else
+       {
+          $args[$i] = $token;
+       }
+    }
+    $line = join(" ", @args);
+    if ($line)
+    {
+        asmcmdshare_trace(3, "ASMCMD (PID = $$) Given command - ".
+                              $asmcmdglobal_hash{'cmd'} . " $line", 'y', 'n')
+    }
+    else
+    {
+        asmcmdshare_trace(3, "ASMCMD (PID = $$) Given command - ".
+                              $asmcmdglobal_hash{'cmd'}, 'y', 'n')
+    }
+
+    if (!defined ($dbh) && $no_instance_cmd == 0)
+    {
+      # Connection failed, and command requires ASM instance; record error.
+      asmcmdshare_error_msg (8102, undef);
+      asmcmdshare_removebgpipe();
+    }
+    else
+    {
+      eval
+      {
+         asmcmdcore_module_driver($dbh);
+      };
+      if (asmcmdexceptions::catch())
+      {
+        my $err = asmcmdexceptions::getExceptionstring ();
+        asmcmdshare_trace (3,
+                           "Unhandled Exception non-interactive mode $err",
+                           'y', 'n');
+         # Set the exit status to -1
+         $asmcmdglobal_hash{'e'} = -1;
+      }
+    }
+
+    exit $asmcmdglobal_hash{'e'};
+  }
+
+  $asmcmdglobal_hash{'cwdnm'} = '+';
+
+  if (-e "/dev/tty")
+  {
+    $term = new Term::ReadLine("", \*STDIN, \*STDOUT);
+  }
+  else
+  {
+    $term = new Term::ReadLine("CON", \*STDIN, \*STDOUT);
+  }
+
+  if ($term->Features->{ornaments})
+  {
+    local $Term::ReadLine::termcap_nowarn = 1;
+    $term->ornaments(0);
+  }
+
+  while (1)
+  {
+
+    if ($lastflag == 1)
+    {
+      $lastflag = 0;   #Reset flag (which is reduandant as of now)
+      last;
+    }
+
+    eval
+    {
+      my (@token);# Need fresh array of parsed tokens of arguments from $line. #
+
+      # Prepare prompt, if long version of prompt is needed.
+      if ($asmcmdglobal_hash{'lprmt'} eq 'y')
+      {
+        $prompt = 'ASMCMD [' . $asmcmdglobal_hash{'cwdnm'} . '] > ';
+      }
+
+      select STDERR;
+      $|++;
+      select STDOUT;
+      $|++;
+
+      $line = $term->readline($prompt);
+
+      if (defined($line))
+      {
+        chomp($line);                           # Remove newline character.    #
+        $line =~ s,^\s+,,g;                     # Remove initial spaces.       #
+        $line =~ s,\s+$,,g;                     # Remove trailing spaces.      #
+        $line =~ s,;+$,,g;                      # Remove trailing semicolon.   #
+      }
+
+      # Terminate if EOF or 'exit'.
+      if (! defined($line))
+      {
+        $line = 'exit';
+        print "exit\n";
+      }
+      #last if ($line eq 'exit');
+      #last if ($line eq 'quit');
+      if ($line eq 'exit' || $line eq 'quit')
+      {
+        $lastflag = 1;
+        die;
+      }
+
+      if ($line =~ /^!/)
+      {
+        $ENV{'PATH'} = $mypath;
+        $line =~ s/^!//;
+
+        my $cmd;
+        my $os = $^O;
+
+        if ($os eq "MSWin32")
+        {
+          $cmd = "$line";
+        }
+        else
+        {
+          $cmd="$line 1>&1";
+        }
+
+        system($cmd);
+
+        # NT has the necessary dll's in that directory.
+        # 21182361: Append to original path
+        $ENV{'PATH'} = "$ENV{'ORACLE_HOME'}/bin:".$mypath;
+      }
+      else
+      {
+        # Parse $line into an array of arguments.
+        if (asmcmdbase_parse_int_cmd_line($line, \@token))
+        {
+          # asmcmdcore_parse_int_cmd_line() returned error. #
+          asmcmdshare_error_msg(8007, undef);
+          #next;
+          # Error, so done with this command, move on to next comand. #
+          die;
+        }
+
+        die if ($token[0] eq '');           # Empty line, so skip command. #
+
+        # Save command name. #
+        $cmd = $asmcmdglobal_hash{'cmd'} = shift(@token);
+        @ARGV = @token; # Save in global @ARGV for internal command parsing. #
+
+        if (!defined ($dbh) &&
+            asmcmdshare_is_no_instance_cmd($asmcmdglobal_hash{'cmd'}) != 1)
+        {
+          # Connection failed, and command requires ASM instance;
+          # record error. #
+          asmcmdshare_error_msg (8102, undef);
+          asmcmdshare_removebgpipe();
+        }
+        else
+        {
+          # Need to enclose this call to module_driver() in eval block, since
+          # an exception could be thrown if any sql query fails.
+          # Here, the mode is interactive, hence no need to set exit status.
+          # Catch the exception, check if it isn't an asmcmdexceptions
+          # exception issue a die statement. (Propogate other exceptions up)
+          eval
+          {
+            asmcmdcore_module_driver($dbh);
+          };
+          if (asmcmdexceptions::catch())
+          {
+            my $err = asmcmdexceptions::getExceptionstring();
+            asmcmdshare_trace (3, "Unhandled Exception interactive mode $err",
+                               'y', 'n');
+            die;
+          }
+        }
+
+        $term->addhistory($line);
+
+        if (defined ($asmcmdglobal_reconnect_cmds{$cmd}))
+        {
+          # re-connect to asm instance after these commands #
+          # this must be done since $dbh is now invalidated #
+          # and it was orginally set at this module level   #
+          asmcmdbase_disconnect($dbh) if defined ($dbh);
+
+          $dbh = asmcmdbase_connect(undef);
+        }
+
+        # re-connect if we startup/shutdown an instance
+        # if we cannot get a $dbh, that means there is no instance
+        # but this is not a reason to signal error since we can
+        # try startup again
+        if ($asmcmdglobal_hash{'cmd'} eq 'startup' ||
+            $asmcmdglobal_hash{'cmd'} eq 'shutdown')
+        {
+          asmcmdbase_disconnect($dbh) if defined ($dbh);
+
+          $dbh = asmcmdbase_connect(undef);
+          if (!defined($dbh))
+          {
+            asmcmdshare_trace(5, $DBI::errstr, 'y', 'y');
+            @eargs = ($ENV{'ORACLE_SID'}) if defined($ENV{'ORACLE_SID'});
+            if ($asmcmdglobal_hash{'verbose'} eq 'debug')
+            {
+              asmcmdshare_error_msg (8103, \@eargs);
+            }
+            asmcmdshare_trace(3, "Connected to an idle instance.", 'y', 'y');
+          }
+        }
+      }
+    };
+  }
+
+  return $dbh;
+}
+
+########
+# NAME
+#  asmcmdcore_consistency_check
+#
+# DESCRIPTION
+#  This routine parses command line arguments only for consistency check option
+#  not anyother the arguments  related to ASMCMD or commands internal to ASMCMD.
+#
+# PARAMETERS
+#   GLOBAL: @ARGV (IN/OUT) - list of all command line arguments for asmcmd.
+#
+# RETURNS
+#   Null.
+#
+#  Note also that this routine removes the consistency check option if found in
+#  ARGV
+########
+sub asmcmdcore_consistency_check
+{
+  my $i;
+  for ($i = 0; $i < $#ARGV+1; $i++)
+  {
+    if ($ARGV[$i] eq '-check')
+    {
+      #remove the option from ARGV array if found
+      splice(@ARGV,$i,1);
+
+      #set the global to denote that consistency check is ON
+      #later used in init() function in all perl modules
+      $asmcmdglobal_hash{'consistchk'} = 'y';
+      # Connection Pooling would not affect this statement since this routine
+      # is called before the fork happens.
+      print STDERR "WARNING: ASMCMD consistency check enabled\n";
+      last;
+    }
+  }
+  return;
+}
+
+########
+# NAME
+#   asmcmdcore_init_tracebasepath
+#
+# DESCRIPTION
+#   This function creates asmcmd/ directory under
+#   $ORACLE_BASE/diag or $ORACLE_HOME/log/diag/ directory if it does not exist.
+#   Also sets the owner/group + permissions correctly
+#   owner/group same as $ORACLE_HOME/bin/oracle and permission is 0775.
+#   This is to allow trace directories to be created under asmcmd for any users
+#
+# PARAMETERS
+#   $basepath   - base directory where asmcmd/ will be created.
+#
+# RETURNS
+#    NULL
+#
+# NOTE:  $ORACLE_BASE/diag or $ORACLE_HOME/log/diag is assumed to exist
+#        only asmcmd/ will be created underneath.
+########
+sub asmcmdcore_init_tracebasepath
+{
+  my ($basepath) = shift ;
+
+  if (!-d $basepath)
+  {
+    eval {mkpath ($basepath)};
+    if ($@)
+    {
+      print STDERR "Can not create path $basepath \n";
+    }
+  }
+  # get ownership/group from $ORACLE_HOME/bin/oracle
+  #  This will work only on Unix, so ignore Windows
+  if ($^O ne "MSWin32")
+  {
+    my ($device, $inode, $mode, $nlink, $uid, $gid, $rdev, $size,
+            $atime, $mtime, $ctime, $blksize, $blks) ;
+    my ($oracle) = "$ENV{'ORACLE_HOME'}/bin/oracle";
+
+    if ( -l $oracle)
+    {
+      # oracle binary is symbolic link, get details of link
+      ($device, $inode, $mode, $nlink, $uid, $gid, $rdev, $size,
+            $atime, $mtime, $ctime, $blksize, $blks) =
+                                   lstat ("$ENV{'ORACLE_HOME'}/bin/oracle");
+    }
+    else
+    {
+      # oracle binary is a file, get details of file
+      ($device, $inode, $mode, $nlink, $uid, $gid, $rdev, $size,
+            $atime, $mtime, $ctime, $blksize, $blks) =
+                                   stat ("$ENV{'ORACLE_HOME'}/bin/oracle");
+    }
+
+    if ($mode ne 0775)
+    {
+      chown $uid, $gid, $basepath ;  # owner/group same as ORACLE binary.
+      chmod 0775, $basepath;       # permissions for owner/group.
+    }
+  }
+}
+
+########
+# NAME
+#  asmcmdcore_trace
+#
+# DESCRIPTION
+#  This routine initializes the tracing - creates trace directory with
+#  appropriate owner/group/permission.  Also parses command line arguments
+#  for "verbose".  If "verbose", trace-level specified in ARGV, this routine
+#  removes it.
+#
+# PARAMETERS
+#   GLOBAL: @ARGV (IN/OUT) - list of all command line arguments for asmcmd.
+#
+# RETURNS
+#   Null.
+#
+########
+sub asmcmdcore_trace
+{
+  my ($i, $user, $host);
+  my ($tracebasepath);
+  my $orabase    = "$ENV{'ORACLE_HOME'}/bin/orabase"; 
+  my $basepath   = `$orabase`;
+
+  my $os = $^O;
+
+  # This is to get the effective user name
+  if ($os eq "MSWin32")
+  {
+    $user = getlogin;
+  }
+  else
+  {
+    $user = getpwuid($>) || getlogin;
+  }
+  $host = hostname();
+
+  # use ORACLE_BASE if its set to a valid location
+  # RTI#20772974: drop "log" in "log/diag/asmcmd" under ORACLE_BASE
+  if (exists $ENV{'ORACLE_BASE'} && ($ENV{'ORACLE_BASE'} ne "") &&
+      (-d $ENV{'ORACLE_BASE'}))
+  {
+    $tracebasepath = "$ENV{'ORACLE_BASE'}/diag/asmcmd";
+  }
+  # 27303785 - use orabase to figure out tracepath if ORACLE_BASE not set
+  elsif ($basepath ne "") 
+  {
+    chomp($basepath);
+    $tracebasepath = "$basepath/diag/asmcmd";
+  }
+  else
+  {
+    $tracebasepath = "$ENV{'ORACLE_HOME'}/log/diag/asmcmd";
+  }
+
+  asmcmdcore_init_tracebasepath ($tracebasepath);
+  $asmcmdglobal_trace_path = "$tracebasepath/user_$user/$host";
+
+  if (!-d $asmcmdglobal_trace_path)
+  {
+    $asmcmdglobal_trace_path =~ /([^\n^\r^\t]+)/;
+    $asmcmdglobal_trace_path =$1;
+
+    eval { mkpath ("$asmcmdglobal_trace_path/alert") };
+    if ($@)
+    {
+      print STDERR "Can not create path $asmcmdglobal_trace_path/alert \n";
+    }
+    eval { mkpath ("$asmcmdglobal_trace_path/trace") };
+    if ($@)
+    {
+      print STDERR "Can not create path $asmcmdglobal_trace_path/trace \n";
+    }
+  }
+
+  for ($i = 0; $i < $#ARGV+1; $i++)
+  {
+    if ($ARGV[$i] eq '-v')
+    {
+      #remove the option from ARGV array if found
+      splice(@ARGV,$i,1);
+      if (defined($ARGV[$i]))
+      {
+        if (defined($asmcmdshare_trace_levels{$ARGV[$i]}))
+        {
+          $asmcmdglobal_hash{'verbose'} =$ARGV[$i];
+        }
+        else
+        {
+          print STDERR "WARNING: Specified tracing level '$ARGV[$i]' does".
+                                                " not exist.\n";
+          $asmcmdglobal_hash{'verbose'} ='normal';
+          print STDERR "Default level of tracing is enabled.\n";
+        }
+        #remove the value  of trace level from ARGV array if found
+        splice(@ARGV,$i,1);
+      }
+      else
+      {
+        print STDERR "WARNING: Tracing level not specified\n";
+        $asmcmdglobal_hash{'verbose'} ='normal';
+        print STDERR "Default level of tracing is enabled.\n";
+      }
+      last;
+    }
+  }
+  return;
+}
+
+########
+# NAME
+#   asmcmdcore_parse_asmcmd_args
+#
+# DESCRIPTION
+#   This routine parses the command line arguments for ASMCMD.  These are
+#   not the arguments for commands internal to ASMCMD.
+#   asmcmdbase_parse_int_args() handles the latter cases.
+#
+# PARAMETERS
+#   GLOBAL: @ARGV (IN/OUT) - list of all command line arguments for asmcmd.
+#
+# RETURNS
+#   Null.
+#
+#  Note also that this routine *modifies* @ARGV; all parsed arguments are
+#  removed from this array.
+########
+sub asmcmdcore_parse_asmcmd_args
+{
+  my ($args_ref);
+  my ($i, $len);
+  my (@string);
+  my ($key);
+  my ($argv);
+  my (%args)       = ();
+  my (@asmcmd_arg) = ();
+  my (@cmd_arg)    = ();
+  my ($cmd)        = 'asmcmd';
+
+  # Remove trailing semicolon
+  $argv = pop(@ARGV);
+
+  if (defined($argv))
+  {
+    $argv =~ s,;+$,,g;
+    push(@ARGV, $argv);
+  }
+
+  # chop off the @ARGV array, so we process asmcmd arguments
+  for ($i = 0; $i < $#ARGV+1; $i++)
+  {
+    if (defined ($asmcmdglobal_cmds{$ARGV[$i]}))
+    {
+      last;
+    }
+  }
+  $len = $#ARGV;
+  @asmcmd_arg = @ARGV[0..$i-1] if (defined(@ARGV[0..$i-1]));
+  @cmd_arg    = @ARGV[$i..$len] if (defined(@ARGV[$i..$len]));
+
+  @ARGV = @asmcmd_arg;
+
+  # build the list of options to parse using GetOptions
+  if ($asmcmdcore_cmds{ $cmd }{ flags })
+  {
+    foreach $key (keys %{$asmcmdcore_cmds{ $cmd }{ flags }})
+    {
+      push(@string, $key);
+    }
+  }
+
+  #include deprecated options if any
+  if ($asmcmdglobal_deprecated_options{ $cmd })
+  {
+    foreach my $key (keys %{$asmcmdglobal_deprecated_options{ $cmd }})
+    {
+      push(@string, $asmcmdglobal_deprecated_options{$cmd}{$key}[0]);
+    }
+  }
+  # Use asmcmdparser_parse_issued_command() from the asmcmdparser package to
+  # parse arguments for internal commands.  These arguments are stored in @ARGV.
+  if (!asmcmdparser_parse_issued_command($cmd, \%args, \@string))
+  {
+    # Bug-19783114: If the parse error was caused by an invalid command, 
+    #               list all the valid ones.
+    if (defined $args{'asmcmd'})
+    {
+      if (!defined($asmcmdglobal_cmds{${$args{'asmcmd'}}[0]}))
+      {
+        asmcmdcore_show_commands('exit', \*STDERR);
+        return;
+      }
+    }
+    asmcmdcore_syntax_error($cmd);
+    return;
+  }
+
+  #Set the correct options if deprecated options were used and print WARNING.
+  #asmcmdshare_handle_deprecation($asmcmdglobal_hash{ 'cmd'},\%args);
+  asmcmdshare_handle_deprecation($cmd, \%args);
+
+  # 19234907: some versions of Windows will not strip the single quotes given
+  # through the command line arguments. If they have them, strip them here.
+  foreach (@cmd_arg)
+  {
+    ($_) = $_ =~ /'([^']*)'/ if ($_ =~ /'[^']*'/);
+  }
+
+  # reconstruct @ARGV for the command arguments
+  @ARGV = @cmd_arg;
+  # if a command is passed, check that it is a valid one
+  if (defined($ARGV[0]))
+  {
+    if (!defined($asmcmdglobal_cmds{$ARGV[0]}))
+    {
+      asmcmdcore_show_commands('exit', \*STDERR);
+      return;
+    }
+  }
+
+  if (defined($args{'V'}))
+  {
+    print 'asmcmd version ' . $asmcmdglobal_hash{'acver'}. "\n";
+    exit 0;
+  }
+
+  #default is sysasm
+  $asmcmdglobal_hash{'contyp'} = 'sysasm';
+  if (defined($args{'privilege'}))
+  {
+    if (($args{'privilege'} =~ /^sysasm$/i) ||
+        ($args{'privilege'} =~ /^sysdba$/i))
+    {
+      $asmcmdglobal_hash{'contyp'} = $args{'privilege'};
+    }
+    else
+    {
+      asmcmdcore_syntax_error('asmcmd');
+      return;
+    }
+  }
+
+  if (defined($args{'nocp'}))
+  {
+      $asmcmdglobal_hash{'nocp'} = 1;
+  }
+
+  if (defined($args{'p'}))
+  {
+    $asmcmdglobal_hash{'lprmt'} = 'y';
+  }
+
+  if (defined($args{'inst'}))
+  {
+    $asmcmdglobal_hash{'inst'} = $args{'inst'};
+  }
+
+  if (defined($ARGV[0]))
+  {
+    $asmcmdglobal_hash{'mode'} = 'n';
+
+    if (asmcmdcore_is_cmd($ARGV[0]))
+    {
+      $asmcmdglobal_hash{'cmd'} = shift @ARGV;
+      return;
+    }
+    else
+    {
+      asmcmdcore_show_commands('exit', \*STDERR);
+    }
+  }
+
+  if (defined($args{'discover'}))
+  {
+    $asmcmdglobal_hash{'discover'} = 1;
+  }
+  else
+  {
+    $asmcmdglobal_hash{'discover'} = 0;
+  }
+
+  return;
+}
+
+
+########
+# NAME
+#   asmcmdcore_module_driver
+#
+# DESCRIPTION
+#   This function calls in each module the respective function that
+#   processes commands responsible by the said module.  All ASMCMD
+#   commands must pass through this function before being processed
+#   by the modules.
+#
+# PARAMETERS
+#   dbh         (IN) - initialized database handle, must be non-null.
+#
+# RETURNS
+#   Null.
+#
+########
+sub asmcmdcore_module_driver
+{
+  my ($dbh) = shift;
+  my ($succ) = 0;
+  my ($module);
+  my (@eargs);                                   # Array of error arguments. #
+
+  # Bug#18355789: check if the user-entered command is one of the known 
+  # ASMCMD internal commands.
+  if (!asmcmdcore_is_cmd($asmcmdglobal_hash{'cmd'}))
+  {
+    @eargs = $asmcmdglobal_hash{'cmd'};
+    asmcmdshare_error_msg(8022, \@eargs);
+    return;
+  }
+
+  # check to see if the current command can be executed with the privilege
+  # provided.
+  if (!asmcmdshare_check_reqd_priv())
+  {
+    @eargs = ( $asmcmdglobal_hash{'cmd'}, $asmcmdglobal_hash{'contyp'});
+    asmcmdshare_error_msg(9487, \@eargs);
+    return;
+  }
+
+  foreach $module (@asmcmdglobal_command_callbacks)
+  {
+    if ($module->($dbh))
+    {
+      # Assert that we find only one occurrence of this command in
+      # the modules.
+      @eargs = ("asmcmdcore_module_driver_05", $asmcmdglobal_hash{'cmd'});
+      asmcmdshare_assert(($succ == 0), \@eargs);
+      $succ = 1;
+    }
+  }
+
+  if ($asmcmdglobal_hash{'cmd'} eq 'help')
+  {
+    # Assert that we find only one occurrence of this command in
+    # the modules.
+    @eargs = ("asmcmdcore_module_driver_10", $asmcmdglobal_hash{'cmd'});
+    asmcmdshare_assert(($succ == 0), \@eargs);
+    asmcmdcore_process_help();
+    $succ = 1;
+  }
+  if (! $succ)
+  {
+    asmcmdcore_show_commands(undef, \*STDERR);
+  }
+
+  return;
+}
+
+########
+# NAME
+#   asmcmdcore_process_help
+#
+# DESCRIPTION
+#   This top-level routine processes the help command.
+#
+# PARAMETERS
+#   None.
+#
+# RETURNS
+#   Null.
+#
+########
+sub asmcmdcore_process_help
+{
+  my (%args);                             # Argument hash used by getopts(). #
+  my ($ret);                     # asmcmdbase_parse_int_args() return value. #
+  my ($cmd);      # User-specified command-name argument; show help on $cmd. #
+  my ($syntax);                                   # Command syntax for $cmd. #
+  my ($desc);                                # Command description for $cmd. #
+  my ($module);                                  # A module's help function. #
+  my ($succ) = 0;                        # 1 if command exists, 0 otherwise. #
+  my (@eargs);                                   # Array of error arguments. #
+
+  # Get option parameters, if any.
+  $ret = asmcmdbase_parse_int_args($asmcmdglobal_hash{'cmd'}, \%args);
+  return unless defined ($ret);
+
+  # Check if number of non-option parameters are correct.
+  if (@ARGV > 1)
+  {
+    asmcmdcore_syntax_error($asmcmdglobal_hash{'cmd'});
+    return;
+  }
+
+  $cmd = shift (@ARGV);
+
+  if (defined ($cmd))
+  {
+    # Search each module for the command's help message.
+    foreach $module (@asmcmdglobal_help_callbacks)
+    {
+      if ($module->($cmd) == 1)
+      {
+        # Assert that we find only one occurrence of this command in
+        # the modules.
+        @eargs = ("asmcmdcore_process_help_05", $cmd);
+        asmcmdshare_assert(($succ == 0), \@eargs);
+
+        # We found the command's help message.
+        $succ = 1;
+      }
+    }
+  }
+
+  if (! defined ($cmd))
+  {                       # No command name specified, or command not found; #
+                                # show help on asmcmd and list all commands. #
+
+    $syntax = "";
+    $syntax = asmcmdshare_get_help_syntax ('asmcmd');
+    $desc = asmcmdshare_get_help_desc('asmcmd');
+    $desc = asmcmdshare_trim_str ($desc);
+
+    print "$desc\n\n";
+    asmcmdcore_show_commands(undef, \*STDOUT); # Print list of all commands. #
+  }
+  elsif ($succ == 0)
+  {
+    @eargs = $cmd;
+    asmcmdshare_error_msg(8022, \@eargs);
+  }
+
+  return;
+}
+
+########
+# NAME
+#   asmcmdcore_show_commands
+#
+# DESCRIPTION
+#   This routine prints a list of all valid internal commands, used
+#   as an error message when the user has entered an invalid command name.
+#   If $exit is set to 'exit', then also call exit(0).  This option is to
+#   accommodate the non-interactive option, when quitting asmcmd is necessary.
+#   The caller can specify whether he wants to direct the output to
+#   STDOUT or STDERR.
+#
+# PARAMETERS
+#   exit        (IN) - flag: causes asmcmdbase_show_commands() to call exit()
+#                      iff value is 'exit'.
+#   IO_handle   (IN) - handle where to print output: STDOUT or STDERR.
+#
+# RETURNS
+#   Null.
+#
+########
+sub asmcmdcore_show_commands
+{
+  my ($exit, $output_handle) = @_;
+  my ($asmcmd_cmds) = '';
+  my ($module);
+
+  # Not affected by connection pooling since this function is called before
+  # asmcmd determines whether connection pooling can be done or not
+  print $output_handle "        commands:\n";
+  print $output_handle "        --------\n\n";
+
+  foreach $module (@asmcmdglobal_command_list_callbacks)
+  {
+    my $out = $module->();
+
+    #in case of invisible commands, we get empty string, ignore it.
+    if ($out ne "")
+    {
+      $asmcmd_cmds .= $out . "\n";
+    }
+  }
+
+  print $output_handle $asmcmd_cmds;
+
+  exit 0 if (defined($exit) && ($exit eq 'exit'));
+  return;
+}
+
+########
+# NAME
+#   asmcmdcore_is_cmd
+#
+# DESCRIPTION
+#   This routine checks if a user-entered command is one of the known ASMCMD
+#   internal commands.
+#
+# PARAMETERS
+#   arg   (IN) - user-entered command name string.
+#
+# RETURNS
+#   1 if $arg is one of the known commands, 0 otherwise.
+#
+# NOTES
+#   This routine calls the callbacks from each module to check if $arg
+#   belongs to any of the modules.  It asserts that the command is found
+#   in only one module.
+########
+sub asmcmdcore_is_cmd
+{
+  my ($command) = shift;
+
+
+
+
+  my ($module);
+  my ($succ) = 0;
+  my ($count) = 0;
+  my (@eargs);                                   # Array of error arguments. #
+
+
+
+  foreach $module (@asmcmdglobal_is_command_callbacks)
+  {
+    if ($module->($command))
+    {
+      $succ = 1;
+      $count++;
+    }
+  }
+
+  # Assert that $count is at most 1 and at least 0.
+  @eargs = ("asmcmdcore_is_cmd_05", $asmcmdglobal_hash{'cmd'}, $count);
+  asmcmdshare_assert( (($count == 1) || ($count == 0)), \@eargs);
+
+  return $succ;
+}
+
+########
+# NAME
+#   asmcmdcore_check_global_callbacks
+#
+# DESCRIPTION
+#   This function checks to see if the global callback arrays have been
+#   initialized correctly.
+#
+# PARAMETERS
+#   None
+#
+# RETURNS
+#   Null if the assertion passes; signals exception otherwise.
+#
+# NOTES
+#   This function asserts that all the callback arrays, including
+#   asmcmdcore_init_modules, have the same number of elements.
+########
+sub asmcmdcore_check_global_callbacks
+{
+  my (@eargs);                             # Error arguments for the assert. #
+  my ($temp);
+
+  @eargs = ("asmcmdcore_check_global_callbacks_05",
+            scalar(@asmcmdcore_init_modules),
+            scalar(@asmcmdglobal_command_callbacks),
+            scalar(@asmcmdglobal_help_callbacks),
+            scalar(@asmcmdglobal_command_list_callbacks),
+            scalar(@asmcmdglobal_is_command_callbacks),
+            scalar(@asmcmdglobal_is_wildcard_callbacks),
+            scalar(@asmcmdglobal_syntax_error_callbacks),
+            scalar(@asmcmdglobal_no_instance_callbacks));
+
+  $temp = scalar(@asmcmdcore_init_modules);
+
+  asmcmdshare_assert(((scalar(@asmcmdglobal_command_callbacks) == $temp) &&
+              (scalar(@asmcmdglobal_help_callbacks) == $temp) &&
+              (scalar(@asmcmdglobal_command_list_callbacks) == $temp) &&
+              (scalar(@asmcmdglobal_is_command_callbacks) == $temp) &&
+              (scalar(@asmcmdglobal_is_wildcard_callbacks) == $temp) &&
+              (scalar(@asmcmdglobal_syntax_error_callbacks) == $temp) &&
+              (scalar(@asmcmdglobal_no_instance_callbacks) == $temp)),
+                                  \@eargs);
+
+  return;
+}
+
+########
+# NAME
+#   asmcmdcore_syntax_error
+#
+# DESCRIPTION
+#   This function calls into each module to display the correct syntax
+#   for a given ASMCMD command.
+#
+# PARAMETERS
+#   command     (IN) - the user-specified ASMCMD command
+#
+# RETURNS
+#   Null.
+#
+# NOTES
+#   This routine calls the callbacks from each module to display the
+#   correct syntax for $command.
+########
+sub asmcmdcore_syntax_error
+{
+  my ($command) = shift;
+  my ($module);
+  my ($count) = 0;
+  my (@eargs);                                   # Array of error arguments. #
+
+  foreach $module (@asmcmdglobal_syntax_error_callbacks)
+  {
+    if ($module->($command))
+    {
+      $count++;
+    }
+  }
+
+  # Assert that $count is at most 1 and at least 0.
+  @eargs = ("asmcmdcore_syntax_error_05", $asmcmdglobal_hash{'cmd'}, $count);
+  asmcmdshare_assert( (($count == 1) || ($count == 0)), \@eargs);
+
+  return;
+}
+
+
+END
+{
+  if ($asmcmdglobal_hash{'ispooled'})
+  {
+    asmcmdshare_closereadpipe();
+    asmcmdshare_removereadpipe();
+    asmcmdshare_closewritepipe();
+    asmcmdshare_trace(3, "$asmcmdshare_logheader Exited (" .
+                      $asmcmdglobal_hash{'e'} . ") after removing " .
+                      "the pipe " . $$asmcmdshare_pipetoread, 'y', 'n');
+    if (defined($asmcmdglobal_hash{'proxy_dbh'}))
+    {
+      if (asmcmdshare_check_dbh_alive($asmcmdglobal_hash{'proxy_dbh'}))
+      {
+        asmcmdbase_disconnect($asmcmdglobal_hash{'proxy_dbh'});
+      }
+    }
+    exit $asmcmdglobal_hash{'e'};
+  }
+}
+##############################################################################
+

@@ -1,0 +1,4 @@
+Linux=htfa:35:respawn:/etc/init.d/init.tfa run >/dev/null 2>&1 </dev/null
+SunOS=htfa:3:respawn:/etc/init.d/init.tfa run >/dev/null 2>&1 </dev/null
+AIX=htfa:2:respawn:/etc/init.tfa run >/dev/null 2>&1 </dev/null
+HP-UX=htfa:35:respawn:/sbin/init.d/init.tfa run >/dev/null 2>&1 </dev/null

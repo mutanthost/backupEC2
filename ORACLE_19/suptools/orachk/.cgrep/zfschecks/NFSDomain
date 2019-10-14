@@ -1,0 +1,79 @@
+printf("==========START_OF_REPORT_chkNFSDomain.aksh==========\n");
+//
+// Check if NFS Map ID Domain and NIS Server are set up properly and match
+//
+
+// ----------------------------------------------------------------------------
+// VARS
+
+	var founderrors = true; // Track error findings
+	var auditcheck = 0;
+	var report = 1;
+        var runonetime = 1;
+
+
+// ----------------------------------------------------------------------------
+// MAIN STARTS HERE	
+if(runonetime==1)
+{
+getHostname();
+
+var report_output;
+// Get the nfs mapid domain
+try { 
+	run('configuration services nfs');
+	nfsmapid_domain=safeGet('mapid_domain');
+    run('cd /');
+    nfsmapid_data=run('configuration services nfs get mapid_domain');
+    report_output="> configuration services nfs get mapid_domain \n" + nfsmapid_data + "\n";
+	run('cd /');
+
+    run('configuration services nis');
+    nis_status=safeGet('<status>');
+    nis_domain=safeGet('domain');
+    run('cd /')
+    nis_data=run('configuration services nis get domain');
+    report_output = report_output + "> configuration services nis get domain \n" + nis_data + "\n";
+    run('cd /');
+if(nis_status == 'disabled'){
+ 	founderrors=false;
+        report_output = report_output + "NIS service on this ZFS storage head is disabled. This check is not applicable.\n";
+}else {
+    if ( nis_domain == 'offline' ) {
+        founderrors=false;
+    	report_output = report_output + "NIS domain on this ZFS storage head is not set. This check is not applicable.\n"; 
+	} else if ( nfsmapid_domain != "" && nis_domain != "" && (nfsmapid_domain == nis_domain)){
+		founderrors=false;
+    }
+}
+} catch(err) { 
+	if ( report == 1) {
+	 printf("An error is caught: \n" + err + "\n");
+	}
+}
+runonetime=0;
+}
+
+// Report Command
+
+if ( report == 1 ) {
+    if ( founderrors == false ) {
+        printf("OK: %s NFS Domain Check Completed: NFS Domain is set up properly\n",host_name);
+    }
+    else {
+	    printf("WARNING: %s NFS Domain Check Completed: NFS Domain is not set up properly\n",host_name);
+    }
+    printf("%s",report_output);
+}
+
+//END
+
+printf("==========END_OF_REPORT_chkNFSDomain.aksh==========\n");
+printf("==========START_OF_AUDIT_CHECK_chkNFSDomain.aksh==========\n");
+if ( founderrors == false ) {
+        printf("nfs_domain_status = 0\n");
+}
+else {
+        printf("nfs_domain_status = 1\n");
+}
+printf("==========END_OF_AUDIT_CHECK_chkNFSDomain.aksh==========\n");

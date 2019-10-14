@@ -1,0 +1,66 @@
+<?xml version="1.0"?>
+
+<!--  $Header: tfa/src/v2/tfa_home/resources/srdc_dbasm.xml /main/1 2018/05/28 15:06:27 bburton Exp $ -->
+
+<!-- 
+ Copyright (c) 2017, 2018, Oracle and/or its affiliates. All rights reserved.
+
+   NAME
+     srdc_asm.xml
+
+   DESCRIPTION
+      It will collect ASM/ACFS/ASMLIB/AFD information
+
+   NOTES
+     <other useful comments, qualifications, etc.>
+
+   MODIFIED   (MM/DD/YY)
+   xiaodowu    02/27/18 - XbranchMerge xiaodowu_addxmls from st_tfa_12.2.1.3.1
+   xiaodowu    01/19/18 - Remove Enh # from description
+   xiaodowu    01/18/18 - Rename asm to dbasm collection
+   recornej    11/17/17 - Adding chmos component
+   recornej    10/26/17 - Removing ORACLE_HOME prompt
+   recornej    09/25/17 - Creation
+
+-->
+<collections>
+  <collection id="dbasm">  
+    <user_description></user_description>
+    <description>SRDC AUTOMATION: ENHANCE ASM/DBFS/DNFS/ACFS COLLECTIONS </description>
+    <onevents>
+    </onevents>
+    <user_inputs>
+    </user_inputs>
+    <duration>12h</duration>
+    <clusterwide>yes</clusterwide>
+    <filter_files>
+      <filter_file_patterns>
+            <filter_file_pattern>alert_.*\.log</filter_file_pattern>
+            <filter_file_pattern>trc</filter_file_pattern>
+            <filter_file_pattern>log</filter_file_pattern>
+            <filter_file_pattern>\.xml</filter_file_pattern>
+            <filter_file_pattern>messages</filter_file_pattern>
+            <filter_file_pattern>archive\/osw</filter_file_pattern>
+            <filter_file_pattern>ExaWatcher\/archive</filter_file_pattern>
+			<pattern_text>.*oks_.*\.log</pattern_text>
+      </filter_file_patterns>
+      <filter_file_exclude_patterns>
+            <filter_file_exclude_pattern>cdmp_.*_bucket\.tr[cm]</filter_file_exclude_pattern>
+      </filter_file_exclude_patterns>
+    </filter_files>
+    <components>
+      <component>DATABASE</component>
+      <component>CRS</component>
+      <component>OS</component>
+      <component>ASM</component>
+      <component>CHMOS</component>
+    </components>
+    <commands>
+      <script type="SQLSCRIPT" name="srdc_asm_acfs.sql" timeout="120" validfor="" platform="" version="">
+      </script>
+    </commands>
+    <runtime_flags>
+    </runtime_flags>
+  </collection>
+</collections>
+

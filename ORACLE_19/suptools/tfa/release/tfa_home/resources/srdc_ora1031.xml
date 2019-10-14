@@ -1,0 +1,329 @@
+<?xml version="1.0"?>
+
+<!--  $Header: tfa/src/v2/tfa_home/resources/srdc_ora1031.xml /main/2 2018/08/15 16:55:53 bburton Exp $ -->
+
+<!-- 
+ Copyright (c) 2018, Oracle and/or its affiliates. All rights reserved.
+
+   NAME
+     srdc_ora1031.xml
+
+   DESCRIPTION
+     SRDC - How to Collect Standard Information for ORA - 1031 /ORA -1017 during SYSDBA connections
+
+   MODIFIED   (MM/DD/YY)
+   xiaodowu    08/01/18 - Revolve Bug 28438363 - INCORRECT COLLECTION_ID FORMAT
+   xiaodowu    03/28/18 - SRDC - How to Collect Standard Information for ORA -
+                          1031 /ORA -1017 during SYSDBA connections (Doc ID
+                          2307755.1)
+   xiaodowu    03/28/18 - Creation
+
+-->
+
+<collections>
+<collection id="ORA-01031">
+    <description>SRDC - How to Collect Standard Information for ORA - 1031 /ORA -1017 during SYSDBA connections</description>
+    <srdc_docs>Doc ID 2307755.1: SRDC - How to Collect Standard Information for ORA - 1031 /ORA -1017 during SYSDBA connections</srdc_docs>
+    <alias>ora1031</alias>
+    <onevents>
+        <event>
+            <infile>
+                <name_patterns>
+                    <pattern>alert_.*\.log</pattern>
+                </name_patterns>
+            </infile>
+        </event>
+    </onevents>
+    <user_inputs>
+        <user_input cmdline="" default="" showprompt="1" setenv="REPLACE" validate="" prompt="Enter the Database Name">USERINPUT-DATABASE_NAME</user_input>
+    </user_inputs>    
+    <duration>12h</duration>
+    <clusterwide>no</clusterwide>
+    <filter_files>
+        <filter_file_patterns>
+            <filter_file_pattern>alert_.*\.log</filter_file_pattern>
+            <filter_file_pattern>trc</filter_file_pattern>
+            <filter_file_pattern>log</filter_file_pattern>
+            <filter_file_pattern>archive\/osw</filter_file_pattern>
+            <filter_file_pattern>ExaWatcher\/archive</filter_file_pattern>
+        </filter_file_patterns>
+        <filter_file_exclude_patterns>
+            <filter_file_exclude_pattern>cdmp_.*_bucket\.tr[cm]</filter_file_exclude_pattern>
+        </filter_file_exclude_patterns>
+    </filter_files>
+    <components>
+        <component>OS</component>
+        <component>CRS</component>
+        <component>DATABASE</component>
+        <component>NOCHMOS</component>
+    </components>
+    <commands>
+      <script type="OS" name="srdc_os_authent_unix" timeout="120" validfor="" platform="allux" version="">
+<![CDATA[
+instance=$ORACLE_SID
+exec &> "SRDC_OS_AUTHENT_UNIX_${instance}_$(date +"%Y%m%d_%H%M%S").txt"
+echo "----------------------------------------------------"
+echo "Diagnostic-Name : OS_AUTHENT_UNIX"
+echo "Machine : $(hostname)"
+echo "Time : $(date +"%Y-%m-%d %H:%M:%S %Z%:z")"
+echo "DBName : $ORACLE_SID"
+echo "-----------------------------------------------------"
+echo ""
+echo ""
+echo "*** Host Name ***"
+echodo /bin/hostname
+echo "=================================================="
+echo ""
+echo "*** System Information ***"
+echodo /bin/uname -a
+echo "=================================================="
+echo ""
+echo "*** Environment Variables ***"
+/bin/env | /bin/grep -e '^ORA\|^TNS\|^TWO_TASK\|^PATH\|^USER\|^NAME'
+echo "=================================================="
+echo ""
+echo "*** ORATAB Entries ***"
+/bin/cat /etc/oratab 2>/dev/null | /bin/egrep -v \#
+/bin/cat /var/opt/oracle/oratab 2>/dev/null | /bin/egrep -v \#
+echo "==================================================" 
+echo ""
+echo "*** Current User and Group IDs ***"
+echodo /bin/id
+echo "=================================================="
+echo ""
+echo "*** Current User Group ***"
+echodo groups
+echo "=================================================="
+echo ""
+echo "*** ORACLE_HOME Bin Directory ***"
+cd $ORACLE_HOME/bin
+pwd
+echo "=================================================="
+echo ""
+echo "*** ORACLE Binary File Details ***"
+echodo /bin/ls -l oracle*
+echo "=================================================="
+echo ""
+echo "*** ORACLE_HOME RDBMS Lib Directory ***"
+cd $ORACLE_HOME/rdbms/lib
+pwd
+echo "==================================================="
+echo ""
+echo "*** CONFIG File Details ***"
+echodo /bin/ls -l config.[cso]
+echo "==================================================" 
+echo ""
+echo "*** CONFIG File Contents ***"
+echodo /bin/cat config.[cs]
+echo "==================================================" 
+echo ""
+
+echo "*** Groups Eligible for OS Authentication ***"
+echodo osdbagrp
+echo ""
+echo "=================================================="
+echo ""
+echo "*** ORACLE_HOME SQLNET.ORA Contents ***"
+echodo /bin/cat $ORACLE_HOME/network/admin/sqlnet.ora 2>/dev/null | /bin/egrep -v \#
+echo "=================================================="
+echo ""
+echo "*** TNS_ADMIN SQLNET.ORA Contents ***"
+echodo /bin/cat $TNS_ADMIN/sqlnet.ora  2>/dev/null | /bin/egrep -v \#  2>/dev/null
+echo "=================================================="
+echo ""
+echo "*** Current User's Home SQLNET.ORA Contents ***"
+echodo /bin/cat ~./.sqlnet.ora  2>/dev/null | /bin/egrep -v \#  2>/dev/null
+echo "==================================================="
+echo ""
+echo "*** Current User Password File Details ***"
+/bin/ls -l /etc/passwd
+/bin/egrep `whoami` /etc/passwd
+echo "=================================================="
+echo ""
+echo "*** Current User Group File Details ***"
+/bin/ls -l /etc/group
+for R in `groups`
+do
+   /bin/egrep $R /etc/group
+done
+echo "=================================================="
+echo ""
+echo "*** YPCAT Group ***"
+ypcat group 2>/dev/null
+echo "=================================================="
+echo ""
+echo "*** Group Entry in nsswitch.conf ***"
+/bin/cat /etc/nsswitch.conf | /bin/egrep group | /bin/egrep -v \#
+echo "=================================================="
+echo ""
+echo "*** SQLPlus Details ***"
+# connect as sysdba may fail if sqlplus version unequal to db version
+type sqlplus 
+sqlplus -version
+echo "=================================================="
+echo ""
+
+# check if nscd process runs, this may cause intermittent ora-1031 errors
+# due to bad caching of the group, ref. note 730067.1
+echo "*** Name Service Cache Daemon(nscd)Process ***"
+/bin/ps -ef | /bin/egrep nscd | /bin/egrep -v egrep
+echo "=================================================="
+echo ""
+echo "*** Disk Space Usage for ORACLE_HOME ***"
+echodo /bin/df -k $ORACLE_HOME
+echo "=================================================="
+echo ""
+echo "*** Mount Points with nosuid ***"
+/bin/mount | /bin/egrep nosuid
+echo "=================================================="
+echo ""
+]]>
+     </script>
+      <script type="OS" name="srdc_pwdfile_authent_unix" timeout="120" validfor="" platform="allux" version="">
+<![CDATA[
+instance=$ORACLE_SID
+exec &> "SRDC_PWDFILE_AUTHENT_UNIX_${instance}_$(date +"%Y%m%d_%H%M%S").txt"
+echo "----------------------------------------------------"
+echo "Diagnostic-Name : PWDFILE_AUTHENT_UNIX"
+echo "Machine : $(hostname)"
+echo "Timestamp : $(date +"%Y-%m-%d %H%M%S %Z%:z")"
+echo "Database : $ORACLE_SID"
+echo "-----------------------------------------------------"
+echo ""
+echo "*** ORACLE_SID Environment Variable ***"
+/bin/env | /bin/egrep ORACLE_SID
+echo "=================================================="
+echo ""
+echo "*** ORACLE_HOME dbs Directory ***"
+cd $ORACLE_HOME/dbs
+pwd
+echo "=================================================="
+echo ""
+# expected passwordfile
+echo "*** ORAPW File Details ***"
+echodo /bin/ls -l orapw$ORACLE_SID 2>/dev/null
+echo "=================================================="
+echo ""
+# utlize new 12c describe option (ignore error message in previous versions)
+echo "*** Description of ORAPW File (12c only) ***"
+orapwd describe file=$ORACLE_HOME/dbs/orapw$ORACLE_SID | /bin/egrep Description
+echo "=================================================="
+echo ""
+echo "*** Full ORACLE_HOME/dbs File Listing ***"
+# full dbs listing
+echodo /bin/ls -ltr $ORACLE_HOME/dbs
+echo "=================================================="
+echo ""
+
+# list owner of listener process ref. note 352191.1
+echo ""
+echo "*** Listener Process Details ***"
+/bin/ps -ef | /bin/egrep tnslsnr | /bin/egrep -v egrep
+echo "=================================================="
+echo ""
+
+
+sqlplus /nolog << EOF1
+connect / as sysdba
+set sqlprompt " "
+set sqlnumber off
+set heading on echo off feedback off verify off underline on timing off
+prompt *** Host Name from v\$instance ***
+select host_name "hostname from v\$instance"  from v\$instance;
+prompt ==================================================
+prompt
+prompt *** Database Version, Status, and Role ***
+select VERSION, DATABASE_STATUS, INSTANCE_ROLE from v\$instance;
+prompt ==================================================
+prompt
+prompt *** ORACLE_HOME (from database) *** 
+set serveroutput on
+declare
+    oh varchar2(200);
+begin
+    dbms_system.get_env('ORACLE_HOME',oh);
+    dbms_output.put_line(chr(13)||oh);
+end;
+/
+prompt ==================================================
+prompt
+
+-- list users granted sysdba, sysoper (, sysasm)
+prompt *** REMOTE_LOGIN_PASSWORDFILE Parameter *** 
+show parameter remote_login_passwordfile
+prompt ===================================================
+prompt
+prompt *** LOCAL_LISTENER and REMOTE_LISTENER Parameters ***
+show parameter _listener
+prompt ===================================================
+prompt
+prompt *** List of Users from gv\$pwfile_users ***
+select * from GV\$PWFILE_USERS order by inst_id;
+prompt ==================================================
+prompt
+prompt *** Value of _asmsid Hidden Parameter ***
+col parameter for a10
+col value for a10 
+select x.ksppinm parameter, y.ksppstvl value
+        from   x\$ksppi  x , x\$ksppcv y
+        where  x.indx = y.indx
+        and    x.ksppinm = '_asmsid' 
+       order  by x.ksppinm;
+prompt ==================================================
+prompt
+EOF1
+]]>
+     </script>
+     <script type="OS" name="srdc_os_authent_windows.bat" timeout="120" validfor="" platform="MSWin32" version="">
+        <![CDATA[
+@echo off
+>SRDC_OS_AUTHENT_%ORACLE_SID%_%date:~10,4%-%date:~4,2%-%date:~7,2%_%time:~0,2%%time:~3,2%%time:~6,2%.txt (
+ echo "------------------------------------------"
+ echo "Diagnostic-Name : OS_AUTHENT_WINDOWS"
+ echo Machine : "%COMPUTERNAME%"
+ echo "Time : %date:~10,4%-%date:~4,2%-%date:~7,2% %time:~0,2%:%time:~3,2%:%time:~6,2%"
+ echo "DBName : %ORACLE_SID%"
+ echo "------------------------------------------"
+ echo.
+ echo "*** Current User Details ***"
+ net user %username%
+ echo.
+ echo "*** Local Group Details for ORA_DBA ***"
+ net localgroup ora_dba
+ echo.
+ echo "*** ORACLE_HOME SQLNET.ORA Contents ***"
+ type %ORACLE_HOME%\network\admin\sqlnet.ora
+ echo.
+ echo "*** SQLPlus Details ***"
+ sqlplus -version
+ echo.
+)
+]]>
+     </script>
+     <script type="OS" name="srdc_pwdfile_authent_windows.bat" timeout="120" validfor="" platform="MSWin32" version="">
+        <![CDATA[
+@echo off
+>SRDC_PWD_AUTHENT_WINDOWS_%ORACLE_SID%_%date:~10,4%-%date:~4,2%-%date:~7,2%_%time:~0,2%%time:~3,2%%time:~6,2%.txt (
+ echo ------------------------------------------
+ echo "Diagnostic-Name : PWD_AUTHENT_WINDOWS"
+ echo Machine : "%COMPUTERNAME%"
+ echo "Time : %date:~10,4%-%date:~4,2%-%date:~7,2% %time:~0,2%:%time:~3,2%:%time:~6,2%"
+ echo "DBName : %ORACLE_SID%"
+ echo "------------------------------------------"
+ echo.
+ echo "*** ORACLE_HOME DATABASE Directory ***"
+ cd %ORACLE_HOME%\database
+ dir PWD%ORACLE_SID%.ora
+ echo.
+ echo "*** ORACLE_HOME PWD File Details - 12c only ***"
+ orapwd describe file=%ORACLE_HOME%\database\PWD%ORACLE_SID%.ora
+ echo.
+ )
+]]>
+     </script>
+     <script type="SQLSCRIPT" name="db.sql" timeout="120" validfor="" platform="MSWin32" version=""> </script>
+    </commands>
+    <runtime_flags>
+    </runtime_flags>
+</collection>
+</collections>

@@ -1,0 +1,171 @@
+<?xml version="1.0"?>
+
+<!--  $Header: tfa/src/v2/tfa_home/resources/srdc_emdebugoff.xml /main/6 2018/05/28 15:06:26 bburton Exp $ -->
+
+<!-- 
+ Copyright (c) 2016, 2018, Oracle and/or its affiliates. All rights reserved.
+
+   NAME
+     srdc_emdebugoff.xml - <one-line expansion of the name>
+
+   DESCRIPTION
+     <short description of component this file declares/defines>
+
+   NOTES
+     <other useful comments, qualifications, etc.>
+
+   MODIFIED   (MM/DD/YY)
+   manuegar   12/14/17 - manuegar_em_dbdisc03.
+   recornej   11/29/17 - Migrate opt in default attribute to required attribute
+   manuegar   08/29/17 - manuegar_pmap_disc.
+   manuegar   07/28/17 - manuegar-srdc_xmlparser.
+   manuegar   04/21/17 - manuegar_srdcwin_shared.
+   manuegar   03/23/17 - emsrdc01
+   bburton    03/10/17 - New Format
+   manuegar   01/20/17 - Creation
+
+-->
+<collections>
+<collection id="emdebugoff">
+        <description>SRDC for unsetting EM Debug.</description>
+        <user_inputs>
+            <user_input cmdline="" default="" showprompt="1" setenv="NO" validate="" prompt="Ensure you have run then emdebugon srdc and reproduced the issue. This command will turn the debugging off and collect relevant debug log files. Do you want to continue?">USERINPUT-EMDEBUGON_RAN</user_input>
+            <user_input cmdline="" required="OPT" validfor="EMAGENT" showprompt="1" setenv="NO" validate="" prompt="Enter the value for the EM Target name">USERINPUT-TARGET_DBNAME</user_input>
+            <user_input cmdline="" default="" showprompt="1" setenv="NO" validate="" prompt="Is the EM Repository Database running locally?">USERINPUT-REPODB_LOCAL</user_input> 
+            <user_input cmdline="" required="OPT" showprompt="1" setenv="NO" validate="" prompt="Enter the EM Repository Database Name. You can get the repository connect details from EM using the following navigation: Setup -&gt; Manage Cloud Control -&gt; Health Overview -&gt; Repository Details.">USERINPUT-REPOSITORY_DBNAME</user_input>
+            <user_input cmdline="" required="OPT" showprompt="1" setenv="REPLACE" validate="" prompt="Enter the repvfy path for the EM Repository DB">USERINPUT-REPOSITORY_REPVFY</user_input>
+            <user_input cmdline="" default="" showprompt="1" setenv="REPLACE" validate="" prompt="Enter the ORACLE_HOME for the EM Repository DB">USERINPUT-REPOSITORY_OHOME</user_input>
+            <user_input cmdline="" required="OPT" showprompt="1" setenv="REPLACE" validate="" prompt="Enter the TNS Alias pointing to the the EM Repository DB. Needed to run the repvfy tool.">USERINPUT-REPOSITORY_TNS</user_input>
+            <user_input cmdline="" default="" showprompt="1" setenv="REPLACE" validate="" prompt="Enter the sysman credential for Repository DB">USERINPUT-SYSMAN_PWD</user_input>
+        </user_inputs>
+        <onevents>
+                <event>
+                </event>
+        </onevents>
+        <duration>12h</duration>
+        <clusterwide>no</clusterwide>
+        <filter_files>
+                <types>
+                </types>
+                <filter_file_patterns>
+                    <filter_file_pattern>alert_.*\.log</filter_file_pattern>
+                    <filter_file_pattern>trc</filter_file_pattern>
+                    <filter_file_pattern>log</filter_file_pattern>
+                    <filter_file_pattern>archive\/osw</filter_file_pattern>
+                    <filter_file_pattern>ExaWatcher\/archive</filter_file_pattern>
+                </filter_file_patterns>
+        </filter_files>
+        <components>
+            <component>OS</component>
+        </components>
+        <commands>
+            <script type="OS" name="os_unsetDebugLogOMS" timeout="500" validfor="OMS" platform="allux" version="">
+            export ORACLE_HOME=%EMOMSOHOME%
+            export PATH=$ORACLE_HOME/bin:$PATH
+            emctl set property -name log4j.rootCategory -value 'WARN, emlogAppender, emtrcAppender' -module logging -sysman_pwd "%SYSMAN_PWD%"
+            emctl get property -name log4j.appender.emtrcAppender.File -sysman_pwd "%SYSMAN_PWD%"
+            emctl get property -name log4j.appender.emtrcAppender.File -sysman_pwd "%SYSMAN_PWD%" | cat -v -e -t | grep "Management_Service is" | sed 's/\(SYSMAN\|password\:\|\^H\|\s*\|\$\|\/emoms\.trc\)//g' > out.log
+            export omslogdir=`cat ./out.log | sed 's/.*Management_Serviceis\(.*\)/\1/'`
+            echo $omslogdir
+            rm ./out.log
+            cp $omslogdir/emoms.trc .
+            cp $omslogdir/emoms.log .
+            cp $omslogdir/emctl.log .
+            cp $omslogdir/emoms_pbs.log .
+            cp $omslogdir/emoms_pbs.trc .
+            </script>
+            <script type="OS" name="os_unsetDebugLogOMSWin1" timeout="500" validfor="OMS" platform="MSWin32" version="">
+            set ORACLE_HOME=%EMOMSOHOME%
+            set PATH=%ORACLE_HOME%\bin;%PATH%
+            emctl set property -name log4j.rootCategory -value "WARN, emlogAppender, emtrcAppender" -module logging -sysman_pwd "%SYSMAN_PWD%"
+            </script>
+            <script type="OS" name="os_unsetDebugLogOMSWin2" timeout="500" validfor="OMS" platform="MSWin32" version="">
+            set ORACLE_HOME=%EMOMSOHOME%
+            set PATH=%ORACLE_HOME%\bin;%PATH%
+            emctl get property -name log4j.appender.emtrcAppender.File -sysman_pwd "%SYSMAN_PWD%"
+            </script>
+            <script type="OS" name="os_unsetDebugLogOMSWin3" timeout="500" validfor="OMS" platform="MSWin32" version="">
+            @echo off
+            copy *os_unsetDebugLogOMSWin2.out em.txt
+            for /f "tokens=*" %%f in ('"type em.txt|findstr Management_Service"') do (
+               set var=%%f
+            )
+            :again
+            for /f "tokens=1* delims= " %%a in ("%var%") do (
+                 set val=%%a
+                 set var=%%b
+            )
+            if x%val:emoms=%==x%val% goto again
+            set omslogfile=%val%
+            set omslogdir=%omslogfile:emoms.trc=%
+            del em.txt
+            copy %omslogdir%\emoms.trc .
+            copy %omslogdir%\emoms.log .
+            copy %omslogdir%\emctl.log .
+            copy %omslogdir%\emoms_pbs.log .
+            copy %$omslogdir%\emoms_pbs.trc .
+            </script>
+
+            <script type="OS" name="os_AgentInfo" timeout="500" validfor="EMAGENT" platform="allux" version="">
+            export ORACLE_HOME=%EMAGENTOHOME%
+            export PATH=$ORACLE_HOME/bin:$PATH
+            emctl status agent
+            emctl listplugins agent
+            emctl config agent listtargets
+            </script>
+            <script type="OS" name="os_AgentInfoWin" timeout="500" validfor="EMAGENT" platform="MSWin32" version="">
+            set ORACLE_HOME=%EMAGENTOHOME%
+            set PATH=%ORACLE_HOME%\bin;%PATH%
+            emctl status agent
+            emctl listplugins agent
+            emctl config agent listtargets
+            </script>
+
+            <script type="OS" name="os_unsetDebugLogEMAGENT" timeout="500" validfor="EMAGENT" platform="allux" version="">
+            export ORACLE_HOME=%EMAGENTOHOME%
+            export PATH=$ORACLE_HOME/bin:$PATH
+            emctl setproperty agent -name 'Logger.log.level' -value 'INFO'
+            emctl setproperty agent -name 'EMAGENT_PERL_TRACE_LEVEL' -value 'INFO'
+            cp %EMAGENTIHOME%/sysman/log/gcagent_mdu.log .
+            cp %EMAGENTIHOME%/sysman/log/gcagent.log .
+            cp %EMAGENTIHOME%/sysman/log/gcagent_sdk.trc .
+            cp %EMAGENTIHOME%/sysman/log/emagent_perl.trc .
+            cp %EMAGENTIHOME%/sysman/log/emagent.nohup .
+            cp %EMAGENTIHOME%/sysman/log/emctl.log .
+            cp %EMAGENTIHOME%/sysman/log/emdctlj.log .
+            cp %EMAGENTIHOME%/sysman/log/emd.properties .
+            </script>
+            <script type="OS" name="os_unsetDebugLogEMAGENTWin" timeout="500" validfor="EMAGENT" platform="MSWin32" version="">
+            set ORACLE_HOME=%EMAGENTOHOME%
+            set PATH=%ORACLE_HOME%\bin;%PATH%
+            emctl setproperty agent -name "Logger.log.level" -value "INFO"
+            emctl setproperty agent -name "EMAGENT_PERL_TRACE_LEVEL" -value "INFO"
+            copy %EMAGENTIHOME%\sysman\log\gcagent_mdu.log .
+            copy %EMAGENTIHOME%\sysman\log\gcagent.log .
+            copy %EMAGENTIHOME%\sysman\log\gcagent_sdk.trc .
+            copy %EMAGENTIHOME%\sysman\log\emagent_perl.trc .
+            copy %EMAGENTIHOME%\sysman\log\emagent.nohup .
+            copy %EMAGENTIHOME%\sysman\log\emctl.log .
+            copy %EMAGENTIHOME%\sysman\log\emdctlj.log .
+            copy %EMAGENTIHOME%\sysman\log\emd.properties .
+            </script>
+
+            <script type="OS" name="os_repvfy" timeout="500" validfor="REPVFY" platform="allux" version="">
+            export ORACLE_HOME=%REPOSITORY_OHOME%
+            export PATH=$ORACLE_HOME/bin:$PATH
+            %REPOSITORY_REPVFY%/repvfy -tns %REPOSITORY_TNS% dump target -name %EMTARGETDBNAME% -pwd %SYSMAN_PWD%
+            export repvfylogfile=`ls -alt %REPOSITORY_REPVFY%/../log | grep -i log | head -1 | cut -d " " -f 10`
+            cp %REPOSITORY_REPVFY%/../log/$repvfylogfile .
+            </script>
+<script type="OS" name="os_repvfyWin" timeout="500" validfor="REPVFY" platform="MSWin32" version="">
+            set ORACLE_HOME=%REPOSITORY_OHOME%
+            set PATH=%ORACLE_HOME%\bin;%PATH%
+            %REPOSITORY_REPVFY%\repvfy -tns %REPOSITORY_TNS% dump target -name %EMTARGETDBNAME% -pwd %SYSMAN_PWD%
+            :: set repvfylogfile=`ls -alt %REPOSITORY_REPVFY%/../log | grep -i log | head -1 | cut -d " " -f 10`
+            copy %REPOSITORY_REPVFY%\..\log\%repvfylogfile% .
+            </script>
+        </commands>
+        <runtime_flags>
+        </runtime_flags>
+</collection>
+</collections>

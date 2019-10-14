@@ -1,0 +1,95 @@
+printf("==========START_OF_REPORT_chkExtMirrorProfile.aksh==========\n");
+//
+//
+// This script will check whether the only supported storage pool profile "mirror" is set.
+//
+
+// ----------------------------------------------------------------------------
+// VARS
+
+var founderrors = false; // Track error findings
+var auditcheck = 0;
+var report = 1;
+var runonetime = 1;
+var storage_pool,configuration_cluster;
+var isActive;
+var report_val = "";
+
+// ----------------------------------------------------------------------------
+function checkMirrorProfile() {
+
+    if(clusterExists()) {	
+        // Get to a known context
+        run("cd /");
+
+        // Get the each project and its share size
+        try { 
+            var profileStatus;
+
+            run('cd /');
+            run('configuration cluster');
+            headStatus = safeGet('state');
+            configuration_cluster = run('show');
+            run('cd /');
+
+            pools = getPoolNames();
+            printreport("There are " + pools.length + " pools in this ZFS. \n\n");
+            for (i = 0; i < pools.length; i++) {
+                printreport("Pool name: " + pools[i] + "\n");
+                run('cd /');
+                run('configuration storage');
+                run('set pool=' + pools[i]);
+                checkMirrorProfileOnePool();
+            }
+            run('cd /');
+        }
+        catch(err) {
+            var passive_patt= /not yet configured on the appliance/;
+            if ( passive_patt.test(err) ) {
+                founderrors = false;
+            }
+            if ( report == 1) {
+                printf("An error is caught: \n" + err + "\n");
+            }
+        }
+    }
+    else {
+        founderrors = false;
+    }
+}
+
+// ----------------------------------------------------------------------------
+// MAIN STARTS HERE	
+if(runonetime==1)
+{
+    getHostname();
+    if(!isExalogicNode()) {
+        printreport("OK: " + host_name + " Pool Profile Status Check Completed: Passive Head\n");
+    } else {
+        checkMirrorProfile();
+        runonetime=0;
+        // Report Command
+        if ( report == 1 ) {
+            if ( founderrors == false ) {
+                printf("OK: %s Pool Profile Status Check Completed: Pool profile status of the ZFS storage head is correctly set.\n",host_name);
+            }
+            else {
+                printf("WARNING: %s Pool Profile Status Check Completed: Pool profile status of the ZFS storage head is not correctly set.\n",host_name);
+            }
+        }
+    }
+}
+
+
+//END
+
+printf("==========END_OF_REPORT_chkExtMirrorProfile.aksh==========\n");
+printf("==========START_OF_AUDIT_CHECK_chkExtMirrorProfile.aksh==========\n");
+if ( founderrors == false ) {
+    printf("profile_status_check_status = 0\n");
+}
+else {
+    printf("profile_status_check_status = 1\n");
+}
+
+printf("==========END_OF_AUDIT_CHECK_chkExtMirrorProfile.aksh==========\n");

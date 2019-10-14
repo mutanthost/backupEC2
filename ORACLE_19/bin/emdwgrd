@@ -1,0 +1,239 @@
+#!/bin/sh
+# 
+# $Header: assistants/bin/emdwgrd /main/1 2012/09/27 18:03:17 snimmaku Exp $
+#
+# emdwgrd
+# 
+# Copyright (c) 2007, 2012, Oracle and/or its affiliates. All rights reserved. 
+#
+#    NAME
+#      emdwgrd
+#
+#    DESCRIPTION
+#     Script that saves and restores dbControl information if the database was 
+#     downgraded.  Run this script prior to upgrade to save DB Control 
+#     information.  After downgrading the database run this script again to 
+#     restore the DB Control information.
+#
+#    NOTES
+#      <other useful comments, qualifications, etc.>
+#
+#    MODIFIED   (MM/DD/YY)
+#    idai        09/08/08 - fix bug 7384089 - set LIBPATH for AIX
+#    idai        06/02/08 - fix bug 7131048: remove 10g home version check
+#    sadattaw    12/10/07 - forward merging fixes for NT
+#    rpattabh    04/20/07 - script to downgrade EM DB Control
+#    rpattabh    04/20/07 - Creation
+#
+#
+ARGS="$@"
+
+if [ "$ORACLE_HOME" = "" ] || [ ! -x "$ORACLE_HOME/bin/sqlplus" ]; then
+        echo "Error: please ensure that ORACLE_HOME is set to the source home you upgrade from and the sqlplus utility is present in the home."
+        exit
+fi
+
+#No more overriding of EMDROOT through the environment - see bug 3217672
+#Instead, allow overriding through REMOTE_EMDROOT variable for state only
+#installs
+if [ "$REMOTE_EMDROOT" = "" ];
+then
+  EMDROOT=$ORACLE_HOME
+else
+  EMDROOT=$ORACLE_HOME
+  export REMOTE_EMDROOT
+fi
+
+#
+# Make sure certain environment variables are set 
+#
+PERL_BIN=$ORACLE_HOME/perl/bin
+PERL_HOME=$ORACLE_HOME/perl
+JAVA_HOME=$ORACLE_HOME/jdk
+
+#Unset ORA_NLS_33
+unset ORA_NLS_33
+
+export ORACLE_HOME
+export EMDROOT
+export CONSOLE_CFG
+export PERL_BIN
+export PERL_HOME
+export JAVA_HOME
+
+#Source commonenv settings
+if [ -f $ORACLE_HOME/bin/commonenv ]; then
+. $ORACLE_HOME/bin/commonenv
+fi
+
+# these variables - PERL5LIB and LD_LIBRARY_PATH - are set so that
+# osfetchlets can run correctly
+
+uname=`uname`
+hardware=`uname -m`
+if [ "$uname" = "SunOS" ];
+then
+
+# Set up TZ if not already set, this is done as a workaround
+# for bug in JDK 1.3.1
+  if [ "$TZ" = "" ]
+  then
+    TMPFILE=/tmp/setTZ.sh.$$
+    grep -v "^#" /etc/TIMEZONE | grep TZ > $TMPFILE
+    . $TMPFILE
+    rm $TMPFILE
+  fi
+  export TZ 
+
+elif [ "$uname" = "HP-UX" ]; then
+ 
+# Set up TZ if not already set, this is done as a workaround
+# for bug in JDK 1.3.1
+  if [ "$TZ" = "" ]
+  then
+    TMPFILE=/tmp/setTZ.sh.$$
+    grep -v "^#" /etc/TIMEZONE | grep TZ > $TMPFILE
+    . $TMPFILE
+    rm $TMPFILE
+  fi
+  export TZ
+
+elif [ "$uname" = "Linux" ] ; then
+
+# Set up TZ if not already set, this is done as a workaround
+# for bug in JDK 1.3.1
+  if [ "$TZ" = "" ]
+  then
+    if [ -f $EMDROOT/sysman/admin/supportedtzs.lst ]
+    then 
+	    tzfile=$EMDROOT/sysman/admin/supportedtzs.lst
+    elif [ -f $EMDROOT/sysman/emd/supportedtzs.lst ]
+    then
+	    tzfile=$EMDROOT/sysman/emd/supportedtzs.lst
+    else
+	    tzfile=""
+    fi
+    if [ ! "$tzfile" = "" ]
+    then
+      for i in `/bin/cat $tzfile` ; do
+       if [ -f /usr/share/zoneinfo/${i} ] ; then
+          if [ "`/usr/bin/diff /etc/localtime /usr/share/zoneinfo/${i}`" = "" ] ; then
+             TZ="${i}"
+          fi
+       fi
+      done
+    fi
+    if [ ! "$TZ" = "" ] ; then
+       export TZ
+    fi
+  fi
+
+elif [ "$uname" = "AIX" ]; then
+
+# Set up TZ if not already set, this is done as a workaround
+# for bug in JDK 1.3.1
+  if [ "$TZ" = "" ]
+  then
+    TMPFILE=/tmp/setTZ.sh.$$
+    grep -v "^#" /etc/environment | grep TZ > $TMPFILE
+    . $TMPFILE
+    rm $TMPFILE
+  fi
+  export TZ
+
+fi
+
+PERL5LIB_NATIVE=$ORACLE_HOME/perl/lib:$ORACLE_HOME/perl/lib/site_perl
+PERL5LIB_TMP=${PERL5LIB_NATIVE}:$ORACLE_HOME/perl/libwww-perl/lib:$ORACLE_HOME/perl/ext/POSIX:$ORACLE_HOME/perl/URI:$ORACLE_HOME/perl/HTML_Parser:$ORACLE_HOME/perl/HTML-Parser/lib:$EMDROOT/sysman/admin/scripts:$EMDROOT/bin:$EMDROOT/sysman/admin/scripts/Net-DNS-0.48/lib/:$EMDROOT/sysman/admin/scripts/libnet-1.19/
+
+if [ "$PERL5LIB" = "" ] ;
+then 
+   PERL5LIB=${PERL5LIB_TMP}
+else
+   PERL5LIB=${PERL5LIB_TMP}:${PERL5LIB}
+fi
+
+if [ "$LD_LIBRARY_PATH" = "" ] ; then
+   LD_LIBRARY_PATH=$ORACLE_HOME/lib32:$ORACLE_HOME/lib:$ORACLE_HOME/perl/lib:$EMDROOT/lib32:$EMDROOT/lib:$OUILOC/lib/linux
+else
+   LD_LIBRARY_PATH=$ORACLE_HOME/lib32:$ORACLE_HOME/lib:$ORACLE_HOME/perl/lib:$EMDROOT/lib32:$EMDROOT/lib:$OUILOC/lib/linux:$LD_LIBRARY_PATH
+fi
+
+if [ "$SHLIB_PATH" = "" ] ; then
+   SHLIB_PATH=$ORACLE_HOME/lib32:$ORACLE_HOME/perl/lib:$EMDROOT/lib32:$ORACLE_HOME/lib:$ORACLE_HOME/lib:$OUILOC/lib/linux
+else
+   SHLIB_PATH=$ORACLE_HOME/lib32:$ORACLE_HOME/perl/lib:$EMDROOT/lib32:$ORACLE_HOME/lib:$ORACLE_HOME/lib:$OUILOC/lib/linux:$SHLIB_PATH
+fi
+
+if [ "$LIBPATH" = "" ] ; then
+   LIBPATH=$ORACLE_HOME/lib32:$ORACLE_HOME/perl/lib:$EMDROOT/lib32:$ORACLE_HOME/lib:$OUILOC/lib/linux
+else
+   LIBPATH=$ORACLE_HOME/lib32:$ORACLE_HOME/perl/lib:$EMDROOT/lib32:$ORACLE_HOME/lib:$OUILOC/lib/linux:$LIBPATH
+fi
+
+if [ "$uname" = "AIX" ]; then
+if [ "$LIBPATH" = "" ] ; then
+   LIBPATH=$ORACLE_HOME/lib:$ORACLE_HOME/perl/lib:$EMDROOT/lib32:$ORACLE_HOME/lib:$OUILOC/lib/linux
+else
+   LIBPATH=$ORACLE_HOME/lib:$ORACLE_HOME/perl/lib:$EMDROOT/lib32:$ORACLE_HOME/lib:$OUILOC/lib/linux:$LIBPATH
+fi
+fi
+
+if [ "$DYLD_LIBRARY_PATH" = "" ] ; then
+   DYLD_LIBRARY_PATH=$ORACLE_HOME/lib:$ORACLE_HOME/perl/lib:$EMDROOT/lib:$OUILOC/lib/linux
+else
+   DYLD_LIBRARY_PATH=$ORACLE_HOME/lib:$ORACLE_HOME/perl/lib:$EMDROOT/lib:$OUILOC/lib/linux:$DYLD_LIBRARY_PATH
+fi
+
+# to workaround Solaris2.8 Java thr_suspend hang, use alternate libthread.
+# Since this directory doesn't exist on other versions, this is a noop there.
+#
+if [ "$uname" = "SunOS" ];
+then
+	LD_LIBRARY_PATH=/usr/lib/lwp:$LD_LIBRARY_PATH
+fi
+
+#exporting LIBPATH as LIBPATH_SNMO for bug LIBPATH_SNMO
+LIBPATH_SNMO=${LIBPATH}
+export LIBPATH_SNMO
+#exporting LD_LIBRARY_PATH as LD_LIBRARY_PATH_SNMO for bug 5173504
+LD_LIBRARY_PATH_SNMO=${LD_LIBRARY_PATH}
+export LD_LIBRARY_PATH_SNMO
+
+export PERL5LIB 
+export LD_LIBRARY_PATH
+export SHLIB_PATH
+export LIBPATH
+export DYLD_LIBRARY_PATH
+
+# Add the var for HP
+if [ "$uname" = "HP-UX" ] ; then
+   UNIX95=XPG4;
+   export UNIX95
+fi
+
+#
+# Set path so that our native executables can be found when run from java
+#
+PATH=$EMDROOT/bin:$ORACLE_HOME/jdk/bin:$PATH:$PERL_BIN
+export PATH
+
+# use ulimit to make sure we have enough descriptors
+
+if [ "$EM_DESCRIPTORS" = "" ]
+then
+   EM_DESCRIPTORS=1024
+fi
+
+CURRENT_LIMIT=`ulimit -n`
+
+if [ "$CURRENT_LIMIT" != "unlimited" ]
+then
+   if [ $CURRENT_LIMIT -lt $EM_DESCRIPTORS ]
+   then
+      ulimit -n $EM_DESCRIPTORS
+   fi
+fi
+
+# Execute the emdwgrd.pl
+$PERL_BIN/perl ${0}.pl $ARGS

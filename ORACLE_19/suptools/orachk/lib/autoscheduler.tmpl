@@ -1,0 +1,140 @@
+#!/bin/env python
+from __future__ import print_function, unicode_literals
+import platform
+import time
+import os
+import re
+import sys
+IMPORTEDIT
+from lib.utils import Utils
+from lib.constant import Constants
+import lib.logger
+if platform.system() != 'Windows':
+    import pexpect
+else:
+    import winpexpect as pexpect
+from io import open
+#===========================================================
+_env = {}
+for _envname, _envval in os.environ.items():
+  if re.search(r'^RAT', _envname):
+      _env[_envname] = _envval
+#===========================================================
+
+ENVEDIT
+
+#===========================================================
+for key,val in _env.items():
+        os.environ[key] = val
+
+#===========================================================
+class Pexpect_Daemon(Utils):
+    def __init__(self, arg_logger = None, logfile = os.path.basename(__file__).split('.', 1)[0] + '.log', loglevel = 'DEBUG', logconf_file = os.path.basename(__file__).split('.', 1)[0] + '.cfg', nologger = False):
+
+        if nologger is True: logfile = Constants.DNUL
+        if arg_logger is None:
+            self.logfile = logfile
+            self.loglevel = loglevel
+            self.logconf_file = logconf_file
+            if Constants.LOGFILE is not None: self.logfile = Constants.LOGFILE
+            if Constants.LOGLEVEL is not None: self.loglevel = Constants.LOGLEVEL
+            if Constants.LOGCONF_FILE is not None: self.logconf_file = Constants.LOGCONF_FILE
+
+            self.logger = lib.logger.Log()
+            self.logger = self.logger.set_logger(self.__module__, self.logfile, self.loglevel, self.logconf_file)
+        else:
+            self.logger = arg_logger
+        super(Pexpect_Daemon, self).__init__(self.logger)
+        self.ques_key_dict = QUESTIONSEDIT
+
+    def pexpect_send(self):
+        cmd_args = os.environ.get('SYSARGS')
+        os.environ['PERL5LIB'] = self.catdir(os.environ.get("RAT_SCRIPTPATH"), "lib")
+        os.environ['RAT_CLIENT_RUN'] = "1"
+        id = os.environ.get('AUTORUN_ID')
+
+        questions_list = list(self.ques_key_dict.keys())
+        wallet_keys = list(self.ques_key_dict.values())
+
+        Constants.DAEMON_LOG = self.catfil(os.environ.get('RAT_OUTPUT'), "{program_name}_daemon.log".format(program_name = os.environ.get('program_name')))
+
+        client_script_path = self.catfil(os.environ.get("RAT_SCRIPTPATH"), "{program_name}".format(program_name = os.environ.get('program_name')))
+        task = "{client_script_path} {cmd_args} -nodaemon 2>&1".format(client_script_path = client_script_path, cmd_args = cmd_args)
+        child = pexpect.spawnu('sh', ['-c' , task])  # Alternate way to spawn task
+
+        with open (self.catfil(os.path.dirname(__file__), 'client.pid'), 'a', encoding = Constants.PYENCODING) as client_pid:
+            client_pid.write(str(child.pid))
+            client_pid.write('\n')
+
+        if os.environ.get('AUTORUN') == "1":
+            with open (self.catfil(os.path.dirname(__file__), '{id}_current_client.pid'.format(id = id)), 'w', encoding = Constants.PYENCODING) as client_pid:
+                client_pid.write(str(child.pid))
+            CRLOG = open(self.catfil(os.path.dirname(__file__), 'client_run_{0}.log'.format(child.pid)), 'w', encoding = Constants.PYENCODING)
+            child.logfile_read = CRLOG
+            # Using logfile_read in place of logfile is useful to not print password on screen on in log file
+        else:
+            child.logfile_read = sys.stdout
+        # child.setecho(False)
+        question = ''
+        _track_prompts_in_debug = {}
+        for loop_index in range(0, 500):
+            try:
+                child.timeout = Constants.CLIENTRUN_TIMEOUT
+                # pprompt = child.expect(questions_list)
+                pprompt = child.expect_exact(questions_list)
+                # print child.before
+                # print child.after
+                # client run in debug mode prints queries more than once.
+                
+                # not printing debug on screen so below code is not required...
+                #if os.environ.get('RAT_SCRIPT_DEBUG'):
+                #	if pprompt not in _track_prompts_in_debug:
+                #		_track_prompts_in_debug[pprompt] = 1
+                #		continue
+                wallet_key = str(wallet_keys[pprompt])
+
+                [wallet_value, rcode] = self.get_env_from_wallet(wallet_key)
+                if rcode is True:
+                    child.sendline(wallet_value)
+                else:
+                    # print wallet_value
+                    break
+
+            except KeyboardInterrupt as ke:
+                break
+            except pexpect.EOF as err:
+                if child.exitstatus == 7:
+                    if os.path.exists(self.catfil(os.path.dirname(__file__), "failed_{id}.run".format(id = id))):
+                        with open (self.catfil(os.path.dirname(__file__), "failed_{id}.run".format(id = id)), 'r', encoding = Constants.PYENCODING) as failed_run:
+                            question = failed_run.readline()
+
+                    if os.environ.get('AUTORUN') == "1":
+                        pass
+                    else:
+                        if os.path.exists(self.catfil(os.path.dirname(__file__), "failed_{id}.run".format(id = id))):
+                            os.remove(self.catfil(os.path.dirname(__file__), "failed_{id}.run".format(id = id)))
+                        print(self.get_msg('n766_mid', program_name = os.environ.get('program_name'), question = question))
+                    with open(Constants.DAEMON_LOG, "a", encoding = Constants.PYENCODING) as daemon_log:
+                        daemon_log.write('[{stop_time} ] {msg}'.format(stop_time = time.strftime("%Y-%m-%d %H:%M:%S"), msg = self.get_msg('n766_mid', program_name = os.environ.get('program_name'), question = question)))
+                        daemon_log.write('\n')
+                    break
+
+            except Exception as ex:
+                if type(ex).__name__ == "TIMEOUT":
+                    if os.path.exists(self.catfil(os.path.dirname(__file__), "failed_{id}.run".format(id = id))):
+                        with open (self.catfil(os.path.dirname(__file__), "failed_{id}.run".format(id = id)), 'r', encoding = Constants.PYENCODING) as failed_run:
+                            question = failed_run.readline()
+                    if os.environ.get('AUTORUN') == "1":
+                        pass
+                    else:
+                        if os.path.exists(self.catfil(os.path.dirname(__file__), "failed_{id}.run".format(id = id))):
+                            os.remove(self.catfil(os.path.dirname(__file__), "failed_{id}.run".format(id = id)))
+                        print(self.get_msg('n766_mid', program_name = os.environ.get('program_name'), question = question))
+                        with open(Constants.DAEMON_LOG, "a", encoding = Constants.PYENCODING) as daemon_log:
+                            daemon_log.write('[{stop_time} ] {msg}'.format(stop_time = time.strftime("%Y-%m-%d %H:%M:%S"), msg = self.get_msg('n766_mid', program_name = os.environ.get('program_name'), question = question)))
+                            daemon_log.write('\n')
+                    break
+                #print e
+#===========================================================
+p_obj = Pexpect_Daemon(nologger = True);
+p_obj.pexpect_send()

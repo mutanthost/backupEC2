@@ -1,0 +1,34 @@
+<?xml version="1.0"?>
+
+<!--  $Header: tfa/src/v2/ext/dbglevel/profiles/gns_problem.xml /main/1 2016/04/17 23:45:02 bibsahoo Exp $ -->
+
+<!-- 
+ Copyright (c) 2016, Oracle and/or its affiliates. All rights reserved.
+
+   NAME
+     gns_problem.xml - <one-line expansion of the name>
+
+   DESCRIPTION
+     <short description of component this file declares/defines>
+
+   NOTES
+     <other useful comments, qualifications, etc.>
+
+   MODIFIED   (MM/DD/YY)
+   bibsahoo    04/06/16 - Creation
+
+-->
+<profile name="gns_problem" description="For debugging GNS problems if directed by Oracle Support" type="default" timeout="5m">
+<change>
+<command>crsctl</command>
+<command_location>GI_HOME</command_location>
+<command_type>resource</command_type>
+<daemon>ora.gns</daemon>
+<module>ora.gns</module>
+<set>5</set>
+<unset>1</unset>
+</change>
+</profile>
+
+
+

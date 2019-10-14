@@ -1,0 +1,105 @@
+printf("==========START_OF_REPORT_chkCluster.aksh==========\n");
+//
+// Name: chkCluster.aksh
+// Author: Jim Stewart
+//
+// Usage: ssh user@appliance < chkCluster.aksh
+//
+// Purpose: Check for cluster problems
+//          
+// ----------------------------------------------------------------------------
+
+	// To Enable Debug set to 1 to disable set 0
+	var DEBUG = 0;
+
+	//Appliance Vars
+	var message = "configuration cluster links";
+	var founderrors = false; // This flag is set true if any error is found
+	var auditcheck = 0;
+	var report = 1;
+        var runonetime = 1;
+
+//-----------------------------------------------------------------------------
+// CHECK CLUSTER LINKS
+function clusterLinks() {
+	var devices = cluster.listDevices();
+	if (devices != null && 
+		devices.devs != null && 
+		devices.devs.length > 0 &&
+		devices.devs[0].links != null &&
+		devices.devs[0].links.length == 3) {	
+		for(i=0; i < 3; i++) {
+			clusterlink=devices.devs[0].links[i].state;
+			clusterlinkname=devices.devs[0].links[i].name;
+			if ( clusterlink != "AKCIOS_ACTIVE" ) {
+				if ( report == 1) {
+					printf("ERROR: %s CLUSTER LINK: %s NOT ACTIVE\n",host_name,clusterlinkname);
+				}
+				founderrors=true;
+			}
+			if ( DEBUG ) {printf("DEBUG: %s CLUSTER LINK: %s STATE: %s\n", host_name,clusterlinkname,clusterlink); }
+		}
+	}
+}
+
+//-----------------------------------------------------------------------------
+function clusterState() {
+	run('cd /');
+	run('configuration cluster');
+	mystate=safeGet('state');
+	message=run('links');
+	peerstate=safeGet('peer_state');
+	if ( mystate != 'AKCS_CLUSTERED' ) {
+		if ( mystate == 'AKCS_OWNER' ) {
+			if ( report == 1) {
+				//printf("INFO: %s CLUSTER: FAILOVER - THIS NODE OWNS ALL CLUSTER RESOURCES\n",host_name);
+			}
+			//founderrors=true;
+		}
+		if ( mystate == 'AKCS_STRIPPED' ) {
+			if ( peerstate == 'AKCS_OWNER' ) {
+				if ( report == 1) {
+					//printf("INFO: %s CLUSTER: FAILOVER - THIS NODE IS STRIPPED\n",host_name);
+				}
+			} else {
+				if ( report == 1) {
+            		printf("ERROR: %s CLUSTER: FAILOVER - NO ONE OWNS THE RESOURCES!\n",host_name);
+         			founderrors=true;
+				}
+         }
+		}
+	} else {
+		if ( DEBUG ) {printf("DEBUG: %s CLUSTER: OK\n",host_name); }
+	}
+}
+
+
+//-----------------------------------------------------------------------------
+// MAIN STARTS HERE
+if(runonetime==1) {
+	if(clusterExists()) {
+		getHostname();
+		clusterLinks();
+		clusterState();
+		runonetime=0;
+		printf("configuration cluster links:\n %s", message);
+	}
+	else {
+		founderrors = false;
+	}
+}
+// Report Command
+if ( report == 1 ) {
+	if ( founderrors == false ) { 
+    	printf("OK: %s Cluster Check Completed: No Errors Found\n",host_name); 
+	}
+}
+printf("==========END_OF_REPORT_chkCluster.aksh==========\n");
+printf("==========START_OF_AUDIT_CHECK_chkCluster.aksh==========\n");
+if ( founderrors == false ) { 
+    	printf("cluster_check_status = 0\n"); 
+}
+else {
+	printf("cluster_check_status = 1\n");
+}
+printf("==========END_OF_AUDIT_CHECK_chkCluster.aksh==========\n");

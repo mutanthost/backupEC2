@@ -1,0 +1,377 @@
+:
+#
+# $Header: network_src/utl/adapters.sh.pp /main/43 2018/06/12 02:50:28 adadhich Exp $
+#
+# Find which protocol adapters, security products and naming adapters
+# are installed and echo results to STDOUT. 
+# Invoked without an argument, this utility looks at
+# both ntcontab.o and libn9.a for sane installation of pa's.
+# Invoked with one argument, this utility returns which pa's
+# are actually linked in with an executable.
+#
+# syntax: adapters <executable>
+if [ "$ORACLE_TRACE" ]; then
+  set -x
+fi
+COMMAND="nm"
+##################################
+NAME=`uname -m`
+if [ "$NAME" = "ia64" ] ; then
+    SO_EXT=so
+else
+SO_EXT=so
+fi
+##################################
+if [ "x$1" = "x-64" ] ; then
+        LIBDIR=lib64
+else
+        LIBDIR=lib
+fi
+VER=19
+LIBPATH=$ORACLE_HOME/$LIBDIR
+NAMING_TITLE="Oracle Net naming methods"
+TRANSPORT_TITLE="Oracle Net transport protocols"
+SECURITY_TITLE="Oracle Advanced Security options"
+TRANSPORTS="us beq tcp tcps spx dec dce lu62 itcp ispx nmp raw sdp exadirect"
+TtoINI="us:ntusini tcp:nttini beq:ntpini tcps:ntzini spx:ntsini dec:ntdini dce:ntodrini lu62:ntlini itcp:ntitini ispx:ntsini nmp:ntnini raw:ntrini sdp:nttsdpini exadirect:ntmqini"
+TtoBAS="us:ntus tcp:ntt beq:ntp tcps:ntz spx:nts dec:ntd dce:ntodr lu62:ntl itcp:ntit ispx:ntis nmp:ntn raw:ntr sdp:ntt exadirect:ntmq"
+TtoNAM="us:IPC tcp:TCP/IP beq:BEQ tcps:SSL spx:SPX dec:DECNet dce:DCE lu62:LU6.2 itcp:TLI/TCP ispx:TLI/SPX nmp:NamedPipes raw:RAW sdp:SDP/IB exadirect:ExaDirect"
+TtoLIB="us:us tcp:tcp tcps:tcps spx:spx dec:dec dce:dce lu62:lu62 itcp:tlit ispx:tlis nmp:nmp beq:beq sdp:tcp raw: exadirect:tmq"
+# NOTE: Raw uses libn9.
+NATIVE="tns ldap host nis nds cds"
+NtoBAS="tns:nnft nis:nnfy cds:nnfd nds:nnfn ldap:nnfl host:nnfh"
+NtoLIB="tns:tns nis:nis cds:cds nds:nds ldap:ldap host:host"
+NtoNAM="tns:Local~Naming~(tnsnames.ora) nis:NIS~Naming cds:DCE/CDS~Naming nds:NDS~Naming ldap:Oracle~Directory~Naming host:Oracle~Host~Naming"
+NAETAB="$ORACLE_HOME/$LIBDIR/naeet.o $ORACLE_HOME/$LIBDIR/naect.o"
+NAUTAB="$ORACLE_HOME/$LIBDIR/nautab.o"
+if test $# -lt 1
+then
+NTCONTAB=$ORACLE_HOME/$LIBDIR/ntcontab.o
+NTCONTABC=$ORACLE_HOME/network/$LIBDIR/ntcontab.c
+NNFGT=$ORACLE_HOME/$LIBDIR/nnfgt.o
+NNFGTC=$ORACLE_HOME/network/$LIBDIR/nnfgt.c
+LIBNET="libn${VER}"
+LIBNETPATH=${LIBPATH}/${LIBNET}
+if [ ! -r $NTCONTAB ] ; then
+  echo "No ntcontab.o! Goodbye..."
+  exit 0
+fi
+for T in $TRANSPORTS; do
+  LIB=`echo ${TtoLIB}  | sed 's/ /\\
+/g' | grep "^${T}:" | awk -F: '{print $2}'`
+done
+for N in $NATIVE; do
+  LIB=`echo ${NtoLIB}  | sed 's/ /\\
+/g' | grep "^${N}:" | awk -F: '{print $2}'`
+done
+#
+# Adapter entry points should appear twice in libn9.a --
+# once from ntcontab.o, and once for the actual entry point
+#
+	 
+echo ""
+echo "Installed ${TRANSPORT_TITLE} are:"
+echo ""
+for T in $TRANSPORTS; do
+  INI=`echo ${TtoINI}  | sed 's/ /\\
+/g' | grep "^${T}:" | awk -F: '{print $2}'`
+  BAS=`echo ${TtoBAS} | sed 's/ /\\
+/g' | grep "^${T}:" | awk -F: '{print $2}'`
+  NAM=`echo ${TtoNAM} | sed 's/ /\\
+/g' | grep "^${T}:" | awk -F: '{print $2}'`
+  LIB=`echo ${TtoLIB}  | sed 's/ /\\
+/g' | grep "^${T}:" | awk -F: '{print $2}'`
+  
+  if [ -z "${LIB}" ] ; then
+    NUMENTRIES=2
+  else
+    NUMENTRIES=1
+  fi
+  if [ "`$COMMAND $NTCONTAB | grep ${INI}  2> /dev/null`" != "" ] ; then
+    entrypoint=`$COMMAND ${LIBPATH}/libn${LIB}${VER}.* 2> /dev/null | grep ${INI}  2> /dev/null | wc | awk '{ print $1 }'`
+    if [ $entrypoint -ge ${NUMENTRIES} ] ; then
+      echo "    ${NAM}"
+    else
+      if [ "X`echo ${NAM} |grep -i spx`" = "X" ]; then
+        echo "   Error!!! ${NAM} is not completely installed!"
+        echo "   Present in ntcontab.o, but missing from libn${LIB}${VER}..."
+      fi
+    fi
+  else
+    if [ "`$COMMAND ${LIBPATH}/libn${LIB}${VER}.* 2> /dev/null | grep ${INI} 2> /dev/null`" != "" ] ; then
+      echo "   Error!!! ${NAM} is not completely installed!"
+      echo "   Present in libn${LIB}${VER}, but missing from ntcontab.o..."
+    fi
+  fi
+done
+#
+# OSI
+#
+if [ "`$COMMAND $NTCONTAB 2> /dev/null | grep ntio4ini  2> /dev/null`" != "" ] ; then
+    entrypoint=`$COMMAND $LIBNETPATH.* 2> /dev/null | grep ntio4ini  2> /dev/null | wc | awk '{ print $1 }'`
+    if [ $entrypoint -ge 2 ] ; then 
+            echo "    OSI"
+    else
+	    echo "   Error!!!   OSI Protocol is not completely installed!"
+	    echo "   Adapter present in ntcontab.o, but missing from $LIBNET..."
+    fi
+else
+    if [ "`$COMMAND $LIBNETPATH.* 2> /dev/null | grep ntio4ini  2> /dev/null`" != "" ] ; then
+	echo "   Error!!!   OSI Protocol is not completely installed!"
+	echo "   Adapter present in $LIBNET, but missing from ntcontab.o..."
+    fi
+fi
+#
+# AppleTalk
+#
+if [ "`$COMMAND $NTCONTAB 2> /dev/null | grep ntatini 2> /dev/null`" != "" ] ; then
+    entrypoint=`$COMMAND $LIBNETPATH.* 2> /dev/null | grep ntatini 2> /dev/null | wc | awk '{ print $1 }'`
+    if [ $entrypoint -ge 2 ] ; then 
+      echo "    AppleTalk"
+    else
+      echo "   Error!!!   AppleTalk Protocol is not completely installed!"
+      echo "   Adapter present in ntcontab.o, but missing from $LIBNET..."
+    fi
+else
+    if [ "`$COMMAND $LIBNETPATH.* 2> /dev/null | grep ntatini 2> /dev/null`" != "" ] ; then
+	echo "   Error!!!   AppleTalk Protocol is not completely installed!"
+	echo "   Adapter present in $LIBNET, but missing from ntcontab.o..."
+    fi
+fi
+echo ""
+echo "Installed ${NAMING_TITLE} are:"
+echo ""
+for N in $NATIVE; do
+  BAS=`echo ${NtoBAS} | sed 's/ /\\
+/g' | grep "^${N}:" | awk -F: '{print $2}'`
+  NAM=`echo ${NtoNAM} | sed 's/ /\\
+/g' | grep "^${N}:" | awk -F: '{print $2}' | sed 's/\~/ /g'`
+  LIB=`echo ${NtoLIB}  | sed 's/ /\\
+/g' | grep "^${N}:" | awk -F: '{print $2}'`
+  entries1=`$COMMAND ${LIBPATH}/libn${LIB}${VER}.* 2> /dev/null  | grep ${BAS}boot  2> /dev/null | wc | awk '{ print $1 }'`
+ 
+  if [ -z "${LIB}" ] ; then
+    entries2=0
+  else
+      entries2=`$COMMAND ${LIBPATH}/libn${LIB}${VER}.* 2> /dev/null |grep ${BAS}boot  2> /dev/null | wc | awk '{ print $1 }'`
+  fi
+  tot_entries=`expr $entries1 + $entries2`
+  if [ $tot_entries -ge 2 ] ; then 
+    echo "    $NAM"
+  else
+    if [ $entries2 -eq 1 ] ; then 
+      echo "   Error!!!   ${NAM} is not completely installed!"
+      echo "   Adapter present in nnfgt.o, but missing from libn${LIB}${VER}..."
+    fi 
+    if [ $entries1 -eq 1 ] ; then 
+      echo "   Error!!!   ${NAM} is not completely installed!"
+    fi
+  fi
+done
+echo ""
+echo "Installed ${SECURITY_TITLE} are:"
+echo ""
+ 
+#
+# Oracle Advanced Security
+#
+if [ "`$COMMAND $NAETAB  2> /dev/null | grep naereni  2> /dev/null`" != "" ] ; then
+    echo "    RC4 40-bit encryption"
+fi
+if [ "`$COMMAND $NAETAB 2> /dev/null | grep naeren56i  2> /dev/null`" != "" ] ; then
+    echo "    RC4 56-bit encryption"
+fi
+if [ "`$COMMAND $NAETAB 2> /dev/null | grep naeren128i 2> /dev/null`" != "" ] ; then
+    echo "    RC4 128-bit encryption"
+fi
+if [ "`$COMMAND $NAETAB 2> /dev/null  | grep naeren256i 2> /dev/null`" != "" ] ; then
+    echo "    RC4 256-bit encryption"
+fi
+if [ "`$COMMAND $NAETAB 2> /dev/null  | grep naed4ci 2> /dev/null`" != "" ] ; then
+    echo "    DES40 40-bit encryption"
+fi
+if [ "`$COMMAND $NAETAB 2> /dev/null | grep naed5ci 2> /dev/null`" != "" ] ; then
+    echo "    DES 56-bit encryption"
+fi
+if [ "`$COMMAND $NAETAB 2> /dev/null | grep naed112ci 2> /dev/null`" != "" ] ; then
+    echo "    3DES 112-bit encryption"
+fi
+if [ "`$COMMAND $NAETAB 2> /dev/null | grep naed168ci 2> /dev/null`" != "" ] ; then
+    echo "    3DES 168-bit encryption"
+fi
+if [ "`$COMMAND $NAETAB 2> /dev/null | grep naea128i  2> /dev/null`" != "" ] ; then
+    echo "    AES 128-bit encryption"
+fi
+if [ "`$COMMAND $NAETAB 2> /dev/null | grep naea192i  2> /dev/null`" != "" ] ; then
+    echo "    AES 192-bit encryption"
+fi
+if [ "`$COMMAND $NAETAB 2> /dev/null | grep naea256i 2> /dev/null`" != "" ] ; then
+    echo "    AES 256-bit encryption"
+fi
+if [ "`$COMMAND $NAETAB 2> /dev/null | grep naemd5i 2> /dev/null`" != "" ] ; then
+    echo "    MD5 crypto-checksumming"
+fi
+if [ "`$COMMAND $NAETAB 2> /dev/null | grep naeshai  2> /dev/null`" != "" ] ; then
+    echo "    SHA crypto-checksumming (for FIPS)"
+fi
+if [ "`$COMMAND $NAETAB 2> /dev/null | grep naesh1i  2> /dev/null`" != "" ] ; then
+    echo "    SHA-1 crypto-checksumming"
+fi
+if [ "`$COMMAND $NAUTAB 2> /dev/null | grep nauk5akerberos  2> /dev/null`" != "" ] ; then
+    echo "    Kerberos v5 authentication"
+fi
+if [ "`$COMMAND $NAUTAB 2> /dev/null | grep nauradius  2> /dev/null`" != "" ] ; then
+    echo "    RADIUS authentication"
+fi
+if [ "`${COMMAND} $LIBPATH/libnnzentr${VER}.${SO_EXT} 2> /dev/null | grep nztwvelogin 2> /dev/null`" != "" ] ; then
+    echo "    ENTRUST authentication"
+fi
+elif test $# -eq 1
+then
+EXECUTABLE=$1
+if [ ! -x $EXECUTABLE ] ; then
+	echo "Executable does not exist! Goodbye..."
+	exit 0
+fi
+   
+echo ""
+echo "${TRANSPORT_TITLE} linked with $EXECUTABLE are:"
+echo ""
+# IPC
+if [ "`$COMMAND $EXECUTABLE 2> /dev/null | grep ntusini  2> /dev/null`" != "" ] ; then
+    echo "    IPC"
+fi
+# Named Pipes
+if [ "`$COMMAND $EXECUTABLE 2> /dev/null | grep ntnini  2> /dev/null`" != "" ] ; then
+    echo "    Named Pipes"
+fi
+# Bequeath
+if [ "`$COMMAND $EXECUTABLE 2> /dev/null | grep ntpini  2> /dev/null`" != "" ] ; then
+    echo "    BEQ"
+fi
+# TCP/IP
+if [ "`$COMMAND $EXECUTABLE 2> /dev/null | grep nttini  2> /dev/null`" != "" ] ; then
+    echo "    TCP/IP"
+fi
+# SSL
+if [ "`$COMMAND $EXECUTABLE 2> /dev/null | grep ntzini 2> /dev/null`" != "" ] ; then
+    echo "    SSL"
+fi
+# SDP/IB
+if [ "`$COMMAND $EXECUTABLE 2> /dev/null | grep nttsdpini 2> /dev/null`" != "" ] ; then
+    echo "    SDP/IB"
+fi
+# ExaDirect
+if [ "`$COMMAND $EXECUTABLE 2> /dev/null | grep ntmqini  2> /dev/null`" != "" ] ; then
+    echo "    ExaDirect"
+fi
+# RAW
+if [ "`$COMMAND $EXECUTABLE 2> /dev/null  | grep ntrini  2> /dev/null`" != "" ] ; then
+    echo "    RAW"
+fi
+# Async
+if [ "`$COMMAND $EXECUTABLE 2> /dev/null | grep ntasgini  2> /dev/null`" != "" ] ; then
+    echo "    Async"
+fi
+# DECNet
+if [ "`$COMMAND $EXECUTABLE 2> /dev/null | grep ntidini  2> /dev/null`" != "" ] ; then
+    echo "    DECnet"
+fi
+# SPX/IPX
+if [ "`$COMMAND $EXECUTABLE 2> /dev/null | grep ntsini  2> /dev/null`" != "" ] ; then
+    echo "    SPX/IPX"
+fi
+# OSI
+if [ "`$COMMAND $EXECUTABLE 2> /dev/null | grep ntio4ini  2> /dev/null`" != "" ] ; then
+    echo "    OSI"
+fi
+# LU6.2
+if [ "`$COMMAND $EXECUTABLE 2> /dev/null | grep ntlini  2> /dev/null`" != "" ] ; then
+    echo "    LU6.2"
+fi
+# Banyan
+if [ "`$COMMAND $EXECUTABLE 2> /dev/null | grep ntvini  2> /dev/null`" != "" ] ; then
+    echo "    Banyan"
+fi
+# AppleTalk
+if [ "`$COMMAND $EXECUTABLE 2> /dev/null  | grep ntatini  2> /dev/null`" != "" ] ; then
+    echo "    AppleTalk"
+fi
+# DCE
+if [ "`$COMMAND $EXECUTABLE 2> /dev/null | grep ntodrini  2> /dev/null`" != "" ] ; then
+    echo "    DCE"
+fi
+echo ""
+echo "${NAMING_TITLE} linked with $EXECUTABLE are:"
+echo ""
+# Naming Methods
+for N in ${NATIVE}; do
+  BAS=`echo ${NtoBAS} | sed 's/ /\\
+/g' | grep "^${N}:" | awk -F: '{print $2}'`
+  NAM=`echo ${NtoNAM} | sed 's/ /\\
+/g' | grep "^${N}:" | awk -F: '{print $2}' | sed 's/\~/ /g'`
+  if [ "`$COMMAND $EXECUTABLE 2> /dev/null | grep ${BAS}boot  2> /dev/null`" != "" ] ; then
+    echo "    ${NAM}"
+  fi
+done
+#
+# Oracle Advanced Security
+#
+echo ""
+echo "${SECURITY_TITLE} linked with $EXECUTABLE are:"
+echo ""
+if [ "`$COMMAND $NAETAB 2> /dev/null | grep naereni  2> /dev/null`" != "" ] ; then
+    echo "    RC4 40-bit encryption"
+fi
+if [ "`$COMMAND $NAETAB 2> /dev/null | grep naeren56i  2> /dev/null`" != "" ] ; then
+    echo "    RC4 56-bit encryption"
+fi
+if [ "`$COMMAND $NAETAB  2> /dev/null | grep naeren128i  2> /dev/null`" != "" ] ; then
+    echo "    RC4 128-bit encryption"
+fi
+if [ "`$COMMAND $NAETAB 2> /dev/null | grep naeren256i 2> /dev/null`" != "" ] ; then
+    echo "    RC4 256-bit encryption"
+fi
+if [ "`$COMMAND $NAETAB 2> /dev/null | grep naed4ci 2> /dev/null`" != "" ] ; then
+    echo "    DES40 40-bit encryption"
+fi
+if [ "`$COMMAND $NAETAB 2> /dev/null | grep naed5ci  2> /dev/null`" != "" ] ; then
+    echo "    DES 56-bit encryption"
+fi
+if [ "`$COMMAND $NAETAB 2> /dev/null| grep naed112ci  2> /dev/null`" != "" ] ; then
+    echo "    3DES 112-bit encryption"
+fi
+if [ "`$COMMAND $NAETAB 2> /dev/null | grep naed168ci  2> /dev/null`" != "" ] ; then
+    echo "    3DES 168-bit encryption"
+fi
+if [ "`$COMMAND $NAETAB 2> /dev/null | grep naea128i  2> /dev/null`" != "" ] ; then
+    echo "    AES 128-bit encryption"
+fi
+if [ "`$COMMAND $NAETAB 2> /dev/null | grep naea192i  2> /dev/null`" != "" ] ; then
+    echo "    AES 192-bit encryption"
+fi
+if [ "`$COMMAND $NAETAB 2> /dev/null | grep naea256i  2> /dev/null`" != "" ] ; then
+    echo "    AES 256-bit encryption"
+fi
+if [ "`$COMMAND $NAETAB 2> /dev/null | grep naemd5i 2> /dev/null`" != "" ] ; then
+    echo "    MD5 crypto-checksumming"
+fi
+if [ "`$COMMAND $NAETAB 2> /dev/null | grep naeshai  2> /dev/null`" != "" ] ; then
+    echo "    SHA crypto-checksumming (for FIPS)"
+fi
+if [ "`$COMMAND $NAETAB  2> /dev/null | grep naesh1i  2> /dev/null`" != "" ] ; then
+    echo "    SHA-1 crypto-checksumming"
+fi
+if [ "`$COMMAND $NAUTAB 2> /dev/null  | grep nauk5akerberos  2> /dev/null`" != "" ] ; then
+    echo "    Kerberos v5 authentication"
+fi
+if [ "`$COMMAND $NAUTAB 2> /dev/null | grep nauradius 2> /dev/null`" != "" ] ; then
+     echo "    RADIUS authentication"
+fi
+if [ "`${COMMAND} $LIBPATH/libnnzentr${VER}.${SO_EXT} 2> /dev/null | grep nztwvelogin  2> /dev/null`" != "" ] ; then
+     echo "    ENTRUST authentication"
+fi
+else
+    echo "usage: adapters <executable>"
+    exit 1 
+fi

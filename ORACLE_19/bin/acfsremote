@@ -1,0 +1,36 @@
+#!/bin/sh
+#
+# acfsremote
+# 
+# Copyright (c) 2016, Oracle and/or its affiliates. All rights reserved.
+#
+#    NAME
+#      acfsremote - front end for the Perl script that does the work.
+#
+#    DESCRIPTION
+#      Purpose
+#          ACFS Remote specific commands.
+#
+#    NOTES
+#
+
+if [ ! -d "$ADE_VIEW_ROOT" ] ; then
+  BASE=`dirname $0`
+  cd $BASE
+  ORACLE_HOME=`pwd`
+  if [ `basename $ORACLE_HOME` = 'bin' ] ; then
+    # usm_root lives in $ORACLE_HOME/bin - lose the trailing '/bin'.
+    ORACLE_HOME=`dirname $ORACLE_HOME`
+    ORA_CRS_HOME=$ORACLE_HOME
+  fi
+fi
+
+export ORACLE_HOME ORA_CRS_HOME
+
+CMDNAME=acfsremote
+ 
+TOOLS_DRIVER=${ORACLE_HOME}/lib/acfstoolsdriver.sh
+
+exec $TOOLS_DRIVER $CMDNAME $@
+# Should never get here.
+exit -1

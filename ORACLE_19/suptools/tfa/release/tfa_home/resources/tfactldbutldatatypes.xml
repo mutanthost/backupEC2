@@ -1,0 +1,42 @@
+<?xml version="1.0"?>
+
+<!--  $Header: tfa/src/v2/tfa_home/resources/tfactldbutldatatypes.xml /main/3 2018/08/20 12:45:48 manuegar Exp $ -->
+
+<!-- 
+ Copyright (c) 2018, Oracle and/or its affiliates. All rights reserved.
+
+   NAME
+     tfactldbutldatatypes.xml - <one-line expansion of the name>
+
+   DESCRIPTION
+     TFA DDU datatypes
+
+   NOTES
+     <other useful comments, qualifications, etc.>
+
+   MODIFIED   (MM/DD/YY)
+   manuegar    08/10/18 - manuegar_dbutils17.
+   manuegar    07/31/18 - Creation
+
+-->
+<datatypes>
+  <datatype name="server_cpu"/>
+  <datatype name="server_memory"/>
+  <datatype name="server_disk"/>
+  <datatype name="server_network"/>
+  <datatype name="crs_resource"/>
+  <datatype name="db_instance"/>
+  <datatype name="mgmtdb_instance"/>
+  <datatype name="asm_instance"/>
+  <datatype name="server_disk_currscore_snap"/>
+  <datatype name="server_network_currscore_snap"/>
+  <datatype name="db_instance_currscore_snap"/>
+  <datatype name="mgmtdb_instance_currscore_snap"/>
+  <datatype name="asm_instance_currscore_snap"/>
+  <datatype name="hardware_currscore_snap"/>
+  <datatype name="availability_currscore_snap"/>
+  <datatype name="asm_currscore_snap"/>
+  <datatype name="database_currscore_snap"/>
+  <datatype name="mgmt_database_currscore_snap"/>
+  <datatype name="server_unavailable_resource"/>
+</datatypes>

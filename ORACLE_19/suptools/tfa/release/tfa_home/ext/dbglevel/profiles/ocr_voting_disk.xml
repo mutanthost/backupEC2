@@ -1,0 +1,64 @@
+<?xml version="1.0"?>
+
+<!--  $Header: tfa/src/v2/ext/dbglevel/profiles/ocr_voting_disk.xml /main/2 2015/12/09 01:45:19 bibsahoo Exp $ -->
+
+<!-- 
+ Copyright (c) 2015, Oracle and/or its affiliates. All rights reserved.
+
+   NAME
+     ocr_voting_disk.xml - <one-line expansion of the name>
+
+   DESCRIPTION
+     <short description of component this file declares/defines>
+
+   NOTES
+     <other useful comments, qualifications, etc.>
+
+   MODIFIED   (MM/DD/YY)
+   bibsahoo    12/02/15 - FIX BUG 22301591 - TIMEOUTS MISSING FROM DBGLEVEL
+                          PROFILES
+   bibsahoo    09/22/15 - Creation
+
+-->
+<profile name="ocr_voting_disk" description="For debugging OCR and/or Voting Disk problems if directed by Oracle Support." type="default" timeout="-1">
+<change>
+<command>crsctl</command>
+<command_location>GI_HOME</command_location>
+<command_type>log</command_type>
+<daemon>crs</daemon>
+<module>OCRASM</module>
+<set>3</set>
+<unset>1</unset>
+</change>
+<change>
+<command>crsctl</command>
+<command_location>GI_HOME</command_location>
+<command_type>log</command_type>
+<daemon>crs</daemon>
+<module>OCRMAS</module>
+<set>3</set>
+<unset>1</unset>
+</change>
+<change>
+<command>crsctl</command>
+<command_location>GI_HOME</command_location>
+<command_type>log</command_type>
+<daemon>crs</daemon>
+<module>OCRMSG</module>
+<set>3</set>
+<unset>1</unset>
+</change>
+<change>
+<command>crsctl</command>
+<command_location>GI_HOME</command_location>
+<command_type>log</command_type>
+<daemon>crs</daemon>
+<module>OCRUTL</module>
+<set>3</set>
+<unset>1</unset>
+</change>
+</profile>
+
+
+
+

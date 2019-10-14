@@ -1,0 +1,97 @@
+<?xml version="1.0"?>
+
+<!--  $Header: tfa/src/v2/tfa_home/resources/srdc_ora29548.xml /main/3 2018/08/15 16:55:53 bburton Exp $ -->
+
+<!-- 
+ Copyright (c) 2018, Oracle and/or its affiliates. All rights reserved.
+
+   NAME
+     srdc_ora29548.xml - <one-line expansion of the name>
+
+   DESCRIPTION
+     <short description of component this file declares/defines>
+
+   NOTES
+     <other useful comments, qualifications, etc.>
+
+   MODIFIED   (MM/DD/YY)
+   xiaodowu    08/01/18 - Revolve Bug 28438363 - INCORRECT COLLECTION_ID FORMAT
+   recornej    08/02/18 - Fix validation....
+   xiaodowu    01/18/18 - Implement for SRDC - Providing Supporting Information for Oracle JVM Issues
+                          Doc ID 2175568.1
+   xiaodowu    01/18/18 - Creation
+
+-->
+<collections>
+  <collection id="ORA-29548">
+    <user_description></user_description>
+    <description>SRDC - Providing Supporting Information for Oracle JVM Issues (Doc ID 2175568.1)</description>
+    <user_inputs>
+     <user_input cmdline="" default="" showprompt="1" setenv="NO" validate="" prompt="Enter the Database Name">USERINPUT-DATABASE_NAME</user_input>
+        <user_input cmdline="" default="" required="OPT"  showprompt="1" setenv="REPLACE" validate="dbversion:noDots" prompt="Enter the version recently upgraded to : Example for database 12.2.0.1 type 12201">USERINPUT-UPGVERS</user_input>
+        <user_input cmdline="" default="" showprompt="1" setenv="REPLACE" validate="file" depinput="UPGVERS" deppattern="^11.*" prompt="If this was a Manual Upgrade please Enter the full path to the spooled log from the upgrade scriptLBREAKEnter filename : Example /home/oracle/upgrade.log">USERINPUT-UPGFILE</user_input>
+        <user_input cmdline="" default="" showprompt="1" setenv="REPLACE" validate="directory" depinput="UPGVERS" deppattern="^12.*" prompt="If this was a Manual Upgrade please Enter the full path to the upgrade log directoryLBREAKEnter Directory Name : Example /home/oracle/upgrade">USERINPUT-UPGDIR</user_input>
+   </user_inputs>
+    <onevents>
+    </onevents>
+    <duration>48h</duration>
+    <clusterwide>no</clusterwide>
+    <filter_files>
+        <types>
+        </types>
+        <filter_file_patterns>
+            <filter_file_pattern>alert_.*\.log</filter_file_pattern>
+            <filter_file_pattern>trc</filter_file_pattern>
+            <filter_file_pattern>log</filter_file_pattern>
+            <filter_file_pattern>\.xml</filter_file_pattern>
+            <filter_file_pattern>messages</filter_file_pattern>
+            <filter_file_pattern>archive\/osw</filter_file_pattern>
+            <filter_file_pattern>ExaWatcher\/archive</filter_file_pattern>
+        </filter_file_patterns>
+        <filter_file_exclude_patterns>
+            <filter_file_exclude_pattern>cdmp_.*_bucket\.tr[cm]</filter_file_exclude_pattern>
+        </filter_file_exclude_patterns>
+    </filter_files>
+
+    <components>
+      <component>CFGTOOLS</component>
+      <component>INSTALL</component>
+      <component>DATABASE</component>
+      <component>OS</component>
+      <component>CRS</component>
+      <component>NOCHMOS</component>
+      <component>COLLECTALLDIRS</component>
+    </components>
+   <commands>
+     <script type="SQLSCRIPT" name="ora29548.sql" timeout="300" validfor="" platform="" version=""> </script>
+	<script type="IPSPACK" name="ipspack" timeout="120" validfor="" platform="" version=""></script>
+       <script type="SQLSCRIPT" name="srdc_dbupgdiag.sql" timeout="300" validfor="" platform="" version="">
+       </script>
+       <script type="DB" name="srdc_utluxxxs.sql" timeout="300" validfor="" platform="" version="">
+       @?/rdbms/admin/utlu%UTLVERS%s.sql
+       </script>
+       <script type="OS" name="cp_upgrade_log" timeout="120" validfor="" platform="allux" version="">
+       if [ -e %UPGFILE% ]; then
+       /bin/cp %UPGFILE% .
+       fi
+       </script>
+       <script type="OS" name="cp_upgrade_dir" timeout="120" validfor="" platform="allux" version="">
+       if [ -d %UPGDIR% ]; then
+       /bin/cp %UPGDIR%/catupgrd* .
+       fi
+       </script>
+       <script type="OS" name="cp_postinstall" timeout="120" validfor="" platform="allux" version="">
+       if [ -d $ORACLE_BASE/cfgtoollogs/postinstall ]; then
+       	/bin/cp $ORACLE_BASE/cfgtoollogs/postinstall/* .
+       fi
+
+       if [ -d $ORACLE_HOME/cfgtoollogs/postinstall ]; then
+       	/bin/cp $ORACLE_HOME/cfgtoollogs/postinstall/* .
+       fi
+       </script>
+       <script type="OS" name="sqlpatch_dir" timeout="120" validfor="" platform="allux" version="">
+       	/bin/cp $ORACLE_BASE/cfgtoollogs/sqlpatch/*/*/* .
+       </script>
+    </commands>
+  </collection>
+</collections>

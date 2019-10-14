@@ -1,0 +1,10 @@
+spool log to srdc_rman_maint_diag.out
+set echo on
+show all;
+list incarnation of database;
+report schema;
+list backup summary;
+list backup completed after 'sysdate-14';
+list copy completed after 'sysdate-14';
+restore database preview summary;
+spool log off;

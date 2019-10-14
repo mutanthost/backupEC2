@@ -1,0 +1,441 @@
+<?xml version="1.0"?>
+
+<!--  $Header: tfa/src/v2/tfa_home/resources/srdc_dbggclassicmode.xml /main/2 2018/08/15 16:55:52 bburton Exp $ -->
+
+<!-- 
+ Copyright (c) 2018, Oracle and/or its affiliates. All rights reserved.
+
+   NAME
+     srdc_dbggclassicmode.xml 
+
+   DESCRIPTION
+     SRDC collection for GoldenGate running in classic mode
+
+   MODIFIED   (MM/DD/YY)
+   xiaodowu    08/01/18 - Resolve Bug 28439844 - ADD PARENTHESIS FOR VALIDATE
+   xiaodowu    03/28/18 - Enh 27766004 - ADD SRDC_GG_DATABASE.SQL TO THE TWO
+                          EXISTING OGG COLLECTIONS
+   xiaodowu    01/18/18 - Implement SRDC for the following three Docs: SRDC -
+                          Data to Collect When Classic Replicat Has an Error
+                          (Doc ID: 1913426.1) SRDC - Data to Collect when
+                          Classic Extract Shows an Error (Doc ID: 1913376.1)
+                          SRDC - Data To Collect When Classic Extract Does Not
+                          Start (Doc ID: 1912964.1)
+   xiaodowu    01/18/18 - Creation
+
+-->
+<collections>
+<collection id="dbggclassicmode">
+    <description>SRDC for DOC ID 1913426.1, 1913376.1 and 1912964.1</description>
+    <onevents>
+        <event>
+        </event>
+    </onevents>
+    <user_inputs>
+      <user_input cmdline="" default="" showprompt="1" setenv="REPLACE" validate="" prompt="Enter the Database Name">USERINPUT-DATABASE_NAME</user_input>
+      <user_input cmdline="" default="" showprompt="1" setenv="REPLACE" validate="" prompt="Enter the GoldenGate Home">USERINPUT-OGG_HOME</user_input>
+     <user_input cmdline="" default="" showprompt="1" setenv="REPLACE" validate="(e|E|r|R)" prompt="Is this a replicat or extract failure? [R|E] ">USERINPUT-FAILTYPE</user_input>
+      <user_input cmdline="" default="" showprompt="1" setenv="REPLACE" validate="" prompt="Enter the failed GoldenGate component name">USERINPUT-COMP_NAME</user_input>
+     <user_input cmdline="" default="N" showprompt="1" setenv="" validate="(y|Y|n|N)" depinput="FAILTYPE" deppattern="e|E" prompt="Is the failure related to either ORA-600 or ORA-7445? [Y|N] ">USERINPUT-ORAERROR</user_input>
+     <user_input cmdline="" default="N" showprompt="1" setenv="REPLACE" validate="(y|Y|n|N)" prompt="Is the failure on a table ? [Y|N] ">USERINPUT-TB</user_input>
+     <user_input cmdline="" default="N" showprompt="1" setenv="REPLACE" validate="" depinput="TB" deppattern="y|Y" prompt="Enter the table name:">USERINPUT-TABLE</user_input>
+     <user_input cmdline="" default="N" showprompt="1" setenv="REPLACE" validate="" depinput="TB" deppattern="y|Y" prompt="Enter the table owner:">USERINPUT-OWNER</user_input>
+     <user_input cmdline="" default="N" showprompt="1" setenv="REPLACE" validate="(y|Y|n|N)" depinput="TB" deppattern="n|N" prompt="Is the failure on a schema?">USERINPUT-SCM</user_input>
+     <user_input cmdline="" default="" showprompt="1" setenv="REPLACE" validate="" depinput="SCM" deppattern="y|Y" prompt="Enter the schema name:">USERINPUT-SCHEMA</user_input>
+      </user_inputs>
+      <duration>12h</duration>
+      <awrduration>1h</awrduration>
+      <clusterwide>yes</clusterwide>
+      <filter_files>
+        <types>
+        </types>
+        <filter_file_patterns>
+            <filter_file_pattern>alert_.*\.log</filter_file_pattern>
+            <filter_file_pattern>trc</filter_file_pattern>
+            <filter_file_pattern>log</filter_file_pattern>
+            <filter_file_pattern>\.xml</filter_file_pattern>
+            <filter_file_pattern>archive\/osw</filter_file_pattern>
+            <filter_file_pattern>ExaWatcher\/archive</filter_file_pattern>
+        </filter_file_patterns>
+    </filter_files>
+    <components>
+        <component>OS</component>
+        <component>DATABASE</component>
+        <component>CRS</component>
+        <component>CHMOS</component>
+    </components>
+    <commands>
+        <script type="IPSPACK" name="ipspack" timeout="120" default="N" validfor="" platform="" version="" depinput="ORAERROR" deppattern="Y|y"> </script>
+     <script type="SQLSCRIPT" name="srdc_gg_reg_11203.sql" timeout="300" validfor="" platform="" version="11.2.0.3"></script>
+     <script type="SQLSCRIPT" name="srdc_gg_reg_11204.sql" timeout="300" validfor="" platform="" version="11.2.0.4"></script>
+     <script type="SQLSCRIPT" name="srdc_gg_reg_1210.sql" timeout="300" validfor="" platform="" version="12.1.0.1,12.1.0.2"></script>
+     <script type="SQLSCRIPT" name="srdc_gg_reg_arch.sql" timeout="300" validfor="" platform="" version=""></script>
+ <script type="SQLSCRIPT" name="srdc_gg_database.sql" timeout="300" validfor="" platform="" version=""></script>
+     <script type="OS" name="cp_files" timeout="120" validfor="" platform="allux" version="">
+	lc_comp=`echo %COMP_NAME% |tr '[A-Z]' '[a-z]'`
+	uc_comp=`echo %COMP_NAME% |tr '[a-z]' '[A-Z]'`
+       /bin/cp -rp %OGG_HOME%/dirprm/* .
+       /bin/cp -rp %OGG_HOME%/dirrpt/* .
+       /bin/cp -rp %OGG_HOME%/dirdef/* .
+       /bin/cp -rp %OGG_HOME%/ggserr.log .
+     </script>
+     <script type="OS" name="extract_OGG_info" timeout="120" validfor="" platform="allux" version="">
+	echo 'info %COMP_NAME% showch' |%OGG_HOME%/ggsci >SRDC_GG_EXTINFO.txt
+	echo 'info %COMP_NAME% detail' |%OGG_HOME%/ggsci >>SRDC_GG_EXTINFO.txt
+     </script>
+     <script type="OS" name="extract_OGG_info_Win32" timeout="500" validfor="" platform="MSWin32" version="">
+	echo 'info %COMP_NAME% showch' |%OGG_HOME%/ggsci >SRDC_GG_EXTINFO.txt
+	echo 'info %COMP_NAME% detail' |%OGG_HOME%/ggsci >>SRDC_GG_EXTINFO.txt
+     </script>
+     <script type="OS" name="extract_OGG_env_Linux" timeout="120" validfor="" platform="Linux" version="">
+	OGG_OWNER=`ls -ld %OGG_HOME% | awk '{print $3}'`
+	fail_type=%FAILTYPE%
+	if [[ $fail_type = "E" ]] || [[ $fail_type = "e" ]]
+	then
+		PROCESS_PID=`ps -u $OGG_OWNER -f | grep -i extract| grep -v grep|awk '{print $2}'|tail -1`
+		strings -a /proc/$PROCESS_PID/environ > SRDC_GG_EXTRACTPROCINFO.txt
+	else
+		PROCESS_PID=`ps -u $OGG_OWNER -f | grep -i replicat| grep -v grep|awk '{print $2}'|tail -1`
+		strings -a /proc/$PROCESS_PID/environ > SRDC_GG_PROCENVINFO.txt
+	fi
+     </script>
+     <script type="OS" name="extract_OGG_env_AIX" timeout="120" validfor="" platform="AIX" version="">
+	OGG_OWNER=`ls -ld %OGG_HOME% | awk '{print $3}'`
+	fail_type=%FAILTYPE%
+	if [[ $fail_type = "E" ]] || [[ $fail_type = "e" ]]
+	then
+		EXTRACT_PID=`ps -u $OGG_OWNER -f | grep -i extract| grep -v grep|awk '{print $2}|tail -1'`
+		ps eww $EXTRACT_PID > SRDC_GG_EXTRACTPROCINFO.txt
+	else
+		REPLICAT_PID=`ps -u $OGG_OWNER -f | grep -i replicat| grep -v grep|awk '{print $2}|tail -1'`
+		ps eww $REPLICAT_PID > SRDC_GG_PROCENVINFO.txt
+	fi
+     </script>
+     <script type="OS" name="extract_OGG_env_Solaris" timeout="120" validfor="" platform="SunOS" version="">
+	OGG_OWNER=`ls -ld %OGG_HOME% | awk '{print $3}'`
+	fail_type=%FAILTYPE%
+	if [[ $fail_type = "E" ]] || [[ $fail_type = "e" ]]
+	then
+		EXTRACT_PID=`ps -u %OGG_OWNER% -f | grep -i extract| grep -v grep|awk '{print $2}'|tail -1`
+		pargs -e $EXTRACT_PID > SRDC_GG_EXTRACTPROCINFO.txt
+	else
+		REPLICAT_PID=`ps -u %OGG_OWNER% -f | grep -i replicat| grep -v grep|awk '{print $2}'|tail -1`
+		pargs -e $REPLICAT_PID > SRDC_GG_PROCENVINFO.txt     
+	fi
+     </script>
+	<script type="DB" name="srdc_gg_data_table.sql" timeout="120" validfor="" platform="" version="" depinput="TB" deppattern="Y|y">
+  <![CDATA[
+		REM srdc_gg_data_table.sql
+		REM
+		REM Collect informations related to a table that can be used by goldengate extract
+		REM
+		REM :  Usage : sqlplus / as sysdba @srdc_gg_data_table.sql
+		define SRDCNAME='gg_data_table'
+		
+		
+		SET MARKUP HTML ON PREFORMAT ON
+		set pagesize 50
+		set TERMOUT off FEEDBACK off VERIFY off TRIMSPOOL on HEADING off
+		
+		alter session set nls_date_format='YYYY-MM-DD HH24MiSS';
+		
+		COLUMN SRDCSPOOLNAME NOPRINT NEW_VALUE SRDCSPOOLNAME
+		select 'SRDC_'||upper('&&SRDCNAME')||'_'||upper(instance_name)||'_'|| to_char(sysdate,'YYYYMMDD_HH24MISS') SRDCSPOOLNAME from v$instance;
+		
+		spool &&SRDCSPOOLNAME..htm
+		select '+----------------------------------------------------+' from dual
+		union all
+		select '| Diagnostic-Name: '||'&&SRDCNAME' from dual
+		union all
+		select '| Timestamp: '||
+		          to_char(systimestamp,'YYYY-MM-DD HH24:MI:SS TZH:TZM') from dual
+		union all
+		select '| Machine: '||host_name from v$instance
+		union all
+		select '| Version: '||version from v$instance
+		union all
+		select '| DBName: '||name from v$database
+		union all
+		select '| Instance: '||instance_name from v$instance
+		union all
+		select '| Table: '||upper('%OWNER%')||'.'||upper('%TABLE%') from dual
+		union all
+		select '+----------------------------------------------------+' from dual
+		/
+		set HEADING on MARKUP html preformat off 
+		set feedback on
+		REM === -- end of standard header -- ===
+		
+		prompt
+		prompt ============================================================================================
+		prompt ++ DATABASE SUPPLEMENTAL LOG ++
+		prompt ============================================================================================
+		prompt
+		
+		select supplemental_log_data_min Minimal, supplemental_log_data_pk PK, supplemental_log_data_ui UI, 
+		force_logging FORCE from v$database;
+		
+		prompt
+		prompt ============================================================================================
+		prompt ++ SUPPLEMENTAL LOG GROUPS ++
+		prompt ============================================================================================
+		prompt
+		
+		select * from dba_log_groups 
+		where owner=upper('%OWNER%') and table_name=upper('%TABLE%');
+		
+		prompt
+		prompt ============================================================================================
+		prompt ++ SUPPLEMENTAL LOG COLUMNS ++
+		prompt ============================================================================================
+		prompt
+		
+		select * from dba_log_group_columns
+		where owner=upper('%OWNER%') and table_name=upper('%TABLE%');
+		
+		prompt
+		prompt ============================================================================================
+		prompt ++ TABLE DDL ++
+		prompt ============================================================================================
+		prompt
+		
+		set long 20000
+		select dbms_metadata.get_ddl ('TABLE', upper('%TABLE%'), upper('%OWNER%')) from dual;
+		
+		
+		prompt
+		prompt ============================================================================================
+		prompt ++ TABLE PROPERTIES ++
+		prompt ============================================================================================
+		prompt
+		
+		select OWNER, TABLE_NAME, CLUSTER_NAME, IOT_NAME, STATUS, LOGGING,
+		       NUM_ROWS, BLOCKS, EMPTY_BLOCKS, AVG_SPACE, CHAIN_CNT, AVG_ROW_LEN,
+		       AVG_SPACE_FREELIST_BLOCKS, PARTITIONED, IOT_TYPE, NESTED, ROW_MOVEMENT,
+		       COMPRESSION, COMPRESS_FOR
+		from dba_tables where owner=upper('%OWNER%') and table_name=upper('%TABLE%');
+		
+		prompt
+		prompt ============================================================================================
+		prompt ++ TABLE INDEXES ++
+		prompt ============================================================================================
+		prompt
+		
+		select index_name, index_type, uniqueness, status from dba_indexes
+		where table_owner=upper('%MY_TALBE_OWNER%') and table_name=upper('%TABLE%');
+		
+		prompt
+		prompt ============================================================================================
+		prompt ++ TABLE INDEX COLUMNS ++
+		prompt ============================================================================================
+		prompt
+		
+		select index_name, column_position, column_name, descend
+		from dba_ind_columns
+		where table_owner=upper('%OWNER%') and table_name=upper('%TABLE%')
+		order by index_name, column_position;
+		
+		prompt
+		prompt ============================================================================================
+		prompt ++ TABLE CONSTRAINTS ++
+		prompt ============================================================================================ 
+		prompt
+		
+		select constraint_name, constraint_type, status, deferrable, deferred from dba_constraints
+		where owner=upper('%OWNER%') and table_name=upper('%TABLE%')
+		order by constraint_name;
+		
+		prompt
+		prompt ============================================================================================
+		prompt ++ TABLE CONTRAINT COLUMNS ++
+		prompt ============================================================================================
+		prompt
+		
+		select constraint_name, column_name, position from dba_cons_columns
+		where owner=upper('%OWNER%') and table_name=upper('%TABLE%')
+		order by constraint_name, position;
+		
+		prompt
+		prompt ============================================================================================
+		prompt ++ DB CHARACTERSET ++
+		prompt ============================================================================================
+		prompt
+		
+		select value$ from sys.props$
+		   where name = 'NLS_CHARACTERSET';
+		
+		spool off
+		set markup html off spool off
+		set feedback on
+		set term on
+		set echo on
+]]>
+     </script>
+	<script type="DB" name="srdc_gg_data_schema.sql" timeout="120" validfor="" platform="" version="" depinput="SCM" deppattern="Y|y">
+  <![CDATA[
+		set echo off
+		set feedback off
+		REM srdc_gg_data_schema.sql
+		REM
+		REM Collect informations related to a schema that can be used by goldengate extract
+		REM
+		REM :  Usage : sqlplus / as sysdba @srdc_gg_data_schema.sql
+		define SRDCNAME='gg_data_schema'
+		
+		
+		SET MARKUP HTML ON PREFORMAT ON
+		set pagesize 50
+		set TERMOUT off FEEDBACK off VERIFY off TRIMSPOOL on HEADING off
+		
+		alter session set nls_date_format='YYYY-MM-DD HH24MiSS';
+		
+		COLUMN SRDCSPOOLNAME NOPRINT NEW_VALUE SRDCSPOOLNAME
+		select 'SRDC_'||upper('&&SRDCNAME')||'_'||upper(instance_name)||'_'|| to_char(sysdate,'YYYYMMDD_HH24MISS') SRDCSPOOLNAME from v$instance;
+		
+		spool &&SRDCSPOOLNAME..htm
+		select '+----------------------------------------------------+' from dual
+		union all
+		select '| Diagnostic-Name: '||'&&SRDCNAME' from dual
+		union all
+		select '| Timestamp: '||
+		          to_char(systimestamp,'YYYY-MM-DD HH24:MI:SS TZH:TZM') from dual
+		union all
+		select '| Machine: '||host_name from v$instance
+		union all
+		select '| Version: '||version from v$instance
+		union all
+		select '| DBName: '||name from v$database
+		union all
+		select '| Instance: '||instance_name from v$instance
+		union all
+		select '| Schema: '||upper('%SCHEMA%') from dual
+		union all
+		select '+----------------------------------------------------+' from dual
+		/
+		set HEADING on MARKUP html preformat off 
+		set feedback on
+		REM === -- end of standard header -- ===
+		
+		prompt
+		prompt ============================================================================================
+		prompt ++ DATABASE SUPPLEMENTAL LOG ++
+		prompt ============================================================================================
+		prompt
+		
+		select supplemental_log_data_min Minimal, supplemental_log_data_pk PK, supplemental_log_data_ui UI, 
+		force_logging FORCE from v$database;
+		
+		prompt
+		prompt ============================================================================================
+		prompt ++ SUPPLEMENTAL LOG GROUPS ++
+		prompt ============================================================================================
+		prompt
+		
+		select * from dba_log_groups 
+		where owner=upper('%SCHEMA%')
+		order by table_name;
+		
+		prompt
+		prompt ============================================================================================
+		prompt ++ SUPPLEMENTAL LOG COLUMNS ++
+		prompt ============================================================================================
+		prompt
+		
+		select * from dba_log_group_columns
+		where owner=upper('%SCHEMA%')
+		order by table_name;
+		
+		prompt
+		prompt ============================================================================================
+		prompt ++ DB CHARACTERSET ++
+		prompt ============================================================================================
+		prompt
+		
+		select value$ from sys.props$
+		   where name = 'NLS_CHARACTERSET';
+		
+		spool off
+		set markup html off spool off
+		set feedback on
+		set term on
+		set echo on
+]]>
+     </script>
+	<script type="DB" name="srdc_gg_data_generic.sql" timeout="120" validfor="" platform="" version="" depinput="SCM" deppattern="N|n">
+  <![CDATA[
+		REM srdc_gg_data_generic.sql - Collect information generic that can be used by goldengate extract
+		REM
+		REM :  Usage : sqlplus / as sysdba @srdc_gg_data_generic.sql
+		REM
+		define SRDCNAME='gg_data_generic'
+		SET MARKUP HTML ON PREFORMAT ON
+		set pagesize 50
+		set TERMOUT off FEEDBACK off VERIFY off TRIMSPOOL on HEADING off
+		
+		alter session set nls_date_format='YYYY-MM-DD HH24MiSS';
+		
+		COLUMN SRDCSPOOLNAME NOPRINT NEW_VALUE SRDCSPOOLNAME
+		select 'SRDC_'||upper('&&SRDCNAME')||'_'||upper(instance_name)||'_'|| to_char(sysdate,'YYYYMMDD_HH24MISS') SRDCSPOOLNAME from v$instance;
+		
+		spool &&SRDCSPOOLNAME..htm
+		select '+----------------------------------------------------+' from dual
+		union all
+		select '| Diagnostic-Name: '||'&&SRDCNAME' from dual
+		union all
+		select '| Timestamp: '||
+		          to_char(systimestamp,'YYYY-MM-DD HH24:MI:SS TZH:TZM') from dual
+		union all
+		select '| Machine: '||host_name from v$instance
+		union all
+		select '| Version: '||version from v$instance
+		union all
+		select '| DBName: '||name from v$database
+		union all
+		select '| Instance: '||instance_name from v$instance
+		union all
+		select '+----------------------------------------------------+' from dual
+		/
+		set HEADING on MARKUP html preformat off 
+		set feedback on
+		REM === -- end of standard header -- ===
+		
+		prompt
+		prompt ============================================================================================
+		prompt ++ DATABASE SUPPLEMENTAL LOG ++
+		prompt ============================================================================================
+		prompt
+		
+		select supplemental_log_data_min Minimal, supplemental_log_data_pk PK, supplemental_log_data_ui UI, 
+		force_logging FORCE from v$database;
+		
+		prompt
+		prompt ============================================================================================
+		prompt ++ SUPPLEMENTAL LOG GROUPS ++
+		prompt ============================================================================================
+		prompt
+		
+		select * from dba_log_groups 
+		order by owner, table_name;
+		
+		prompt
+		prompt ============================================================================================
+		prompt ++ DB CHARACTERSET ++
+		prompt ============================================================================================
+		prompt
+		
+		select value$ from sys.props$
+		   where name = 'NLS_CHARACTERSET';
+		
+		spool off
+		set markup html off spool off
+		set feedback on
+		set term on
+		set echo on
+]]>
+     </script>
+    </commands>
+    <runtime_flags>
+    </runtime_flags>
+</collection>
+</collections>
+

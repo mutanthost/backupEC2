@@ -1,0 +1,144 @@
+#!/bin/sh
+#
+# $Header: assistants/bin/roohctl.sh.pp /main/6 2018/05/17 12:34:32 obriseno Exp $
+#
+# roohctl.sh
+#
+# Copyright (c) 2014, 2018, Oracle and/or its affiliates. All rights reserved.
+#
+#    NAME
+#      roohctl.sh - <one-line expansion of the name>
+#
+#    DESCRIPTION
+#      <short description of component this file declares/defines>
+#
+#    NOTES
+#      <other useful comments, qualifications, etc.>
+#
+#    MODIFIED   (MM/DD/YY)
+#    obriseno    05/15/18 - use LIBMAJORVSN in place of DB_VERSION_FIRST_DIGIT
+#    mstalin     08/22/17 - 26495385 Could not get inventory location error
+#    mstalin     09/12/14 - Script file for roohctl
+#    mstalin     09/12/14 - Creation
+#
+
+#######################################################################
+# Variables set by Oracle Universal Installer for dependent components.
+#######################################################################
+
+# Define ORACLE_HOME -> OH
+OH=/u01/app/oracle/product/19.0.0/dbhome_1
+ORACLE_HOME=$OH 
+export ORACLE_HOME;
+
+# Version specific JAR files
+XMLPARSER_FILE=xmlparserv2.jar
+GDK_FILE1=orai18n.jar
+GDK_FILE2=orai18n-mapping.jar
+GDK_FILE3=orai18n-utility.jar
+GDK_FILE4=orai18n-collation.jar
+NETCFG_FILE=netcfg.jar
+OJMISC_FILE=ojmisc.jar
+PKI_FILE=oraclepki.jar
+LDAP_FILE=ldapjclnt19.jar
+SHARE_FILE=share.jar
+CVU_JAR=cvu.jar
+OPM_FILE=opm.jar
+SRVM_FILE=srvm.jar
+SRVMHAS_FILE=srvmhas.jar
+SRVMASM_FILE=srvmasm.jar
+ROOHCTL_FILE=roohctl.jar
+INSTALLER_FILE=OraInstaller.jar
+ASSISTANTS_COMMON_FILE=assistantsCommon.jar
+PREREQ_JAR_FILE=OraPrereq.jar
+PREREQ_CHECKS_JAR_FILE=OraPrereqChecks.jar
+CHECKPOINT_JAR=OraCheckPoint.jar
+INSTALLS_COMMON_FILE=installcommons_1.0.0b.jar
+
+# Directory Variables
+SRVM_JLIB_DIR=$OH/jlib
+JRE_DIR=$OH/jdk/jre
+JLIB_DIR=$OH/jlib
+ROOHCTL_JLIB_DIR=$OH/assistants/jlib
+INSTALLER_JLIB_DIR=$OH/oui/jlib
+ASSISTANTS_JLIB_DIR=$OH/assistants/jlib
+INSTALLS_COMMON_JLIB=$OH/install/jlib
+
+# Classpath
+ASSISTANTS_COMMON_CLASSPATH=$ASSISTANTS_JLIB_DIR/$ASSISTANTS_COMMON_FILE
+XMLPARSER_CLASSPATH=$OH/lib/$XMLPARSER_FILE
+SHARE_CLASSPATH=$JLIB_DIR/$SHARE_FILE
+GDK_CLASSPATH=$JLIB_DIR/$GDK_FILE1
+NETCFG_CLASSPATH=$JLIB_DIR/$LDAP_FILE:$JLIB_DIR/$NETCFG_FILE:$JLIB_DIR/$OJMISC_FILE:$JLIB_DIR/$PKI_FILE:$JLIB_DIR/$OPM_FILE
+SRVM_CLASSPATH=$SRVM_JLIB_DIR/$SRVM_FILE:$SRVM_JLIB_DIR/$SRVMHAS_FILE:$SRVM_JLIB_DIR/$SRVMASM_FILE
+ROOHCTL_CLASSPATH=$ROOHCTL_JLIB_DIR/$ROOHCTL_FILE
+INSTALLER_CLASSPATH=$INSTALLS_COMMON_JLIB/$INSTALLS_COMMON_FILE:$INSTALLER_JLIB_DIR/$INSTALLER_FILE:$INSTALLER_JLIB_DIR/$PREREQ_JAR_FILE:$OH/inventory/prereqs/oui/$PREREQ_CHECKS_JAR_FILE:$INSTALLER_JLIB_DIR/$PREREQ_CHECKS_JAR_FILE:$INSTALLER_JLIB_DIR/$CHECKPOINT_JAR:$JLIB_DIR/$CVU_JAR
+
+# Check if user is non-root
+
+MYPLATFORM=`uname`
+
+# make sure others can not read/write any files created
+umask 27
+
+# The environment variable $TWO_TASK cannot be set during the installation
+unset TWO_TASK
+
+# The environment variable $JAVA_HOME cannot be set during the installation
+unset JAVA_HOME
+
+# Basic error checking
+case $OH in
+    "") echo "*** ORACLE_HOME Not Set!"
+        echo "    Set and export ORACLE_HOME, then re-run"
+        echo "    ORACLE_HOME points to the main directory that"
+        echo "    contains all Oracle products."
+        exit 1;;
+esac
+
+
+#call platform_common script
+. $ORACLE_HOME/bin/platform_common
+
+# Check if user is non-root
+if [ "$RUID" = "0" ]; then
+        echo "roohctl cannot be run as root."
+        exit 1;
+fi
+  
+JRE_OPTIONS="${JRE_OPTIONS}  -Dsun.java2d.font.DisableAlgorithmicStyles=true -DIGNORE_PREREQS=$IGNORE_PREREQS  -mx128m $DEBUG_STRING"
+
+# Set Classpath for ROOHCTL
+CLASSPATH=$ROOHCTL_CLASSPATH:$ASSISTANTS_COMMON_CLASSPATH:$SHARE_CLASSPATH:$XMLPARSER_CLASSPATH:$GDK_CLASSPATH:$NETCFG_CLASSPATH:$SRVM_CLASSPATH:$INSTALLER_CLASSPATH
+
+ARGUMENTS=""
+NUMBER_OF_ARGUMENTS=$#
+if [ $NUMBER_OF_ARGUMENTS -gt 0 ]; then
+        ARGUMENTS=$*
+fi
+
+###################################Remote debugging############################
+#To enable Remote debugging
+# setenv DEBUG_ASSISTANTS true
+# setenv DEBUG_PORT <desired port>
+
+DEFAULT_DEBUG_PORT=8000
+
+if [ "$DEBUG_ASSISTANTS" = "true" ]; then
+        if [ "$DEBUG_PORT" = "" ]; then
+                #If port not specified then assign default port
+                DEBUG_PORT=$DEFAULT_DEBUG_PORT
+        fi
+        DEBUG_STRING="-Xdebug -Xrunjdwp:transport=dt_socket,address=$DEBUG_PORT,server=y,suspend=n -client"
+         echo "Remote Debugging is enabled in port $DEBUG_PORT"
+else
+        DEBUG_STRING=""
+fi
+
+## unset NLS_LANG till server side supports it
+unset NLS_LANG
+
+###############################################################################
+
+# Run roohctl
+exec $JRE_DIR/bin/java  $JRE_OPTIONS -classpath $CLASSPATH oracle.assistants.roohctl.RoohCtl $ARGUMENTS

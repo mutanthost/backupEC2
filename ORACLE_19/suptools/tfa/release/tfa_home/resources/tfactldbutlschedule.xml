@@ -1,0 +1,33 @@
+<?xml version="1.0"?>
+
+<!--  $Header: tfa/src/v2/tfa_home/resources/tfactldbutlschedule.xml /main/4 2018/08/15 16:55:53 bburton Exp $ -->
+
+<!-- 
+ Copyright (c) 2017, 2018, Oracle and/or its affiliates. All rights reserved.
+
+   NAME
+     tfactldbutlschedule.xml - <one-line expansion of the name>
+
+   DESCRIPTION
+     <short description of component this file declares/defines>
+
+   NOTES
+     <other useful comments, qualifications, etc.>
+
+   MODIFIED   (MM/DD/YY)
+   manuegar    08/05/18 - XbranchMerge manuegar_dbutils16 from main
+   manuegar    06/13/18 - manuegar_dbutils13_handlers.
+   manuegar    04/10/18 - manuegar_shared_dbutils06.
+   manuegar    01/08/18 - manuegar_shared_dbutils01.
+   manuegar    12/01/17 - Creation
+
+-->
+<schedules>
+  <schedule type="profile" categoryid="availability" commandid="cat1min" timecategory="cat1_min" purgetimecategory="cat30_day" />
+  <schedule type="profile" categoryid="availability" commandid="cat5min" timecategory="cat5_min" purgetimecategory="cat30_day" />
+  <schedule type="profile" categoryid="availability" commandid="cat30min" timecategory="cat30_min" purgetimecategory="cat30_day" />
+  <schedule type="profile" categoryid="availability" commandid="cat60min" timecategory="cat60_min" purgetimecategory="cat30_day" />
+  <schedule type="profile" categoryid="availability" commandid="cat12hour" timecategory="cat12_hour" purgetimecategory="cat30_day" />
+  <schedule type="profile" categoryid="availability" commandid="cat24hour" timecategory="cat24_hour" purgetimecategory="cat30_day" />
+  <schedule type="profile" categoryid="availability" commandid="cat30day" timecategory="cat30_day" purgetimecategory="cat30_day" />
+</schedules>

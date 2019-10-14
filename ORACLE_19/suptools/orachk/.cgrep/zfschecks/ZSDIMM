@@ -1,0 +1,77 @@
+printf("==========START_OF_REPORT_chkZSDIMM.aksh==========\n");
+var founderrors = false;
+
+function dimm_check(chassis_o, chassis_index){
+    faulted_dimms = "";
+
+    // Only run on first chassis
+    if(chassis_index > 0)
+        return "";
+                
+    chassis_o.dimms = new Array();
+        
+    run('select memory');
+    output = run('list').split('\n');
+
+    for (j = 1; (j < output.length) && (output[j].lastIndexOf("memory-")>=0); j++)  { // go through all the DIMMs;
+	    line = output[j].replace(/\s+/g, " ");
+	    items = line.split(' ');
+	    // get position and status
+	    pos = items[0];
+	    status = items[3];
+
+	    //print("select "+ pos + "\n");
+	    run("select "+ pos);										
+	    dimm = {"label": get("label"), "present": get("present"), "faulted": get("faulted"), "status": status};						
+	
+	    if(dimm["faulted"].toString() == "true") {	        
+    	    founderrors = true;
+	    }
+	
+	    if ((dimm["faulted"].toString() == "true") || (dimm["present"].toString() =="false") || output[j].lastIndexOf("ok")<0){	
+		    faulted = dimm.label + " - " + ((dimm["faulted"].toString() =="true")? "faulted" : ((dimm["present"].toString() =="false")? "absent": "unknown")); //takes DIMM location and status																	
+		    faulted_dimms = faulted_dimms + "      " +faulted + ";\n";										    
+	    }
+	    else {							
+		    try{
+			    dimm.rev = get("revision");
+		    }
+		    catch(e){
+			    dimm.rev = "-";
+		    }
+		    finally{
+			    try{
+				    dimm.size = get("size");
+//				    appl.com_issues.dimm_size = dimm.size;
+			    }
+			    catch(e){
+				    dimm.size = "n/a";
+			    }
+			    finally{
+				    try{
+					    dimm.pn = get("part");
+				    }
+				    catch(e){
+					    dimm.pn = "n/a";
+				    }
+			    }
+		    }
+		
+	    }
+	    run("cd ..");
+	    chassis_o.dimms.push(dimm);
+    }
+
+    return faulted_dimms;
+}
+
+var hardwareTable = new printTable({name:"DIMM Check", headNames:["Name", "Status", "Details"]});
+appl.hardware 	= new Array();	
+failed_hw_components(dimm_check);
+printReportTable(hardwareTable);
+							
+printf("==========END_OF_REPORT_chkZSDIMM.aksh==========\n");
+printf("==========START_OF_AUDIT_CHECK_chkZSDIMM.aksh==========\n");
+printf("dimm_status = %d\n", founderrors);
+printf("==========END_OF_AUDIT_CHECK_chkZSDIMM.aksh==========\n");			
+

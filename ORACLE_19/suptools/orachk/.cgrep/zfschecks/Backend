@@ -1,0 +1,311 @@
+printf("==========START_OF_REPORT_chkBackend.aksh==========\n");
+//
+// Name: chkBackend.aksh
+// Author: Jim Stewart
+//
+// Usage: ssh user@appliance < chkBackend.aksh
+//
+// Purpose: Detect issues in the backend
+//
+
+	// To Enable Debug set to 1 to disable set 0
+	var DEBUG = 0;
+
+// Lots of Global Variables
+
+	//Appliance Vars
+	var applianceVersion;
+	var applianceVersionShort;
+
+	//Shelf SIM Vars
+	var simfwcompare = "NONE";
+
+	//Data Disk Vars
+	var diskfwcompare = "NONE";
+
+	//Log Device Vars
+	var logs; //List of Logs in a shelf
+	var logfw,loglabel,logpaths;
+
+	var founderrors = false; // This flag is set true if any error is found
+	var auditcheck = 0;
+	var report = 1;
+        var runonetime = 1;
+
+// ---------------------------------------------------------
+// Get Appliance Version
+function getApplianceVersion() {
+	run('cd /');
+	run('configuration version');
+	applianceVersionShort = safeGet('version').split(',')[0].replace(/\./g,"");
+	applianceVersion = safeGet('version');
+	run('cd /');
+}
+
+// ----------------------------------------------------------------------------
+// checkSIM() - Check the properties of a SIM
+function checkSIM() {
+	// Check to see if the sim is present
+	if ( safeGet('present') ) {
+		// Check to see if the sim is faulted
+		simlabel = safeGet('label');
+		if (safeGet('faulted')) {
+			if ( report == 1) {
+				printf("ERROR: %12s SHELF: %s SIM: %s REPORTS FAULTED\n",host_name,shelfserial,simlabel);
+			}
+			founderrors = true;
+		} else {
+			simfw = safeGet('revision');
+	    	if ( simfwcompare == 'NONE' ) {
+            	if ( simfw != 'ERROR') {
+	            	simfwcompare = simfw;
+            	} else {
+               		founderrors=true;
+            	}
+         	}
+			if ( simfw != simfwcompare && simfwcompare != 'NONE' ) {
+				if ( simfw == 'ERROR' ) {
+					if ( report == 1) {
+               			printf("ERROR: %12s SHELF: %s SIM: %s UNKNOWN STATE\n",host_name,shelfserial,simlabel);
+					}
+               		founderrors=true;
+            	} else {
+					if ( report == 1) {
+				   		printf("ERROR: %12s SHELF: %s SIM: %s FIRMWARE: %4s FIRMWARE MISMATCH: %4s on another SIM \n",host_name,shelfserial,simlabel,simfw,simfwcompare);
+					}
+               		founderrors=true;
+				}
+			}
+			if ( safeGet('part') == 'ERROR' ) {
+				if ( report == 1) {
+					printf("ERROR: %12s SHELF: %s SIM: %s UNKNOWN PART\n",host_name,shelfserial,simlabel);
+				}
+    	        founderrors=true;
+			}
+		}
+	} else {
+		if ( report == 1) {
+			printf("ERROR: %12s SHELF: %s SIM: %s NOT PRESENT\n",host_name,shelfserial,simlabel);
+		}
+		founderrors = true;
+	}
+}
+
+// ---------------------------------------------------------
+// checkStorageChassis() - Check things particular to a storage chassis
+function checkStorageChassis(myChassis) {
+
+	// Variables
+
+   // Get back to a know starting state
+   run('cd /');
+   // Select the chassis
+   run('maintenance hardware select ' + myChassis);
+
+	shelfserial = safeGet('serial');
+
+	// Get Slot0 Info
+	run('select slot select slot-000');
+	checkSIM();
+	run('cd ../..');
+	// Get Slot1 Info
+	run('select slot select slot-001');
+	checkSIM();
+
+   // Get back to a know starting state
+   run('cd /');
+
+	return 0;
+}
+
+function checkSystemChassis(systemchassis) {
+}
+
+// ---------------------------------------------------------
+// Check Data Disks
+// 
+// Precondition: State must have disk to be checked selected
+//
+function checkDataDisk(myChassis,myDisk) {
+
+	diskfw = safeGet('revision'); 
+	disklabel = safeGet('label');
+	diskpaths = safeGet('pathcount');
+
+	if ( diskpaths != 2 ) {
+		founderrors=true;
+		if ( report == 1) {
+			printf("ERROR: %12s SHELF: %s DISK: %6s PATH ERROR ONLY FOUND %s PATHS\n",host_name,shelfserial,disklabel,diskpaths);
+		}
+	}
+	if ( DEBUG ) { printf("DEBUG %s SHELF: %s DISK: %6s FW: %5s PATHS: %5s\n",host_name,shelfserial,disklabel,diskfw,diskpaths); }
+	if ( diskfwcompare != 'NONE' ) {
+		if ( diskfw != diskfwcompare ) {
+			founderrors=true;
+			if ( report == 1 ) {
+				printf("ERROR: %12s SHELF: %s DISK: %6s DISK FIRMWARE MISMATCH ERROR DETECTED\n",host_name,shelfserial,disklabel);
+			}
+		}
+	}
+
+}
+
+// --------------------------------------------------------
+// Check Log Device
+function checkLogDisk(myChassis,myDisk) {
+
+	logfw = safeGet('revision');
+	logpaths = safeGet('pathcount');
+	loglabel = safeGet('label'); 
+
+	if ( DEBUG ) { printf("DEBUG %s SHELF: %s LOG: %7s FW: %5s PATHS: %5s\n",host_name,shelfserial,loglabel,logfw,logpaths); }
+	if ( logpaths != 2 ) {
+		founderrors=true;
+		if ( report == 1) {
+			printf("ERROR: %12s SHELF: %s LOG: %7s PATH ERROR ONLY FOUND %s PATHS\n",host_name,shelfserial,loglabel,logpaths);
+		}
+	}
+
+// We are seeing some systems get provisioned with newer firmware than we expect
+// We need to detect the exact firmware version vs the appliance software and 
+// then do a greater than or equal check
+
+	// This minimum is valid for all GIT appliances
+	if ( logfw < 9001 ) {
+		if ( report == 1) {
+			printf("ERROR: %12s SHELF: %s LOG: %7s FIRMWARE: %4s FIRMWARE BELOW MINIMUM RELEASE\n",host_name,shelfserial,loglabel,logfw);
+		}
+		founderrors=true;
+	}
+	if ( logfw < 9002 && applianceVersionShort >= 2010081720 ) {
+		if ( report == 1) {
+			printf("ERROR: %12s SHELF: %s LOG: %7s FIRMWARE: %4s FIRMWARE BELOW MINIMUM FOR AK VERSION\n",host_name,shelfserial,loglabel,logfw);
+		}
+		founderrors=true;
+	}
+}
+
+// ---------------------------------------------------------
+// checkChassis() - The Chassis
+function checkChassis(myChassis) {
+
+	var myDisk; // The current disk being checked
+	var disks; // List of Disks
+	var diskfw,disklabel,diskpaths; // Disk Attributes
+	var chassistype; // The type of chassis we are looking at
+	
+	// Get back to a know starting state
+	run('cd /');
+	// Select the chassis
+	run('maintenance hardware select ' + myChassis);
+
+        shelfserial = safeGet('serial');
+
+	if ( safeGet('faulted') == true ) {
+		if ( report == 1) {
+			printf("ERROR: %12s SHELF %s REPORTS FAULTED\n",host_name,shelfserial);
+		}
+		founderrors = true;
+		return;
+	}
+
+	// get chassis type
+	chassistype = safeGet('type');
+
+	// Run Chassis Type Specific Checks
+	if ( chassistype == "storage") {
+		 checkStorageChassis(myChassis);
+	} else {
+		if ( safeGet('type') == "system" ) {
+			checkSystemChassis(myChassis);
+			return;
+		}
+	}
+	// Get back to a know starting state
+	run('cd /');
+	// Select the chassis
+	run('maintenance hardware select ' + myChassis);
+
+	run('select disk');
+	disks = list();
+	for ( x = 0; x < disks.length; x++) {
+		myDisk = disks[x];
+		run('select ' + myDisk);
+		if ( safeGet('present') ) {
+			if ( safeGet('faulted') ) {
+				disktype = 'faulted';
+			} else {
+				disktype = safeGet('type');
+			}
+		} else {
+			disktype = 'missing';
+		}
+		if ( disktype == "faulted" ) {
+			founderrors = true;
+			if ( report == 1) {
+				printf("ERROR: %12s SHELF: %s DISK: %6s FAULTED\n",host_name,shelfserial,myDisk);
+			}
+		}
+		if ( disktype == "missing" ) {
+			founderrors = true;
+			if ( report == 1) {
+				printf("ERROR: %12s SHELF: %s DISK: %6s REPORTED AS MISSING - SHOULD IT BE?\n",host_name,shelfserial,myDisk);
+			}
+		}
+		if ( disktype == "data" ) {
+			checkDataDisk(myChassis,myDisk);
+		}
+		if ( disktype == "log" ) {
+			checkLogDisk(myChassis,myDisk);
+		}
+		if ( disktype == "ERROR" ) {
+			founderrors=true;
+			if ( report == 1) {
+				//printf("DEBUG: %s SHELF: %s DISK: %s FAULTED: %s\n",host_name,shelfserial,myDisk,diskfaulted); 
+				printf("ERROR: %s SHELF: %s DISK: %s\n",host_name,shelfserial,myDisk); 
+			}
+		}
+		run('cd ..');
+	}
+}
+
+
+// ---------------------------------------------------------
+// Run the actual Check
+function runCheck() {
+	run('maintenance hardware');
+	chassis = list();
+	for (i = 0; i < chassis.length; i++) {
+		checkChassis(chassis[i]);
+       }
+} // END Function runCheck
+
+// ---------------------------------------------------------
+// MAIN STARTS HERE
+if(runonetime==1)
+{
+getHostname();
+
+getApplianceVersion();
+
+//printf("Version: %s\n",applianceVersionShort);
+
+// Figure out if this script supports this version
+runCheck();
+runonetime=0;
+}
+// Report Command
+if ( report == 1 ) {
+	if ( founderrors == false ) { 
+		printf("OK: %s Backend Check Completed: No Errors Found\n",host_name); 
+	}
+}
+printf("==========END_OF_REPORT_chkBackend.aksh==========\n");
+printf("==========START_OF_AUDIT_CHECK_chkBackend.aksh==========\n");
+if ( founderrors == false ) { 
+	printf("backend_check_status = 0\n"); 
+}
+else {
+	printf("backend_check_status = 1\n");
+}
+printf("==========END_OF_AUDIT_CHECK_chkBackend.aksh==========\n");

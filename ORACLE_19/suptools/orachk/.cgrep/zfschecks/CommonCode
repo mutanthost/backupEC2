@@ -1,0 +1,1039 @@
+var host_name = null;
+var mem_size = 0;
+var report = 1;
+
+/*
+ * Routines to enable direct access to the ZFSSA controller (akd).
+ */
+akServiceAllSynchronous = true;
+
+function akMulticall(argv, abort, func)
+{
+	var stack;
+	var i, erridx = -1;
+
+	if (!akServiceAllSynchronous)
+		stack = akStack.getStack(arguments);
+
+	akService.system.multicall(argv, { abortOnFailure: abort },
+	    function (ret, err) {
+		if (ret === null || ret === undefined) {
+			func(ret, err, erridx);
+		} else {
+			for (i = 0; i < ret.length; i++) {
+				if (ret[i] instanceof Array)
+					continue;
+
+				ret[i] = akServiceFault(ret[i], stack);
+
+				if (erridx == -1)
+					erridx = i;
+
+				if (abort) {
+					func(ret, ret[i], i);
+					return;
+				}
+			}
+
+			if (erridx == -1)
+				func(ret, null, erridx);
+			else
+				func(ret, ret[erridx], erridx);
+		}
+	});
+}
+
+function akChunkcall(method, func, progress)
+{
+	var total = [];
+	var id;
+	var nelements = 0;
+	var result = undefined;
+
+	if (arguments.length == 1 && akServiceAllSynchronous) {
+		/*
+		 * If we have not been provided with a function and all
+		 * XML-RPC calls are synchronous, then we return our result or
+		 * throw it, as appropriate.
+		 */
+		func = function (rval, err) {
+			if (err)
+				throw (err);
+
+			result = rval;
+		};
+	}
+
+	var process = function (ret, err) {
+		if (err) {
+			func(ret, err);
+			throw (err);
+		}
+
+		total = total.concat(ret.chunk);
+
+		if (progress)
+			nelements = progress(ret);
+
+		if (!ret.done) {
+			if (nelements > 0) {
+				akService.array.chunk(id, nelements, process);
+			} else {
+				akService.array.chunk(id, process);
+			}
+		} else {
+			func(total, undefined);
+		}
+	};
+
+	/*
+	 * Our initial call is going to create an array on the server, and then
+	 * call array.chunk with a chunk size of 0 -- this will tell us (and
+	 * allow us to tell our caller) how many elements are expected.
+	 */
+	var call = [
+		{ push: [ {
+			methodName: 'array.create',
+			methodParams: [ method ]
+		} ] },
+		{
+			methodName: 'array.chunk',
+			methodParams: [ { peek: [] }, { literal: 0 } ]
+		},
+		{ pop: [] }
+	];
+
+	akMulticall(call, true, function (ret, err, ndx) {
+		if (err) {
+			func(undefined, err);
+			throw (err);
+		}
+
+		id = ret[call.length - 1][0];
+		process(ret[call.length - 2][0]);
+	});
+
+	return (result);
+}
+
+/*
+ * Global variables to avoid recalculating the list of
+ * pools, projects, filesystems and volumes.
+ */
+var GLOBAL_pool = undefined;
+var GLOBAL_entity = {
+	project: [],
+	filesystem: [],
+	volume: []
+};
+
+function listPools() {
+	if (GLOBAL_pool !== undefined) {
+		return GLOBAL_pool;
+	}
+	var list = [];
+	try {
+		list = akService.nas.listPoolNames();
+	} catch (e) {
+	}
+	GLOBAL_pool = list;
+	return GLOBAL_pool;
+}
+
+/*
+ * Use a chunk call to avoid issues with large number of entries.
+ */
+function listEntities(pool, type) {
+	if (GLOBAL_entity[type][pool] !== undefined) {
+		return GLOBAL_entity[type][pool];
+	}
+	var list = [];
+        try {
+                list = akChunkcall({
+                    methodName: 'nas.list',
+                    params: [ {
+                        pool: pool,
+                        collection: 'local',
+                        types: [ type ]
+                    } ]
+                });
+        } catch (e) {
+        }
+	GLOBAL_entity[type][pool] = list;
+	return GLOBAL_entity[type][pool]; 
+}
+
+function listProjects(pool) {
+	return listEntities(pool, 'project');
+}
+
+function listFilesystems(pool) {
+	return listEntities(pool, 'filesystem');
+}
+
+function listVolumes(pool) {
+	return listEntities(pool, 'volume');
+}
+
+/*
+ * Retrieve the filesystems belonging to a given pool and project.
+ */
+function findFilesystems(pool, project) {
+	var result = [];
+	var fs = listFilesystems(pool);
+
+	for (var i = 0; i < fs.length; i++) {
+		var f = fs[i];
+		if (project == f['com.sun.ak:project']) {
+			result.push(f);
+		}
+	}
+	return result;
+}
+
+function findVolumes(pool, project) {
+	var result = [];
+	var luns = listVolumes(pool);
+
+	for (var i = 0; i < luns.length; i++) {
+		var lun = luns[i];
+		if (project == lun['com.sun.ak:project']) {
+			result.push(lun);
+		}
+	}
+	return result;
+}
+
+function findShares(pool, project) {
+	var i;
+	var result = [];
+	var fs = findFilesystems(pool, project);
+	var luns = findVolumes(pool, project);
+
+	if (fs) {
+		for (i = 0; i < fs.length; i++) {
+			result.push(fs[i]);
+		}
+	}
+	if (luns) {
+		for (i = 0; i < luns.length; i++) {
+			result.push(luns[i]);
+		}
+	}
+	return result;
+}
+
+// ----------------------------------------------------------------------------
+// safeGet() Gets properties and captures errors
+function safeGet(getProperty) {
+    try {
+        prop = get(getProperty);
+    } catch(err) {
+        prop = 'ERROR';
+    }
+    return prop;
+}
+
+// ----------------------------------------------------------------------------
+function getOrNA(name){
+    try{
+        return(get(name));
+    }catch(e){
+        return("N/A");
+    }
+}
+
+// ---------------------------------------------------------
+// Get Hostname
+function getHostname() {
+    run('cd /');
+    if(host_name == null) {
+        run('maintenance hardware select chassis-000'); 
+        host_name=safeGet('name'); 
+        run('cd /');
+    }	
+}
+
+// ---------------------------------------------------------
+// Executes "select memory" command and returns the memory values if the command 
+// succeeds. Returns null otherwise (for simulator appliances, which do not have memory)
+function getMemory() {
+    try {
+        run("cd /");
+
+        // Getting all the memory values thru list
+        run('maintenance hardware select chassis-000 select memory');
+
+        return list();	
+    }
+    catch(err)
+    {
+        // TODO: restore node
+        return null;
+    }
+}
+
+// ---------------------------------------------------------
+// Finding total memory
+function memory_size(mem) {
+    // Add the value of each DIMM
+    for (i = 0; i < mem.length; i++) {
+        try {
+            si = run('select ' + mem[i] +' get size');
+            si = parseInt(si.split('=')[1]);
+
+            // Memory is in GB
+            mem_size = mem_size + si;
+        }
+        catch(err){
+            if (err.code == EAKSH_PROP_BADNAME){
+                // Just means memory in this DIMM is missing
+                continue;
+            }
+        }
+    }
+}
+
+//-------------------------------------------------------------------------------
+function clusterExists() {
+    try {
+        run('cd /');
+        run('configuration cluster');
+        return (true);
+    }
+    catch(err) {
+        return (false);
+    }
+}
+
+//-------------------------------------------------------------------------------
+function printreport(report_str) {
+    if(report) {
+        printf("%s", report_str);
+    }    
+}
+
+//-------------------------------------------------------------------------------
+// ZScheck
+
+function general_info(){
+    // collect some general info about the appliance
+    run('cd /');						
+    run('maintenance hardware select chassis-000');
+    appl.model = get("model");	
+
+    run('cd /');						
+    run('configuration version');
+
+    appl.ak_ver 	= get('version').split(",")[0];
+    appl.nodename 	= get('nodename');
+    appl.cns		= get('csn');
+    appl.os 		= get('os_version');
+    appl.sp_ver 	= get('sp_version');
+    appl.bios 		= get('bios_version');
+
+    for (i=0, items = appl.bios.trim().split(" "); i< items.length; i++){
+        if (/[0-9A-Z]{8}/.test(items[i])){
+            appl.bios = items[i];
+        }
+    }
+
+    appl.services 	= new Array();	
+    appl.hardware 	= new Array();	
+    appl.cluster 	= new Array();	
+    appl.com_issues = new Array();
+
+    appl.server		= run("appliance.sysinfo().hw_product").split('=')[1].replace(/\'/g, "").replace(/\s/, "").replace(/\n/, "");
+    appl.model      = appl.server.match(/M2/) !== null 
+        && 
+        appl.model.match(/7420/) !== null ? appl.model.replace(/7420/, "7420-M2") : appl.model;    
+}
+
+
+
+String.prototype.trim = function(){
+    return this.replace(/^\s+|\s+$/g, '');
+};
+
+
+String.prototype.getMatchCount = function(myRegex){
+    var count, regexResult;
+    regexResult = this.match(myRegex);
+    count = regexResult !== null ? regexResult.length : 0;
+    return(count);
+}
+
+
+var printTable = function(tableObj) {
+    //To use as constructor new printTable({name:"test", headNames:['xxx','xxx','xxx']})
+    //         OR 
+    //new printTable({name:"test", headNames:[]}) to use some kind of preformatted information not in a table format.
+    this.sectionDivider = "+-------------------------------------------------------------------------------------------"+
+        "---------------------+\n";
+    this.lineLength = 120;
+    this.name = tableObj.name.toUpperCase();
+    this.head = tableObj.headNames;
+    this.columns = (function(headNames)
+            {
+                var i, cols = headNames.length;
+                var colArray = [];
+                for(i=0; cols>i; i++){
+                    colArray.push(headNames[i].length);
+                }
+                return(colArray);
+            }
+            )(tableObj.headNames);
+
+    //this is for saving the printf strings that are build by this.savePrintStream()
+    this.dataStream = [];
+    //used to save the column data and extra details at the end of each table
+    this.data = [];
+    this.details = [];
+
+    this.savePrintStream = function(){
+        printf("%s", this.sectionDivider);
+        printf("\n");
+        (function(name, line){        
+            var nameWrapper = "***";
+            //Add 2 for the empty spaces between nameWrapper
+            var headWrapped = name.length + 2 + (nameWrapper.length * 2);
+            var namePadding = Math.floor((line - headWrapped) / 2);
+            var namePadEnd  = 0;
+            if(namePadding % 2 === 1){
+                namePadEnd = 1;
+            }
+            namePadEnd += namePadding;
+            var formatString = "%"+namePadding+"s%s %s %s%"+namePadEnd+"s";
+            // Example printf string: "printf '%s\n' ''"
+
+            printf(formatString + "\n", "", nameWrapper, name, nameWrapper, "");   
+        })(this.name, this.lineLength);
+        printf("\n");
+        //First update the column lengths
+        var i, k,
+            tempHead = '',
+            tempData = '',
+            tempString = '';
+        var formats = new Array();
+
+        for(i=0; this.data.length>i; i++){
+            this.updateColumnLength(this.data[i]);
+        }
+
+        //create format string for printf
+        for(i=0; this.columns.length>i; i++){
+            if(i == 0)
+                formats.push("%-"+this.columns[i]+"s");
+            else
+                formats.push("   %-"+this.columns[i]+"s");
+        }
+
+        //Generate table header printf only if we actually constructed this object with head names
+        if(this.head.length !== 0){
+            for(i=0; this.head.length>i; i++){
+                printf(formats[i], this.head[i]);
+            }
+            printf("\n");
+            for(i=0; this.columns.length>i; i++){
+                tempData = '';
+                for(k=0; this.columns[i]>k; k++){
+                    tempData += "-";
+                }
+                printf(formats[i], tempData);
+            }
+            printf("\n");
+
+            //Generate table data(each row of the table) printf
+            for(i=0; this.data.length>i; i++){
+                for(k=0; this.data[i].length>k; k++){
+                    //Need to clean all single quotes, because of printf command
+                    //tempString = this.data[i][k].toString().replace(/'/g, ''); 
+                    //tempData += " '"+tempString+"'";
+                    printf(formats[k], this.data[i][k].toString());
+                }
+                printf("\n");
+            }	
+        }
+
+        //Print Details data
+        //Check to make sure we have an array of strings, and if we do make sure that at least one has
+        //something other than ''
+        if(this.details.length !== 0 && (!this.isDetailsEmpty(this.details)) ){
+            if(this.head.length !== 0){
+                printf("\n");
+                printf("%32s%s%32s\n", " ", "---------------- Additional Information ----------------", " ");
+            }
+            for(i=0; this.details.length>i; i++){
+                if(this.details[i] === ""){ continue;}
+                //Need to clean all single quotes, because of printf command
+                tempString = this.details[i].toString().replace(/'/g, '');
+                printf("%s\n", tempString);
+            }
+        }
+
+    };
+
+    this.updateColumnLength = function(rowArray){
+        var i, rows = rowArray.length;
+        for(i=0; rows > i;i++){
+            this.columns[i] = rowArray[i].toString().length <= this.columns[i] ? this.columns[i]: rowArray[i].toString().length;
+        }
+    };
+
+    this.isDetailsEmpty = function(details){
+        var i;
+        for(i=0;details.length > i; i++){
+            if(details[i] !== ""){
+                return false;
+            }
+        }
+        return true;
+    };
+};
+
+var appl = new Object();
+general_info();
+
+
+function printReportTable(printTableInstance) {
+    if(report) {
+        printTableInstance.savePrintStream();        
+    }
+}
+
+
+//-------------------------------------------------------------------------------
+// ZScheck
+function is_clustered(){
+    var isClustered        = false;
+
+    run('cd /');									
+    try {	
+        run('configuration cluster'); 	
+        if (get('state').lastIndexOf('AKCS_UNCONFIGURED')<0) {
+            isClustered = true;
+        }	
+    }
+    catch(e){
+        isClustered = false; // TODO: merge with clusterExists()
+    }
+    return(isClustered);
+}
+
+
+//-------------------------------------------------------------------------------
+// ZScheck
+function getOwnNetworks() {
+    var networks = [];
+
+    run('cd /');
+    run('configuration cluster');
+
+    var this_node = run("appliance.sysinfo()['os_nodename']").replace(/\s+/g, "").split('=')[1].replace(/\'/g, "").replace(/\s/, "");
+
+    run("resources");
+    lines = run('list').split('\n');
+
+    for (i = 1; i < lines.length-1; i++){			
+        resource = lines[i].replace(/\s+/g, " ").split(" ")[0];
+        run("select "+resource);
+        owner = get('owner');			
+
+        if (owner == this_node){ // if this resource belongs to this node
+            if (resource.lastIndexOf('net/')>=0){ // if this is a network resource				   
+                networks.push({"name"	: resource, 
+                    "type"	: get("type"), 
+                    "owner": owner, 
+                    "IP"	: get("details"), 
+                    "label": get("user_label")
+                });			   
+            }
+        }
+        run ("cd ..");
+    }
+
+    return networks;
+}
+
+
+
+//-------------------------------------------------------------------------------
+// ZScheck
+function retrieve_chassis() {
+    appl.hardware.chassis	 = new Array(); // variable where we'll keep info about the chassis
+
+    // Array where we'll store the chassis
+    chassis = [];
+
+    run('cd /');
+    run('maintenance hardware');      			   
+    output = run('list').split('\n');	
+
+    n = 0; // nr of chassis encountered
+    for (i = 0; i < output.length; i++)  {
+        if (output[i].lastIndexOf("chassis")>=0){							
+            item = output[i].replace(/\s+/g, " ").split(' ')[0];					
+            chassis[n] = item;
+            n++;
+        }
+    }						
+
+    for (i = 0 ; i < n; i++) {		// go through all the chassis encountered												
+        //select chassis
+        cmd = "select " + chassis[i];						
+        run(cmd);								
+
+        chassis_o = {"chassis": chassis[i], "type": get("type"), "sn": get("serial"), "model": getOrNA("model"), "name": get("name"), "faulted": get("faulted")};
+
+        appl.hardware.chassis.push(chassis_o);				
+        run('cd /');
+        run('maintenance hardware');
+    }
+}
+
+
+
+// ZScheck
+function failed_hw_components(componentCheck){
+    var hwName 	   	  = 'Hardware Status',
+        hwStatus 	  = 'OK',
+        hwDetails 	  = '',
+        hwDetailsLong = '';
+
+    try {
+        appl.hardware.chassis	 = new Array(); // variable where we'll keep info about the chassis
+
+        // Array where we'll store the chassis
+        chassis = [];
+
+        run('cd /');
+        run('maintenance hardware');      			   
+        output = run('list').split('\n');	
+
+        n = 0; // nr of chassis encountered
+        for (i = 0; i < output.length; i++)  {
+            if (output[i].lastIndexOf("chassis")>=0){							
+                item = output[i].replace(/\s+/g, " ").split(' ')[0];					
+                chassis[n] = item;
+                n++;
+            }
+        }						
+
+        faulted = ""; // faulted item
+        faulted_tray_items = ""; // faulted items on a tray
+        all = ""; // all the failed disks on all the trays
+
+
+        for (i = 0 ; i < n; i++) {		// go through all the chassis encountered            
+            faulted_tray_items = "";				
+
+            //select chassis
+            cmd = "select " + chassis[i];						
+            run(cmd);								
+
+            chassis_o = {"chassis": chassis[i], "type": get("type"), "sn": get("serial"), "model": getOrNA("model"), "name": get("name"), "faulted": get("faulted")};
+
+            // Perform check for a particular component type within the chassis
+            // E.g. PSU, CPU, DIMM, fan, Disks, etc.
+            // Add all faulted components to faulted tray items */
+            faulted_tray_items = componentCheck(chassis_o, i);
+
+            if (faulted_tray_items != ""){
+                all = all + "     " + chassis[i] + ":\n" + faulted_tray_items + "\n";							
+            }	
+
+            appl.hardware.chassis.push(chassis_o);				
+            run('cd /');
+            run('maintenance hardware');
+        }						
+
+        if (all=="") {
+            hwDetails = "No Absent or Faulted Components";
+            hwDetailsLong = "*\tHealth Check:\n"
+                "\tAll the components are optimal\n";
+
+        }
+        else {
+            hwStatus = "Warning";
+            hwDetails = "Absent: "+all.getMatchCount(/absent/ig)+", Faulted: "+all.getMatchCount(/fault|fail/ig);
+            hwDetailsLong = "*\tHealth Check:\n"+ all;				
+        }			   		   								
+    }
+    catch(e){
+        hwStatus = "Error";
+        hwDetails = "Unable to run";
+        hwDetailsLong = "*\tHealth Check Error:\n"+
+            "\t"+e.message+"\n";
+
+        founderrors = true;							
+    }finally{
+        hardwareTable.data.push([hwName, hwStatus, hwDetails]);
+        hardwareTable.details.push(hwDetailsLong);
+    }
+}	
+
+function getPoolNames() {
+    run('cd /');
+    run('status storage');
+    return list();
+}
+
+// ZScheck
+function getPoolNamesOLD() {
+    var output;
+    var pools = new Array();
+
+    // get product name
+    run('cd /');								
+    run('configuration version');
+    product = get("product");
+
+    // if this an old product, we need to get the pools with different commands
+    if (product.lastIndexOf("10")>=0){
+        run("cd /");
+        pool_list =  run('configuration storage list').split('\n\n')[1]; // get pool list
+        //print("Pools: " + pool_list);
+        output = pool_list.replace("pool =","      ").split('\n');				
+        output.shift(); // remove this first line:  "POOL  OWNER  DATA PROFILE  LOG PROFILE   STATUS"
+        output.sort(); // sort the pools by name				
+    }
+    else{
+        run("cd /");
+        run('configuration storage');
+        pool_list = run("list pools").split('\n\n')[1]; // get pool list
+        //print("Pools: " + pool_list);
+        output = pool_list.replace("->","  ").split('\n');
+        output.shift(); // remove this first line:  "POOL  OWNER  DATA PROFILE  LOG PROFILE   STATUS"
+        output.sort(); // sort the pools by name
+        output.shift(); // remove the first line which will be a new line (empty line)		
+    }
+
+    // Get raw command outputs and aksh output and save them in an array:						
+    for (i = 0; i < output.length; i++){									
+        item = output[i].replace(/^\s+|\s+$/gm,'').replace(/\s+/g, " ").split(' ');			
+        pools.push(item[0]);
+    }
+
+    return pools;
+}
+
+function isExalogicNode() {
+    var exalogicNode = false;
+    var poolList = getPoolNames();
+    if (poolList.length == 0) {
+        exalogicNode = false;
+    }else {
+        exalogicNode = true;
+    } 
+    return exalogicNode;
+}
+
+//BEGIN of CommonMirrorProfile for common code 
+function checkMirrorProfileOnePool() {
+    run('cd /');
+    run('configuration storage');
+
+    profileStatus = safeGet('profile');
+    pool_profile = run('show');
+
+    if (((headStatus == "AKCS_OWNER" || headStatus == "AKCS_CLUSTERED") &&
+                (profileStatus == "mirror" || profileStatus == "mirror3" ||
+                 profileStatus == "mirror_nspf" || profileStatus == "mirror3_nspf")) ||
+            (headStatus == "AKCS_STRIPPED" && profileStatus == "ERROR")) {
+                printreport("\n");
+            } else { 
+                founderrors = true;
+            }
+
+    if(headStatus == "AKCS_STRIPPED" && profileStatus != "ERROR") {
+        printreport("This ZFS storage head is passive. Storage pool profile status in this rack is incorrectly set. \n\n");
+        printreport("> configuration cluster show\n" + configuration_cluster + "\n");
+        printreport("> configuration storage show\n" + pool_profile + "\n");
+    }
+    else {
+        printreport("The storage pool profile in this active ZFS storage head is " +
+                (profileStatus == "ERROR"? "none" : profileStatus) + "\n\n");
+        printreport("> configuration cluster show\n" + configuration_cluster + "\n");
+        printreport("> configuration storage show\n" + pool_profile + "\n");
+    }
+}
+//END CommonMirrorProfile
+//BEGIN CommonShadows, common code for Shadows and ExtShadows
+function checkShadows() {
+	var i, j;
+	var pools = listPools();
+	var projects = [];
+	var shares = [];
+
+	for (i = 0; i < pools.length; i++) {
+		projects[pools[i]] = listProjects(pools[i]);
+		shares[pools[i]] = listFilesystems(pools[i]);
+	}
+	var n_projects = 0;
+	for (p in projects)
+		n_projects++; 
+
+	if (n_projects == 0) {
+		printreport("INFO: No projects exist in this storage node.\n\n");
+		return;
+	}
+
+	getHostname();
+	for (p in projects) {
+		for (i = 0; i < projects[p].length; i++) {
+			var project = projects[p][i];
+			var project_name = project['com.sun.ak:project'];
+			var pool_name = project['com.sun.ak:pool'];
+			var shares = findShares(pool_name, project_name);
+			for (j = 0; j < shares.length; j++) {
+				var share = shares[j];
+				var share_name = share['com.sun.ak:share'];
+				var shadow = share['shadow'];
+				var shadow_stats = share['com.sun.ak:shadowstat'];
+
+                		if ( shadow == "ERROR" || shadow == "none") {
+					// no shadow migration running
+					continue;
+				}
+
+				if (shadow_stats == undefined) {
+					// no shadow migration running
+					continue;
+				}
+
+				var shadowerrors = shadow_stats['errors'];
+				var shadowtransferred = shadow_stats['transferred'];
+
+                    		// If there are errors or we are not moving data print an error msg
+                    		if ( shadowerrors > 0 || shadowtransferred < 1 ) {
+                        		printreport("ERROR: " + host_name + " SHARE: " + share_name +
+					    " SHADOWSOURCE: " + shadow + " ERRORS: " + shadowerrors +
+					    " TRANSFERRED: " + shadowtransferred + "\n");
+                        		founderrorsShadows = true ;
+                    		}
+			}
+		}
+	}
+}
+//END CommonShadows
+//BEGIN CommonShareDedup, common code shared by ShareDedup and ExtShareDedup
+/*
+ * Checks if dedup is enabled 
+ */
+function checkShareDedup() {
+	var i, j;
+	var pools = listPools();
+	var projects = [];
+	var shares = [];
+
+	for (i = 0; i < pools.length; i++) {
+		projects[pools[i]] = listProjects(pools[i]);
+		shares[pools[i]] = listFilesystems(pools[i]);
+	}
+	var n_projects = 0;
+	for (p in projects)
+		n_projects++; 
+
+	if (n_projects == 0) {
+		printreport("INFO: No projects exist in this storage node.\n\n");
+		return;
+	}
+
+	for (p in projects) {
+		for (i = 0; i < projects[p].length; i++) {
+			var project = projects[p][i];
+			var project_name = project['com.sun.ak:project'];
+			var pool_name = project['com.sun.ak:pool'];
+			if (project.dedup != false) {
+				founderrors = true;
+				printreport("Project " + project_name + 
+				    ": dedup is incorrectly enabled:\n" + project.dedup + "\n\n");
+			}
+
+			var shares = findShares(pool_name, project_name);
+			for (j = 0; j < shares.length; j++) {
+				var share = shares[j];
+				var share_name = share['com.sun.ak:share'];
+				if (project.dedup != false) {
+					founderrorsShareDedup = true;
+					printreport("Share " + share_name + " under project " +
+					    project_name + ":dedup incorrectly enabled.\n" +
+					    share.dedup + "\n\n");
+				}
+			}
+		}
+	}
+	if (!founderrorsShareDedup) {
+		printreport("Data deduplication for projects and shares " + 
+		    "are correctly disabled on this pool. \n\n");
+	}
+}
+//END CommonShareDedup
+//BEGIN CommonShareQuota, common code shared by ShareQuota and ExtShareQuota
+
+/*
+ * Check if any project or share has a greater utilization than
+ * MAX_UTILIZATION
+ */
+function checkQuota(entities, type, isShare) {
+	var reports = [];
+
+	/*
+	 * Iterate over all the entities.
+	 */
+	for (p in entities) {
+		for (i = 0; i < entities[p].length; i++) {
+			var entity = entities[p][i];
+            if (!('usage:reservation' in entity) ||
+                    !('usage:total' in entity) ||
+                    !('usage:available' in entity) ||
+                    !('com.sun.ak:quota' in entity)) {
+                continue;
+            }
+			var name = entity[type];
+
+			var quota = Number(entity['com.sun.ak:quota']);
+			var spaceTotal = Number(entity['usage:total']);
+			var spaceUnusedRes = Number(entity['usage:reservation']);
+			var spaceAvailable = Number(entity['usage:available']);
+
+			/*
+			 * Different formula for calculating space utilization
+			 * depending on whether quota is set.
+			 */
+			var utilization;
+			if (quota != 0) {
+				utilization = Math.round(spaceTotal /
+				    (spaceUnusedRes + quota) * 1000) / 10;
+			} else {
+				utilization = Math.round(spaceTotal /
+				    (spaceAvailable + spaceTotal) * 1000) / 10;
+			}
+			if (utilization >= MAX_UTILIZATION) {
+				founderrorsShareQuota = true;
+			}
+
+			var tab = "\t";
+			var report;
+			if (isShare) {
+				project = entity['com.sun.ak:project'];
+				tab = "\t\t";
+				report = tab + "Share " + name +
+				    " under project " + project + ":\n";
+			} else {
+				report = tab + "Project " + name + ":\n";
+			}
+
+			report += tab + "Total used space for " + name + " is: " +
+			    spaceTotal + " bytes\n" + tab +
+			    "Quota for " + name + " is: " +
+			    quota + " bytes\n" + tab +
+			    "Unused reserve space for " + name + " is: " +
+			    spaceUnusedRes + " bytes\n" + tab + "Available space for " +
+			    name + " is: " + spaceAvailable +
+			    " bytes\n" + tab + "Space utilization for " +
+			    name + " is: " + utilization + " percent. \n\n";
+
+			if (isShare) {
+				if (reports[project] == undefined)
+					reports[project] = [];
+				reports[project].push(report);
+			} else {
+				reports[name] = report;
+			}
+		}
+	}
+	return reports;
+}
+
+/*
+ * ALIAS             NAME
+ * share             com.sun.ak:share
+ * project           com.sun.ak:project
+ * quota             com.sun.ak:quota 
+ * space_total       usage:total
+ * space_unused_res  usage:reservation
+ * space_available   usage:available
+ */
+function checkShareQuota() {
+	/*
+	 * Retrieve all pools, projects and shares.
+	 * projects and shares are hashmaps indexed by pool.
+	 *
+	 * Only retrieve the filesystems as volumes do not
+	 * have quota and reservation.
+	 */
+	var i;
+	var pools = listPools();
+	var projects = [];
+	var shares = [];
+	for (i = 0; i < pools.length; i++) {
+		projects[pools[i]] = listProjects(pools[i]);
+		shares[pools[i]] = listFilesystems(pools[i]);
+	}
+
+	var project_reports = checkQuota(projects, 'com.sun.ak:project');
+	var share_reports = checkQuota(shares, 'com.sun.ak:share', true);
+
+	for (project_name in project_reports) {
+		printreport(project_reports[project_name]);
+		var shares = share_reports[project_name];
+		if (shares === undefined) {
+			/* no shares for this project */
+			continue;
+		}
+		for (i = 0; i < shares.length; i++) {
+			printreport(shares[i]);
+		}
+	}
+
+}
+
+/*
+ * Compare projects and filesystems record size.
+ */
+function checkBlockSize(minRecordSize) {
+	var i, j;
+	var pools = listPools();
+	var projects = [];
+	var shares = [];
+
+	for (i = 0; i < pools.length; i++) {
+		projects[pools[i]] = listProjects(pools[i]);
+		shares[pools[i]] = listFilesystems(pools[i]);
+	}
+	var n_projects = 0;
+	for (p in projects)
+		n_projects++; 
+
+	if (n_projects == 0) {
+		printreport("INFO: No projects exist in this storage node.\n\n");
+		return;
+	}
+
+	printreport("List of projects and its shares with its block size\n");
+	printreport("---------------------------------------------------\n\n");
+	for (p in projects) {
+		for (i = 0; i < projects[p].length; i++) {
+			var project = projects[p][i];
+			var project_name = project['com.sun.ak:project'];
+			var pool_name = project['com.sun.ak:pool'];
+			var recordsize = project['recordsize'];
+			printreport(project_name + ": " + recordsize + " Bytes\n");
+
+			/*
+			 * Only retrieve the filesystems as recordsize does
+			 * not apply to volumes.
+			 */
+			var fs = findFilesystems(pool_name, project_name);
+			for (j = 0; j < fs.length; j++) {
+				var fs_name = fs[j]['com.sun.ak:share'];
+				var fs_recordsize = fs[j]['recordsize'];
+				printreport("\t" + fs_name + ": " + fs_recordsize + " Bytes\n");
+				if (fs_recordsize < minRecordSize) {
+					founderrorsBlocksize = true;
+				}
+			}
+		}
+	}
+}

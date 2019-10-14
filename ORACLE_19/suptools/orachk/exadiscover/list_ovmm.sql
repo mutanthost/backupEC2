@@ -1,0 +1,1 @@
+select trim(managaddre) as ip from vmb_ovm_manager order by managaddre;

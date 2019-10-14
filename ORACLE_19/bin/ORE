@@ -1,0 +1,42 @@
+#!/bin/sh
+
+ORE_VER=1.5.1
+R_MAJOR_VER=3
+R_MINOR_VER=3
+
+# Checking R
+type R > /dev/null 2>&1
+if [ $? -eq 0 ]; then
+  unset R_HOME
+  R_HOME=`R RHOME`
+fi
+
+if [ -n "${R_HOME}" ]; then
+  RCMD="${R_HOME}/bin/R"
+fi
+
+if [ -f "${RCMD}" ]; then
+  unset R_HOME
+  R_HOME=`${RCMD} RHOME`
+else
+  echo "Fail"
+  echo "  ERROR: R not found"
+  exit 1
+fi
+
+R_CHK="as.integer(R.Version()[['major']]) > ${R_MAJOR_VER}L || (as.integer(R.Version()[['major']])==${R_MAJOR_VER}L && as.integer(R.Version()[['minor']]) >= ${R_MINOR_VER}L)"
+rver_chk=`$RCMD --vanilla --slave -e "$R_CHK" | cut -f2 -d' '`
+if [ "$rver_chk" = "FALSE" ]; then
+  echo "Fail"
+  echo " ERROR: ORE $ORE_VER requires R ${R_MAJOR_VER}.${R_MINOR_VER}.0 or later"
+  exit 1
+fi
+
+ORE_LIBS_USER="${ORACLE_HOME}/R/library"
+if [ -z "${R_LIBS_USER}" ]; then
+  R_LIBS_USER="${ORE_LIBS_USER}"
+else
+  R_LIBS_USER="${ORE_LIBS_USER}:${R_LIBS_USER}"
+fi
+export R_LIBS_USER
+$RCMD $@

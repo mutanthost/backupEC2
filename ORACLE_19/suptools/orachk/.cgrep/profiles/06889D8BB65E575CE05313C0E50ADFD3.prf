@@ -1,0 +1,510 @@
+080F57C2EB917BDDE05313C0E50AEFFD|Exadata Critical Issue DB09
+082D1C30E098191AE05313C0E50AC78A|cbc_cell_disk_on_flash
+0839C2C876DB101CE05313C0E50A6C25|raid_battery_condition
+0839EFE046A02A59E05312C0E50A41AA|cbc_raid_battery_condition
+0851CC663BF52485E05312C0E50AE7CD|Determine storage server type(All flash/High capacity)
+085309C440A256E4E05312C0E50AEF69|cbc_allflash
+08B370BFEC866FD7E05313C0E50ABF23|cbc_cell_disk_on_flash
+09D5E8E7BFC03E13E05312C0E50A9D7C|Minimum Operating system version
+09F694665C9A6F97E05312C0E50A05DF|cbc_isc_config_cell
+09FFABFD374661E6E05312C0E50A40C0|isc config compute
+0A00F8CFD8FC5D5AE05312C0E50AF374|isc config switch
+0C09A34F2B59716EE05312C0E50AC5AF|GNS status
+0C0D97C92B343CA5E05313C0E50AC2DD|GNS is running
+0C112DF481D04105E05312C0E50A48E6|HelloWorld Java Check
+0D12A9722FBA54F4E05313C0E50ACFDF|/var directory free space
+0D13FFDA6C7F5E01E05313C0E50A4C97|/etc directory free space
+0E208AC7020E3CE0E05312C0E50AD800|Are HAIP being used?
+168F7FAC079CB654E0530B98EB0AF750|Verify Database Server Physical Drive Configuration
+169CB1FDC3CFCA33E0530C98EB0A7049|Verify Database Server Physical Drive Configuration
+19AE6B63CC3E36B2E0530B98EB0A54BD|Verify active system values match those defined in configuration file "cell.conf"  [Storage Server]
+19B0658FF5BA04D3E0530C98EB0A86FF|Exadata version on database server >= 12.1.2.1.1 
+19B0B5C2EBD7796AE0530A98EB0AE41B|Verify active system values match those defined in configuration file "cell.conf"  [Storage Server]
+19C3C9691860CEC7E0530D98EB0A59B6|Verify active system values match those defined in configuration file "cell.conf"  [Database Server]
+19C460B24ACA8DB8E0530C98EB0ABD89|Verify active system values match those defined in configuration file "cell.conf"  [Database Server]
+19D318E04EAD4736E0530B98EB0ACB94|disable_apm_result
+19D3D1CFAB58BB1BE0530E98EB0A99DC|Exadata version on database server >= 12.1.2.1.0
+19D3D1CFAB59BB1BE0530E98EB0A99DC|Exadata version on database server <= 12.1.2.1.1
+19D3D1CFAB64BB1BE0530E98EB0A99DC|Verify TCP Segmentation Offload (TSO) is set to off
+19D459E1849918C9E0530D98EB0A25A3|Verify TCP Segmentation Offload (TSO) is set to off
+19D5A3659FCDBC29E0530E98EB0A2AC4|Verify that the SDP over IB option sdp_apm_enable is set to 0
+19E6EE172A2431A4E0530D98EB0A3747|Free space in root file system
+1AE97D26AAAFB483E0530B98EB0A9BAF|Check if Oracle Text is installed on the Database
+1B6F72879E98E67EE0530D98EB0A57B7|Exadata Critical Issue DB18
+1B9361444470D351E0530C98EB0A0102|Exadata Critical Issue DB30
+1B95183ACCE140CDE0530A98EB0AE55F|Exadata Critical Issue DB30
+1B955DCD139D694DE0530C98EB0A8D0A|Exadata Critical Issue DB31
+1CFEEA47876DA38EE0530A98EB0A64A6|HelloWorld Java Check test
+1EADA03088B36FE7E0530C98EB0A22E5|Check OIM Database schema password expiration
+1FFB46E92F857319E0530A98EB0A9763|Verify database server InfiniBand network MTU size is 65520
+1FFBBD69D04678B6E0530E98EB0AB8D9|Exadata version on database server >=12.1.2.2.0
+20FC8CAC7445DF10E0530E98EB0A09AF|Oracle database software owner soft stack shell limits
+21EC020B6EFC05FAE0530D98EB0ADA76|Exadata Critical Issue DB32
+229090333E81055EE0530C98EB0A841F|Exadata version on database server <12.1.2.1.0
+229DF188C288D8BCE0530E98EB0AEF6A|Check alerthistory for stateful alerts not cleared [Database Server]
+229F97B6DD9F115DE0530D98EB0A24FA|Check alerthistory for non-test open stateless alerts [Database Server]
+22A06C16CD4978DAE0530D98EB0A7C41|Check alerthistory for test open stateless alerts [Database Server]
+22A28FC740E95765E0530C98EB0A8B32|Check alerthistory for stateful alerts not cleared [Database Server]
+22A34022328178D4E0530B98EB0AC8B4|Check alerthistory for non-test open stateless alerts [Database Server]
+22A37CD34C3E4C68E0530C98EB0A98D4|Check alerthistory for test open stateless alerts [Database Server]
+253F92B9BB2AD162E0530A98EB0ADEDC|cbc_sytem_model_number
+267D72A59B700B23E0530A98EB0A605E|Verify RAID Controller Battery Temperature [Compute Node]
+267DCACE88A0CB6FE0530D98EB0A7025|Verify compute node disk devices tune2fs check interval
+26816C254D9913C2E0530B98EB0A2ECE|Verify Compute Node Physical Drive Configuration
+26817CAD580DD9DBE0530A98EB0A39D7|Verify Compute Node Disk Controller Configuration 
+2681C6F17F4E85A7E0530A98EB0AAC86|Verify RAID Controller Battery Condition
+269192877480A62AE0530D98EB0A0AFA|Verify network interface redundancy and configuration
+2915F25567E874ABE0530D98EB0A3F31|Verify RAID Controller Battery Condition
+29FA519E1F072621E0530B98EB0A86F0|Verify db_unique_name is used in I/O Resource Management (IORM) interdatabase plans
+2A46ADE22CCC9EE3E0530B98EB0A4BC5|Verify IORM resource plan existence on Storage server 
+2B5827AD908BB620E0530D98EB0A1FD8|Verify Database Server InfiniBand Network is in Connected Mode
+2B5881E7458C16E2E0530E98EB0A8C68|Infiniband for Cluster communication
+2D284FCD26AFAAC9E0530D98EB0AC992|Branch to check MegaRAID is configured
+2E1B14FB4CEF8C6BE0530C98EB0A60AB|ES2 firmware build number
+2E1D77668C815B3DE0530B98EB0A965C|ES2 firmware build number
+2E306ED0A05CAD92E0530C98EB0A450D|ES2 filesystem vresion
+2E31AB23443E8050E0530E98EB0ADF28|Sefos is running on ES2
+2E31DE841E4B7CC8E0530E98EB0AF48C|Sefos is running on ES2
+2E335BA4C2306251E0530B98EB0AD490|ES2 filesystem vresion
+3062517A1BFEA0C5E0530B98EB0AA012|Suitable USB device on storage servers
+32308447E02F95A6E0530B98EB0A204F|Check alerthistory for stateful alerts not cleared [Database Server]
+32308447E03095A6E0530B98EB0A204F|Verify Ambient Air Temperature [Database Server]
+3268A38D3F09F416E0530B98EB0ADCAA|Verify RAID disk controller CacheVault capacitor condition [Storage Server]
+3269E2C742674725E0530E98EB0AB69E|Verify RAID disk controller CacheVault capacitor condition [Storage Server]
+326C9F0B5E5533C7E0530B98EB0AE9C6|Verify RAID disk controller CacheVault capacitor condition [Database Server]
+327164FCC47B500AE0530B98EB0A5352|Verify RAID disk controller CacheVault capacitor condition [Storage Server]
+3603000FA4B41A96E0530D98EB0A098C|GI shell limits soft nofile
+3603B2EFA611458BE0530E98EB0AA3C1|Is limits format in the form of hard_max_user instead of hard_nproc BR
+3609197AD9FB0482E0530B98EB0AA097|GI shell limits hard stack
+3609270C602C4147E0530D98EB0A6C85|Is GI owned by the RDBMS install user?
+360993D79E404522E0530A98EB0A1378|GI shell limits hard nproc
+360C0D57798BA7A7E0530D98EB0AA0F5|Is limits format in the form of hard_nproc instead of hard_max_user BR
+360C27A049F41D20E0530C98EB0AC5A4|GI shell limits soft nproc
+360C824DEC5813A8E0530E98EB0A8D9C|GI shell limits hard nofile
+3A6D2A277E5F6D9FE0530B98EB0AFA08|Apply PSU to target GRID_HOME during upgrade
+416FD0480713854DE0530C98EB0AA46E|Exadata Critical Issue DB36
+4675AE2609FCEDF4E0530D98EB0A8825|Verify NVMe disks dont exist
+4A27467B4F7C24F8E0530A98EB0A9D0C|/var/audit filesystem free space
+4D0E759B219F24C3E0530A98EB0A6C08|Hostname formatting
+4DFF512179E68F5EE0530B98EB0AD586|High Redundancy Controlfile
+4E9150A24A638297E0530E98EB0AD79C|High Redundancy Controlfile
+4FDC94B6883C9368E0530A98EB0A12CC|/boot filesystem sizing
+4FE2F8AC2B4CC38FE0530C98EB0A29D5|Space availability in /boot filesystem
+5062F41A963AABAEE0530C98EB0AEDE2|Verfiy Oracle database appliance bundle patch version
+540A623C4B3A8D1FE0530C98EB0A3FFC|Verify the ownership and permissions of the "oradism" file
+5417662084A05FF2E0530E98EB0AAA2F|ORACLE_HOME environment variable for Grid infrastructure owner
+594E09A832BCC864E0401490CACF200D|v_parameter
+5ADCECF64757E914E0401490CACF4BBD|net.core.wmem_default
+5ADD88EC8E0AFF2EE0401490CACF0C10|net.core.wmem_max
+5ADE14B5205111D1E0401490CACF673B|net.core.rmem_default
+5AF2C2184BB0D4C5E0401490CACF2A2E|sysctl
+5AF4071943789DB2E0401490CACF3402|sysctl
+5AF5605EB46A141EE0401490CACF32CA|sysctl
+5B643D00169E61B6E053D398EB0A0D83|rdbms_patches
+5C49627BEB16CAF3E053D298EB0A0B2F|cbc_griddisks_are_distributed
+5C4F51EAB9B5FD87E053D398EB0A90E3|Verify that griddisks are distributed as expected across celldisks
+5DC7EBCB6B72E046E0401490CACF321A|Hostname formatting
+5E5B7EEA0010DC6BE0401490CACF3B82|Non-routable network for interconnect
+5EA8F4C6C6BDF8F0E0401490CACF067F|Interconnect NIC bonding config.
+5F244004CCB6CCD1E053D298EB0AC201|Verify RAID disk controller CacheVault capacitor condition [Storage Server]
+5F258693F07B85B6E053D298EB0AE575|Verify the database server NVME device configuration
+5F8ABB5C74FF1DABE053D398EB0A8774|Exadata Critical Issue DB09
+64C6C337366EA439E0401490CACF4D07|Invalid Java Object Check
+64D61B38C559FF09E0401490CACF071C|Invalid sys/system objects
+64D9F3A477F1A462E0401490CACF6ABB|Duplicate sys/system objects
+666BBB359DF17AA6E040E50A1EC02674|Verify sys and system users default tablespace is system
+666E97D33F97637DE040E50A1EC00461|audit_trail
+666FC7D7036EC8A0E040E50A1EC05164|MV Group Refresh Jobs
+6670393807FE3B2BE040E50A1EC07436|Audit Tablespace
+6670EAAADEBC212FE040E50A1EC02DFA|Materialized View Refresh Info
+6694F204EE47A92DE040E50A1EC07145|kernel.shmall
+6696C7B368784A66E040E50A1EC01B92|semmni
+6697946779AC8AD3E040E50A1EC03C0E|semmsl
+66985D930D2DF070E040E50A1EC019EB|kernel.shmmni
+669862F59599CA2AE040E50A1EC018FD|semmns
+66FB750E2B82AB27E040E50A1EC003C8|Invalid Registry Component Check
+66FBEF02EF2BC9F0E040E50A1EC03AAD|Orphaned Dictionary Rows
+66FD4A8C456EA8ECE040E50A1EC01FD8|SYS Owned Object Tables
+6C42772ED4F1EB12E053D198EB0AD2CF|Apply latest PSU/RU to source GRID_HOME and RDBMS_HOME prior to upgrade
+6EB789E061372AA3E053D598EB0AD5B3|Exadata Critical Issue IB7
+6FB67DA9843581AAE040E50A1EC0057B|v_parameter_u
+71E8BB057138569AE053D198EB0A4439|Verify RAID disk controller CacheVault capacitor condition [Storage Server]
+7674FEDB08C2FDA2E040E50A1EC0156F|GC block lost
+7A4418F09AE2830DE053D398EB0A4207|Exadata Critical Issue DB30 branch
+7A75D111900DE55FE040E50A1EC07895|Standby Database Info
+7A75DBC6795E8DF7E040E50A1EC06867|Standby Database Check
+7AA6C401129E5B06E053D398EB0AF69F|Verify RAID disk controller CacheVault capacitor condition [Storage Server]
+7AA728931B4C5792E053D198EB0A4866|Verify RAID disk controller CacheVault capacitor condition [Storage Server]
+7AA796A86AC8A3FDE053D598EB0A40F8|Verify RAID disk controller CacheVault capacitor condition [Storage Server]
+7AB8D5513759CA83E053D398EB0A7440|Verify RAID disk controller CacheVault capacitor condition [Database Server]
+7E2DCCF1429A6A8FE040E50A1EC05FE6|GI/CRS - Private interconnect interface name check
+7EDDA570A1827FBAE040E50A1EC02EB1|oradism executable permission
+7EDE9EBEC9429FBAE040E50A1EC03AED|oradism executable ownership
+81DB99F842EE95C9E040E50A1EC03CC3|NIC Bonding Mode for interconnect 
+81DC2BC98601F444E040E50A1EC05533|NIC Bonding Mode Public
+81DC9E0E84200810E040E50A1EC0690E|NIC Bonding Mode for Public
+81E0AA7467FF77B2E040E50A1EC06818|NIC Bonding Mode interconnect
+841A3A9F4A74AC6AE040E50A1EC03FC0|Oracle database software owner hard nofile shell limits 
+841C7DEB776DB4BBE040E50A1EC0782E|GI shell limits soft_max_user
+841D87785594F263E040E50A1EC020D6|GI shell limits soft_open_files
+841E706550975C68E040E50A1EC05EFB|DB shell limits hard nproc
+841E706550995C68E040E50A1EC05EFB|GI shell limits hard_open_files
+841F0977B92F0185E040E50A1EC070BB|Oracle database software owner soft nproc shell limit
+841F8C3E78906005E040E50A1EC00357|GI shell limits hard_max_user
+841FD604C3C8F2B1E040E50A1EC0122F|/tmp directory free space
+844945C39419DE90E040E50A1EC06FDC|/tmp directory free space
+84C193C69EE36512E040E50A1EC06466|ip_local_port_range
+856A9B77AF14DD9FE040E50A1EC00285|SELinux status
+85D601B9C7952F25E040E50A1EC043A2|TNS_ADMIN environment variable for Grid infrastructure owner
+85D8099A55E335EEE040E50A1EC07E6F|Verify ORA_NLS10 environment variable for Grid infrastructure owner
+87604C73D768DF7AE040E50A1EC0566B|Verify voting disks status
+89130F49748E6CC7E040E50A1EC07A44|Remote listener set to scan name
+8915B823FCEBC259E040E50A1EC04AD6|Local listener set to node VIP
+8C9D63D9441C1F52E040E50A1EC0211F|VIP NIC bonding config.
+8C9F4EB61E303158E040E50A1EC057F1|If NOT VM Guest Do This
+8CA112B5D68F8398E040E50A1EC0307E|If NOT VM Guest Then Do This
+8CA126265AA4FF0CE040E50A1EC032C0|If NOT VM Guest Then Do This
+965C94BF2F5AAD71E040E50A1EC06C16|Cluster time synchronization server
+9661449019481CF6E040E50A1EC01682|NTP with correct setting
+9661DD157C87BC97E040E50A1EC06251|NTP leap second event
+9AC65EA475A706AEE040E50A1EC03F1E|Verify there are no memory (ECC) errors on Storage Servers
+9AC9A4D5DF063E18E040E50A1EC03F24|Verify there are no memory (ECC) errors on Storage Servers
+9AD59DE0898D0513E040E50A1EC03EEA|Infiniband Switch NTP configuration
+9AD5CB42E2BF2A36E040E50A1EC043EB|Verify Oracle RAC Databases use RDS Protocol over InfiniBand Network. [Cluster Home]
+9AD8AF3966FA3027E040E50A1EC0308F|Infiniband switch sm_priority configuration 
+9AD8CC2B50B63DEBE040E50A1EC0529A|Infiniband switch sminfo_polling_timeout configuration
+9AD8F72CFE0AC95BE040E50A1EC050D0|Infiniband switch routing_engine configuration
+9AD94FEDF62E8296E040E50A1EC06A28|nm2version
+9AD94FEDF62F8296E040E50A1EC06A28|opensmd_status
+9AD94FEDF63F8296E040E50A1EC06A28|v_parameter
+9AD95A48A426E029E040E50A1EC062A1|sm_priority configuration on Infiniband switch 
+9AD95C81996E8AFCE040E50A1EC06BEF|compute_ibstatus
+9ADA623709086DC5E040E50A1EC0168D|Infiniband switch log_flags  configuration
+9ADA9729FCD46EBBE040E50A1EC02350|Infiniband subnet manager status
+9ADAAD73FF532FE4E040E50A1EC0284E|Infiniband switch controlled_handover configuration
+9ADAAF3071391E94E040E50A1EC028AF|Infiniband switch polling_retry_number configuration
+9ADAB2DFE32AFBE6E040E50A1EC02712|Infiniband Switch NTP configuration
+9ADB0A2CD50BCB63E040E50A1EC02F2A|Verify InfiniBand Fabric Topology (verify-topology)
+9B4005A1DD86E43DE040E50A1EC03943|cwc_cell_raid_controller_version
+9B41E3682D5292D8E040E50A1EC00FFF|RAID controller version on storage servers
+9B7916C3DDD8AFAEE040E50A1EC05903|cbc_udev_failed_dom
+9B7B2A6425FE4CDEE040E50A1EC03253|Set "mpt_cmd_retry_count=10" in /etc/modprobe.conf on Storage Servers
+9B7B2A6426054CDEE040E50A1EC03253|cbc_celldisk_predictive_failure
+9B7BE87049DE5301E040E50A1EC04F71|Exadata celldisk predictive failures
+9BB4F7BA3329CC94E040E50A1EC073E9|Verify InfiniBand is the Private Network for Oracle Clusterware Communication 
+9BB4F7BA332BCC94E040E50A1EC073E9|Verify Oracle RAC Databases use RDS Protocol over InfiniBand Network. [Database Home]
+9BB841F72906ABD5E040E50A1EC00492|Exadata storage server root filesystem free space
+9BB8CFEE59ECE60DE040E50A1EC01D04|Free space in root file system
+9BB8F1C0B4357939E040E50A1EC020E6|cbc_root_filesystem_free_space
+9BCBC61F76C4F0F0E040E50A1EC062CD|cbc_sytem_model_number
+9BCD247F93D34F4DE040E50A1EC01BC8|Database server system model number
+9BCD247F93D54F4DE040E50A1EC01BC8|Database server system model number
+9BCD777EA3CB8221E040E50A1EC02495|Exadata storage server system model number
+9BF2D5318936C8AAE040E50A1EC0472E|virtual_drive_configuration
+9BF3764B384393CAE040E50A1EC005E4|disk_controller_config
+9BF405331BEF5B5FE040E50A1EC024D9|Verify failure group configuration
+9BF409414D4C9657E040E50A1EC02228|Verify Database Server Virtual Drive Configuration 
+9BF44D88B4FD680DE040E50A1EC02F56|Verify Database Server Physical Drive Configuration
+9BF6E25A018B1573E040E50A1EC01695|physical_drive_configuration
+9BFA13E9974F04A7E040E50A1EC02296|Verify Database Server Disk Controller Configuration 
+9D9B5FDCB6CED985E040E50A1EC04E12|crs_user_limits
+9DAFD1040CA9389FE040E50A1EC0307C|GI shell limits hard_stack_size
+9DFE593F0B724CBAE040E50A1EC01F9E|Verify RAID Controller Battery Temperature [Database Server]
+9DFF1FC5FDF91D79E040E50A1EC03858|Verify RAID Controller Battery Condition [Storage Server]
+9DFF1FC5FDFA1D79E040E50A1EC03858|Verify RAID Controller Battery Temperature [Storage Server]
+9DFF7C05AF4184DCE040E50A1EC0434E|cbc_raid_battery_condition
+9E004BDDCDA6D90EE040E50A1EC06302|raid_battery_temp
+9E004BDDCDECD90EE040E50A1EC06302|Verify Data Network is Separate from Management Network
+9E00619B6C0FCE77E040E50A1EC065D0|Minimum exadata version required for ASR 
+9E00D1517C9BA976E040E50A1EC06EAC|raid_battery_condition
+9E00D80FA37BA5EFE040E50A1EC07FF2|cbc_raid_battery_temp
+9E01C5EEC7F0067BE040E50A1EC01867|Verify Electronic Storage Module (ESM) Lifetime is within Specification
+9E01F6D03ACB7029E040E50A1EC02FAE|Verify RAID Controller Battery Condition [Database Server]
+9EB3D82B8232CFAEE040E50A1EC04D89|GRID owner shell limits soft nofile
+9EB72ABADE01FED3E040E50A1EC075AF|GRID owner shell limits soft nproc
+9EB72ABADE02FED3E040E50A1EC075AF|GI shell limits hard stack
+9EB7E9577DD69A73E040E50A1EC01AF6|GRID owner shell limits hard nofile
+9EB7E9577DD79A73E040E50A1EC01AF6|GRID owner shell limits hard nproc
+9EB84272626BFF6EE040E50A1EC02AF3|Oracle database software owner hard nproc shell limits
+9EB848CDD040ACADE040E50A1EC01840|Oracle database software owner  soft nofile shell limits
+9EB883858764342DE040E50A1EC0359A|Oracle database software owner hard stack shell limits
+9EB8CACD50DCE0A3E040E50A1EC040B8|GI shell limits hard stack
+9EC5EED95AC2C030E040E50A1EC04737|NIC Bonding Mode for Public
+9EC5FC17F153DA56E040E50A1EC04678|VIP NIC bonding config.
+9EC63D75E700717CE040E50A1EC04D03|oradism executable permission
+9EC6C5EEC4CF856DE040E50A1EC06B79|Interconnect NIC bonding config.
+9EC6FFF48D30AFF3E040E50A1EC0768E|oradism executable ownership
+9EC7304AE678DC2DE040E50A1EC07772|SELinux status
+9EC75B0918B78B4DE040E50A1EC07F4F|cbc_cells_oswatcher
+9EC835C8E119DE5BE040E50A1EC01CA0|NIC Bonding Mode for interconnect 
+9EC835C8E11ADE5BE040E50A1EC01CA0|NIC Bonding Mode Public
+9EC835C8E11DDE5BE040E50A1EC01CA0|GC block lost
+9EC93C7514BF1512E040E50A1EC048DD|NIC Bonding Mode interconnect
+9EC9684AE522FA71E040E50A1EC0441B|OSWatcher status on storage servers
+9ECAA32F349F9F29E040E50A1EC06B13|Non-routable network for interconnect
+9ECAF1A9259AF7E5E040E50A1EC07B1D|Cluster time synchronization server
+9ECAF1A9259BF7E5E040E50A1EC07B1D|NTP with correct setting
+9ECAF1A9259FF7E5E040E50A1EC07B1D|Remote listener set to scan name
+9ECBA743A4BFA2F1E040E50A1EC01F9B|Verify voting disks status
+9ECBA743A4C0A2F1E040E50A1EC01F9B|Disks without disk_group
+9F01B445A03D3166E040E50A1EC0214F|Local listener set to node VIP
+9F152ED12A7B718EE040E50A1EC01404|CheckHWnFWProfile
+9F15B94AB6DC210DE040E50A1EC023A5|cbc_CheckSWProfile
+9F163DD00B10E98EE040E50A1EC012D0|Verify Hardware and Firmware on Database and Storage Servers (CheckHWnFWProfile) [Storage Server]
+9F163DD00B11E98EE040E50A1EC012D0|Verify Software on Storage Servers (CheckSWProfile.sh)
+9F18046A544D55EFE040E50A1EC01325|cbc_CheckHWnFWProfile
+9F18B0509C5191C0E040E50A1EC02BAB|Verify Hardware and Firmware on Database and Storage Servers (CheckHWnFWProfile) [Database Server]
+9F1C57DCE6908FDFE040E50A1EC043E8|Verify InfiniBand Fabric Topology (verify-topology)
+A18401E2DDFF63D2E040E50A1EC077C4|ORA_CRS_HOME env variable for Grid infrastructure owner
+A1C2B1315D92B5AAE040E50A1EC07BFD|root_umask
+A1C5B1E56070DF81E040E50A1EC01AF9|root umask Check for Upgrade
+A30824633516E9C9E040E50A1EC02B26|Verify RDS Protocol over InfiniBand Network is used [Grid Home]
+A4C1D51BCE17AA8AE040E50A1EC06869|Verify Data Network is Separate from Management Network
+A4C26297B61BB442E040E50A1EC07DD3|Exadata Cell Ambient Temperature
+A4C3C4AF0C0A18DCE040E50A1EC04065|Verify Data Network is Separate from Management Network
+A66547FF75BF05F1E040E50A1EC00EDE|asr_minver
+A67CE0FD96E54EE8E040E50A1EC02F0D|Infiniband switch sm_priority configuration 
+AA3E64CE2B1A6DAFE040E50A1EC072CA|Verify Database Server Virtual Drive Configuration 
+AA3F749542B2C27EE040E50A1EC020E1|Verify Database Server Disk Controller Configuration 
+AA53138B0B7D3B86E040E50A1EC07003|cluster_interconnects
+AA53138B0B7E3B86E040E50A1EC07003|cluster_interconnects
+AA92D5836CAAACE5E040E50A1EC06A0F|cbc_ib_network_cable_connections
+AA92D5836CABACE5E040E50A1EC06A0F|Verify Ethernet Cable Connection Quality on storage servers
+AA92D5836CACACE5E040E50A1EC06A0F|cbc_eth_network_cable_connections
+AA92D5836CADACE5E040E50A1EC06A0F|Verify Ethernet Cable Connection Quality
+AA92D5836CAEACE5E040E50A1EC06A0F|Verify InfiniBand Cable Connection Quality on storage servers
+AACC1075ECCFE019E040E50A1EC0450F|cbc_cell_metric_cd_io_st_rq
+AAD0870AA3E4436EE040E50A1EC03479|Verify storage server metric CD_IO_ST_RQ
+ADED1AD82395AC7CE040E50A1EC05A35|Fully qualified hostname name length
+ADEE02EC960F4F12E040E50A1EC077C8|Exadata cells space pressure
+ADEF660D4A5775BCE040E50A1EC06CAB|Infiniband for Cluster communication
+ADEF660D4A5875BCE040E50A1EC06CAB|cbc_cell_disk_health
+ADF1541518838FEBE040E50A1EC03A85|Infiniband Network for ASM Communication
+ADF1A64F85C95F6CE040E50A1EC057A6|Verify imageinfo on storage server
+ADF1BCDA741E9B5EE040E50A1EC04A85|cwc_cells_image_info_version_dbmv2
+ADF1BCDA74209B5EE040E50A1EC04A85|Number of Luns on cells
+ADF2463F098A6998E040E50A1EC06E69|cbc_cell_lun_count
+ADF269054D5D1FCEE040E50A1EC0791D|Health of Internal disk on Storage servers
+ADF2A31817AE61F1E040E50A1EC05214|Verify Oracle RAC Databases use RDS Protocol over InfiniBand Network
+AE03597B5829AEE5E040E50A1EC0494F|cbc_cell_celldisk_count
+AE03597B582AAEE5E040E50A1EC0494F|Number of celldisks on cells
+AE035C46D8BEA174E040E50A1EC03506|Physicaldisk Count on storage servers
+AE035C46D8BFA174E040E50A1EC03506|cbc_cell_physicaldisk_count
+AE07021E8F025EF0E040E50A1EC0265D|RDS Ping time over infiniband
+AE073DCE49564E35E040E50A1EC02FAE|celld status on storage servers
+AE0776FD577DE091E040E50A1EC0271B|cbc_high_space_pressure_cells_count
+AE079FA97397E87FE040E50A1EC040DA|cbc_cell_usb_device_status
+AE092C2E68B1A54EE040E50A1EC07CAE|cbc_celld_status
+AE1DDBAAF4733058E040E50A1EC01CFE|HCA transfer rate on database server
+AEA72B9B56F2DC1BE040E50A1EC050D2|Verify RAID Controller Battery Condition [Storage Server]
+AEA73B53B7CAB91CE040E50A1EC05703|Verify RAID Controller Battery Condition [Database Server]
+AEA7EA48A0E4F51FE040E50A1EC078F3|Verify InfiniBand Address Resolution Protocol (ARP) Configuration on Database Servers
+AEA86E1781674D7BE040E50A1EC00EB2|Verify RAID Controller Battery Condition [Storage Server]
+AEA86E1781684D7BE040E50A1EC00EB2|Verify RAID Controller Battery Condition [Database Server]
+AEA8D7199AB3A0CDE040E50A1EC00EB4|Verify RAID Controller Battery Condition [Storage Server]
+AEA95B87CCE19711E040E50A1EC02AC0|Verify RAID Controller Battery Condition [Storage Server]
+AEA96626D7469A55E040E50A1EC02ED8|Verify RAID Controller Battery Condition [Database Server]
+AEA9A5009A4C94F3E040E50A1EC02FC3|Verify RAID Controller Battery Condition [Storage Server]
+AEAAA40DB83E0226E040E50A1EC06725|Verify RAID Controller Battery Condition [Database Server]
+AEAABFFBFBC527F0E040E50A1EC063AC|Verify RAID Controller Battery Condition [Database Server]
+AF0BA85F1B02C249E040E50A1EC02668|Verify PCI bridge is configured for generation II on storage servers
+AF0DA16464235D8EE040E50A1EC07A92|Verify PCI bridge is configured for generation II on storage servers
+AFC09F2A9B7C36D8E0431EC0E50A6D0C|Check alerthistory for non-test open stateless alerts [Storage Server]
+AFC0B2487B78314CE0431EC0E50A9E80|Check alerthistory for non-test open stateless alerts [Storage Server]
+B09CD0FD027E7531E0431EC0E50AA268|Managed recovery processes status
+B09E9D165FF85A7DE0431EC0E50A348B|High redundancy diskgroups
+B0A0A6141D1A39CCE0431EC0E50AB237|Switch firmware version
+B0B22ED1E04418E6E0431EC0E50A2DE3|Operational Best Practices
+B0B252A7B5751FE9E0431EC0E50A5E05|Logical standby unsupported datatypes 
+B0B3687F575279F9E0431EC0E50AE277|Network failure prevention best practices
+B0B4A0BC085D39D9E0431EC0E50A1ECC|Computer failure prevention best practices
+B12BD323300C7542E0431EC0E50A15D4|Data corruption prevention best practices
+B12BD323300D7542E0431EC0E50A15D4|Logical corruption prevention best practices
+B12D2AE8A6016FF8E0431EC0E50A7194|Storage failures prevention best practices
+B12E0F50BB806477E0431EC0E50A0198|Database/Cluster/Site failure prevention best practices
+B12E4BFE753547ECE0431EC0E50A6404|Client failover operational best practices
+B130812F8D1B2E3DE0431EC0E50A6333|Verify the Master Subnet Manager is running on an InfiniBand switch
+B13090A60C9E74CCE0431EC0E50A2536|sminfo
+B17DF88EE6E51433E0431EC0E50A4984|sysctl_rpfilter
+B17DFFCE13D21463E0431EC0E50A4995|Verify InfiniBand Address Resolution Protocol (ARP) Configuration on Database Servers
+B4A23489AEEA79E7E0431EC0E50AE4BF|Pre-upgrade script
+B4B41623C5971B32E0431EC0E50AE206|Pre-upgrade script
+B4B60F1F95CD5B35E0431EC0E50ABCD0|Pre-upgrade script BR
+B4B6693939C8723CE0431EC0E50A26E6|Pre-upgrade script 
+B516E6BD64DC3012E0431EC0E50A83E8|crs_patches
+B5191156EF114416E0431EC0E50AFBE0|rdbms_patches
+B5BB3D95A37C0DACE0431EC0E50A4EB6|Minimum Operating system version
+B5BC907CDEEB3AEFE0431EC0E50AA1A5|Exadata version on storage servers greater than 12.1.1.1.0
+B5BCA0FE19794D6BE0431EC0E50A0274|semmns
+B5BDEBFE83A11338E0431EC0E50A97F4|semmsl
+B5BE171B7D5844B0E0431EC0E50ADFAB|Exadata software version on storage servers
+B5BF5FC8232B2497E0431EC0E50ABBD8|semopm
+B5BF675724677933E0431EC0E50A9A9D|semmni
+B5BF9E481B8738DAE0431EC0E50A6A3E|kernel.shmmni
+B5BFBBAA3A2E3879E0431EC0E50AFE9F|ip_local_port_range
+B5BFCB58AABE4DA0E0431EC0E50A2F83|net.core.rmem_default
+B5BFD927835E4BD6E0431EC0E50A5B61|net.core.rmem_max
+B5BFE6DC7C535493E0431EC0E50AF33E|net.core.wmem_max
+B5BFED1DD1195745E0431EC0E50AA85B|fs.aio-max-nr
+B61EF1446FA31C35E0431EC0E50A5B2F|sysctl
+B6330D907C392905E0431EC0E50A8C6A|root umask Check for Upgrade
+B644ABE7A5691534E0431EC0E50A4350|Capture performance baseline, backup important configuration files and stop all scheduled jobs
+B66C67BCC97271DBE0431EC0E50ACA49|Minimize Planned Downtime for Upgrades and Patching INFO
+B66CD9DDB7030329E0431EC0E50A2DBF|Upgrade Related References INFO
+B66FCA9A84956D90E0431EC0E50ACBE0|Capture performance baseline, backup important configuration files and stop all scheduled jobs
+B785AB1911774B0CE0431EC0E50AA6FF|Standby Database Rolling Upgrade Info
+B7D9418585915CFEE0431EC0E50A9EDA|Verify InfiniBand Cable Connection Quality
+B80C71B92B51567FE0431EC0E50A6CB3|Verify Database Server Virtual Drive Configuration 
+B810C657630E258CE0431EC0E50AA78A|Verify Database Server Physical Drive Configuration
+B810C6576310258CE0431EC0E50AA78A|Verify Database Server Disk Controller Configuration 
+B810E184C4F27252E0431EC0E50A87AE|Verify Database Server Virtual Drive Configuration 
+B8127396782E2087E0431EC0E50A4615|Configure NTP slew_always settings as SMF property
+B813230DE78F2831E0431EC0E50AEB90|Verify Database Server Disk Controller Configuration 
+B81546A46C376C14E0431EC0E50A826D|Verify average ping times to DNS nameserver [IB Switch]
+B81848C5EE6573EFE0431EC0E50A803C|Verify average ping times to DNS nameserver [Database Server]
+B81A8DC44FEF058BE0431EC0E50AD9F0|Infiniband switch sm_priority configuration 
+B81B7B06B22B3D3DE0431EC0E50A29D5|Verify average ping times to DNS nameserver [Database Server]
+B862B13F135803A3E0431EC0E50A8206|Exadata version on storage servers less than 112231
+B864C54F85253D03E0431EC0E50A516B|Critical issue list checked
+B86B9FE7CB566BD9E0431EC0E50AFC8D|cbc_cell_disk_on_flash
+B87AA73198480C1DE0431EC0E50ADA06|cbc_griddisk_devide_celldisk
+B87BA8C4DEF75B09E0431EC0E50A1E4E|cbc_asm_grid_disk_status
+B87BBEA5559A432FE0431EC0E50A8B49|Verify griddisk ASM status
+B87C180644F65C1CE0431EC0E50AD99B|Verify total number of griddisks with a given prefix name is evenly divisible of celldisks
+B87C953BAEB52A14E0431EC0E50AD695|cbc_even_grid_disks
+B87C953BAEB62A14E0431EC0E50AD695|Verify griddisk count matches across all storage servers where a given prefix name exists
+B88B1400EBFB01B2E0431EC0E50A9173|pam_limits check
+B8DEB9F3A1147B13E0431EC0E50AC67F|Exadata version on storage servers greater than 112131
+B8E25A27DFE932D0E0431EC0E50AA1B4|Exadata version on storage servers greater than 112222
+BA099BC782D2280BE0431EC0E50AFEA8|Oracle E-Business Suite Interoperability
+BA9AE5D17E120DDEE0431EC0E50AEAF1|MaxStartups setting in sshd_config
+BA9CC0BC862B371AE0431EC0E50AEC5C|sshd_config
+BC40C8F33DA3699AE0431EC0E50A1702|ALL_TAB_COLUMNS Reserved Word Check
+BC528298630F01A7E0431EC0E50A4A7D|Network ACLs for Oracle Utility Packages check
+BCE22AC1A8B1190DE0431EC0E50A453A|Invalid application objects
+BD7E4DDEE2B06BABE0431EC0E50AED9B|Duplicate sys/system objects
+BD7FD021E30F7F79E0431EC0E50A05E5|Network ACLs for Oracle Utility Packages check
+BF278D8A5176157AE0431EC0E50A1C8F|Branch for MaxStartups setting in sshd_config
+BF7AE780E1252F69E0431EC0E50AE447|High Redundancy Controlfile
+C096D14A4DC95331E0431EC0E50A51C9|cluster_database
+C31B975819621D1CE0431EC0E50AC731|Redo Log File Size
+C95E72680B2562BCE0431EC0E50A1B70|Exadata version on storage servers less than 112222
+C95F13CE40295357E0431EC0E50A48C4|Exadata software version compatibility with infiniband software version
+C96103014A3B557BE0431EC0E50A02B2|Exadata software version compatibility with infiniband software version
+CB959908DA08427CE0431EC0E50AB096|Verify operating system hugepages count satisfies total SGA requirements
+CBBD7DEB84AC3B2DE0431EC0E50A93BB|Verify Database Server Virtual Drive Configuration 
+CBBF07911C5F64DDE0431EC0E50A9041|Exadata version less than 112320 on database server
+CBBF50D9BC4831E1E0431EC0E50A5F63|Verify Database Server Physical Drive Configuration
+CBC03818EC74657FE0431EC0E50A0D0D|Exadata version greater than or equal to 112320 on database server
+CBC0492894E4041BE0431EC0E50A9953|Verify Database Server Physical Drive Configuration
+CBC0700F7EAD3CDEE0431EC0E50A264B|Verify Database Server Virtual Drive Configuration 
+CBCCECA1043F7079E0431EC0E50AB50A|Verify Database Server Disk Controller Configuration 
+CBCECC07563A7915E0431EC0E50ABD2F|Verify Database Server Disk Controller Configuration 
+CC1DCC9FB2426461E0431EC0E50AAC1E|Clusterware configuration in inventory.xml
+CC213F1E22320FB3E0431EC0E50A100B|Does oraInst.loc exist
+CCAD9345F6447E79E0431EC0E50ABC8C|Database failure prevention best practices
+CCF6F44765861F7AE0431EC0E50A72AD|Verify operating system hugepages count satisfies total SGA requirements
+CD4B83B86B0B12F2E0431EC0E50AEA47|Is there a physical standby?
+D125F028F3AF3097E0431EC0E50A71B2|Local listener set to node VIP
+D45FD167691E265FE0431EC0E50A4C68|Verify no ASM external redundancy diskgroups exist
+D461326889EE4A3DE0431EC0E50ABE4A|Verify no ASM unprotected templates exist
+D5288D2F2EB20FCEE0431EC0E50A158D|root/sudo INFO
+D5CA20F277D60B9DE0431EC0E50A5CE8|11.2.0.3.5 GI PSU Upgrade Issue
+D618AC1C6B816C25E0431EC0E50A9677|BP14 11.2.0.3.5 GI PSU Upgrade Issue
+D6980AC0690224B0E0431EC0E50A06D7|Are scan listeners using COST
+D6BD8B06B7030FCFE0431EC0E50AE74F|Exadata version on database server >=112321
+D6BEC843A1955C66E0431EC0E50A2663|Exadata version on database server =112230
+D6BEC843A1965C66E0431EC0E50A2663|Verify Database Server Physical Drive Configuration
+D6C05D69532B461EE0431EC0E50AB4D4|Verify Database Server Physical Drive Configuration
+D6C062EE5DD55518E0431EC0E50A635D|Verify Database Server Physical Drive Configuration
+D6C062EE5DD65518E0431EC0E50A635D|Verify Database Server Physical Drive Configuration = 7711
+D6C062EE5DD75518E0431EC0E50A635D|Verify Database Server Physical Drive Configuration != 7711
+D6C062EE5DD85518E0431EC0E50A635D|Verify Database Server Physical Drive Configuration
+D6C0F068115E43D1E0431EC0E50AADE6|Verify Database Server Physical Drive Configuration
+D6C0F068115F43D1E0431EC0E50AADE6|Verify Database Server Physical Drive Configuration != 8800
+D6C1A45DDBB14063E0431EC0E50AC378|Verify Database Server Physical Drive Configuration
+D6C1B2201BD2453AE0431EC0E50A4D60|Verify Database Server Physical Drive Configuration = 3311
+D6C1C597ABB83C38E0431EC0E50AE63F|Verify Database Server Physical Drive Configuration
+D6C1CB7D3FEB5E3CE0431EC0E50AB859|Verify Database Server Physical Drive Configuration = 4400
+D6C1D0F15D3B577BE0431EC0E50ACF48|Verify Database Server Physical Drive Configuration
+D6C20A0BFC80164EE0431EC0E50AFE2B|Verify Database Server Physical Drive Configuration != 4400
+D6C20CD9998D1772E0431EC0E50A74F1|Verify Database Server Physical Drive Configuration != 3311
+D6C21E6A64DA634BE0431EC0E50A91BD|Verify Database Server Physical Drive Configuration = 8800
+D876118CE26477F0E04312C0E50A4B53|Is this Exadata?
+D957C871B811597AE04312C0E50A91BF|Disks without Disk Group
+D968F206454F2F8BE04312C0E50AD6DB|cbc_CellMakeModel
+D9DEE61794540606E04312C0E50A8E17|Infiniband subnet manager status for spine
+D9DF1EEA1E595285E04313C0E50AE75A|Infiniband switch sm_priority configuration 
+D9E1C28F7B4B6A85E04312C0E50AA509|Switch type(Spine or Leaf) for spine
+D9E385D7A7921882E04312C0E50A2797|Number of switches in Infiniband Fabric more than 12
+D9E385D7A7931882E04312C0E50A2797|Number of switches in Infiniband Fabric less than 12
+D9F0E17776F03506E04313C0E50A340E|switch_ip_type_name_mapping_detail.out is created?
+DBBCB51B45CE72F9E04313C0E50AF28B|Pre-upgrade script BR
+DBBDBC4A78534569E04313C0E50A39B9|Pre-upgrade script
+DBC2C9218542349FE04312C0E50AC1E9|Clusterware resource status
+DC28F07D2CA21B0EE04313C0E50A8416|Oracle OLAP Data Security Policies
+DC28F095754D1B10E04313C0E50A9FD8|Oracle OLAP Data Security Policies
+DC28F096C4AE1B10E04313C0E50A9FD8|Is this Exadata for network failure?
+DC3BC14B8F261D14E04312C0E50A2851|Verify release tracking bug on storage servers
+DC3BC154C4281D14E04312C0E50A2851|Is this Exadata?
+DC3BD432DBCC2247E04312C0E50A0CB7|Backing up Enterprise Manager Database Control Data
+DC3BD4490DA02247E04312C0E50A0CB7|Verify storage server network configuration with ipconf 
+DC3BD545E4162245E04312C0E50A5061|IS ASM processes default?
+DC3BD545E4782245E04312C0E50A5061|Info about ASM processes parameter change
+DC3BD545E9332245E04312C0E50A5061|Requirement for Grid Infrastructure software installation directory
+DC3D81A7715E50FEE04312C0E50AFF9F|Verify Log Transport Services for enabled redo destinations are functional
+DC3DB681C62054B1E04312C0E50A260F|cbc_ipconf_verify
+DC53A23691D2406AE04312C0E50AEED9|Software maintenance best practices
+DC54D9170B727C8EE04313C0E50AB1B3|New Upgrade Utility catctl.pl
+DCAADC76F3084B92E04313C0E50A1ED8|Verify the Subnet Manager is properly disabled [Storage Server]
+DCAADC76FAFD4B92E04313C0E50A1ED8|Verify the Subnet Manager is properly disabled [Database Server]
+DCB25CEFF43403B0E04312C0E50A0DE3|nm2version
+DCB4F7B7844F51A2E04312C0E50ACBFF|cbc_opensmd_status
+DCB4F7B79A9F51A2E04312C0E50ACBFF|database_server_opensmd_status
+DCDAA687991C74C1E04312C0E50AB672|Verify no ASM corruption is reported 
+DD1CF28B608E0A90E04312C0E50A400A|Cells image info version match
+E12A91DC10F31AD7E04312C0E50A6361|pam_limits check
+E13461CE4E9717FAE04312C0E50AB0C0|Local listener set to node VIP
+E34C2AFCFF497B53E04312C0E50A2956|Oracle recovery manager(rman) best practices
+E376DB017AAD5225E04313C0E50A563F| Exadata Critical Issue IB1-IB3
+E3CA8CAA03DD6CCEE04312C0E50A5FF7|managemenet_data_network
+E3EBAECE892C3185E04312C0E50A2423|Exadata version less than 112330 on database server
+E402BCAC495A0DA6E04313C0E50AC07E|Verify InfiniBand Address Resolution Protocol (ARP) Configuration on Database Servers
+E47EBE3023936D3CE04313C0E50A7A0E|Verify no multiple parameter entries in ASM init.ora(spfile)
+E47ECDCFE09A122CE04313C0E50A35EC|Verify no duplicate parameter entries in database init.ora(spfile)
+E51CBE45183B1D42E04312C0E50A1BBB|Infiniband switch polling_retry_number configuration
+E51E7F956081590EE04313C0E50A788A|13602883
+E51EA764BADB4D2DE04312C0E50AEA32|Switch firmware version less than 2.1.3-3
+E51EA764BADC4D2DE04312C0E50AEA32|Switch firmware version greater than or equal 2.1.3-3
+E520283C5F5B6F0AE04313C0E50A9F95|Infiniband switch sminfo_polling_timeout configuration
+E6B3EF6BE6F03EB5E04312C0E50A5ACC|Critical Issue DB21
+E6B45486F621469DE04312C0E50A435F|_gc_affinity_time
+E6B5678B8B5A44D1E04313C0E50ADB1A|Branch for critical Issue DB19
+E6B5B1331E0066D8E04313C0E50A442B|Critical Issue DB19
+E6B5EF9E6ABE159FE04313C0E50A95DB|_gc_undo_affinity
+E7645417167B24F6E04313C0E50A00B5|17273253
+E7B057A2875313F7E04313C0E50A7CD1|Verify Oracle RAC Databases use RDS Protocol over InfiniBand Network. [Database Home]
+E7E213A6D9151EEBE04312C0E50A85C3|Verify Berkeley Database location for Cloned GI homes
+E7EBFB8132070C57E04313C0E50AE453|host_last_power_state
+ED5FF57B499B720FE04312C0E50A5D4E|Oracle patch 17854520 for rolling cell patching
+F082F0C370570DA5E04313C0E50ADD0C|Cells image info version match
+F08481DA1B2D3F72E04313C0E50A7B3E|Verify cellinit.ora config file consistency across database servers
+F084AE43E5770CF4E04312C0E50A4A37|Verify OSSCONF/cellinit.ora consistency across storage server
+F086120133332A4AE04313C0E50AF5F8|Clusterware software version comparison
+F0BF00BBE2F3048EE04312C0E50A3200|Verify NTP server across database server and storage servers
+F0BF81897DD16EB4E04312C0E50A8CDB|Verify database server and storage servers and synchronized with NTP server
+F10A0A1F21E21676E04312C0E50A88CA|Exadata version on database server <112330
+F10A0A1F21E31676E04312C0E50A88CA|Exadata version on database server >=112330
+F19F3182373564C3E04312C0E50ABF2A|Verify database server file systems have "Check interval" = "0"
+F1A0F3D7341522AAE04312C0E50AE456|tune2fs_check_interval
+F3629A17349D6F36E04312C0E50A7D6E|disable_apm_result
+F366CD1907987E0AE04312C0E50A5B01|Verify that the SDP over IB option sdp_apm_enable is set to 0
+F4E704C3B2F17573E04312C0E50ADCBF|Network ACLs for Oracle Utility Packages check
+F4E7A5B315851AA6E04312C0E50A5E9D|Network ACLs for Oracle Utility Packages check
+F99011CBCFCB7B34E04312C0E50AD119|Verify database server InfiniBand network MTU size is 65520
+F99148E6D41A4768E04313C0E50A09BB|Verify database server InfiniBand network MTU size is 7000
+FA13A374CCF85406E04313C0E50AAD3A|Verify that the SDP over IB option sdp_apm_enable is set to 0
+FA152AC04C407F45E04312C0E50A6070|Exadata version on database server <= 11.2.3.3.0
+FA17C3134AC47B5FE04313C0E50AE4DA|Exadata version on database server >12.1.0.0.0
+FA17C560636F0A30E04312C0E50A95F6|Exadata version on database server <= 12.1.1.1.0
+FA9366ED70540673E04312C0E50A92A5|Does spfile file exist?

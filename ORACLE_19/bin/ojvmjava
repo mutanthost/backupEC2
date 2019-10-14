@@ -1,0 +1,56 @@
+#! /bin/sh
+#
+# %W% %E%
+#
+unset JAVA_HOME
+JAVA_HOME=/u01/app/oracle/product/19.0.0/dbhome_1/jdk/jre/
+export JAVA_HOME
+JRECLASSPATH=/u01/app/oracle/product/19.0.0/dbhome_1/jdk/jre//lib/rt.jar:/u01/app/oracle/product/19.0.0/dbhome_1/jdk/jre//lib/i18n.jar:$ORACLE_HOME/jdbc/lib/ojdbc8.jar:$ORACLE_HOME/javavm/lib/aurora.zip
+export JRECLASSPATH
+LD_LIBRARY_PATH=$ORACLE_HOME/lib32:$ORACLE_HOME/lib:$JAVA_HOME/lib
+export LD_LIBRARY_PATH
+#Need to pull passwords and usernames.
+while [ $# -gt 0 ]
+do
+  if [ "$1" = "-u" ] || [ "$1" = "-user" ];  then
+      OJUSER="$1"
+      if [ $# -ge 2 ]; then
+        shift
+        OJUSER="$OJUSER $1"
+      fi
+      export OJUSER
+  elif [ "$1" = "-password" ];  then
+      OJPASS=$1
+      if [ $# -ge 2 ]; then
+        shift
+        if [ -z $1 ]; then
+            OJPASS="$OJPASS \"\""
+        else
+            OJPASS="$OJPASS $1"
+        fi
+      fi
+      export OJPASS
+  elif [ `echo $1|cut -c1-2` = "-p" ]; then
+      OJPASS=$1
+      if [ $# -ge 2 ]; then
+        shift
+        if [ -z $1 ]; then
+            OJPASS="$OJPASS \"\""
+        else
+            OJPASS="$OJPASS $1"
+        fi
+      fi
+      export OJPASS
+  elif [ `echo $1|cut -c1-2` = "-c" ]; then
+      OJCOM="$1"
+      if [ $# -ge 2 ]; then
+        shift
+        OJCOM="$OJCOM \"$1\""
+      fi
+      export OJCOM
+  else
+      args="$args $1" 
+  fi 
+shift 
+done
+exec $JAVA_HOME/bin/java -classpath $JRECLASSPATH oracle.aurora.server.tools.shell.ShellClient $args

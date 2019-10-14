@@ -1,0 +1,537 @@
+<?xml version="1.0"?>
+
+<!--  $Header: tfa/src/v2/tfa_home/resources/srdc_dbggintegratedmode.xml /main/2 2018/08/15 16:55:52 bburton Exp $ -->
+
+<!-- 
+ Copyright (c) 2018, Oracle and/or its affiliates. All rights reserved.
+
+   NAME
+     srdc_dbggintegratedmode.xml 
+
+   DESCRIPTION
+     SRDC collection for Golden Gate running in integrated mode
+
+   MODIFIED   (MM/DD/YY)
+   xiaodowu    08/01/18 - Resolve Bug 28439844 - ADD PARENTHESIS FOR VALIDATE
+   xiaodowu    04/27/18 - Correct Win32 path
+   xiaodowu    04/19/18 - fix line breaks
+   xiaodowu    04/19/18 - Add OS script types
+   xiaodowu    03/28/18 - Enh 27766004 - ADD SRDC_GG_DATABASE.SQL TO THE TWO
+                          EXISTING OGG COLLECTIONS
+   xiaodowu    01/25/18 - Convert to using modified scripts
+   xiaodowu    01/24/18 - To resolve "create or replace" issue
+   xiaodowu    01/18/18 - Implement for the following three SRDC Docs: SRDC -
+                          Information to Collect When GoldenGate
+                          Extract/Replicat Abends without Error (Doc ID:
+                          1906071.1) SRDC - Information to Collect When
+                          GoldenGate Components Abend with Generic Error (Doc
+                          ID: 1909388.1) SRDC - Data to Collect when GoldenGate
+                          Process Does Not Start per Trail Issues (Doc ID:
+                          1913402.1)
+   xiaodowu    01/18/18 - Creation
+
+-->
+<collections>
+<collection id="dbggintegratedmode">
+    <description>SRDC for GoldenGate extract/replicat abends problems.</description>
+	<srdc_docs>Doc IDs: 1906071.1,1909388.1,1913402.1</srdc_docs>
+    <onevents>
+        <event>
+        </event>
+    </onevents>
+    <user_inputs>
+      <user_input cmdline="" default="" showprompt="1" setenv="NO" validate="" prompt="Enter the Database Name">USERINPUT-DATABASE_NAME</user_input>
+      <user_input cmdline="" default="" showprompt="1" setenv="REPLACE" validate="" prompt="Enter the GoldenGate Home">USERINPUT-OGG_HOME</user_input>
+      <user_input cmdline="" default="" showprompt="1" setenv="REPLACE" validate="" prompt="Enter the failed GoldenGate component name">USERINPUT-COMP_NAME</user_input>
+      <user_input cmdline="" default="" showprompt="1" setenv="REPLACE" validate="(y|Y|n|N)" prompt="Does the process start? [Y|N] ">USERINPUT-STARTFLAG</user_input>
+      <user_input cmdline="" default="" showprompt="1" setenv="" validate="(y|Y|n|N)" depinput="STARTFLAG" deppattern="y|Y" prompt="Is the component failing with a generic error? [Y|N] ">USERINPUT-ERRFLAG</user_input>
+      <user_input cmdline="" default="N" showprompt="1" setenv="" validate="(y|Y|n|N)" depinput="ERRFLAG" deppattern="y|Y" prompt="Is the component failing on capturing or replicating a specific table? [Y|N] ">USERINPUT-TB</user_input>
+      <user_input cmdline="" default="" showprompt="1" setenv="REPLACE" validate="" depinput="TB" deppattern="y|Y" prompt="Enter the table name:">USERINPUT-TABLE</user_input>
+      <user_input cmdline="" default="" showprompt="1" setenv="REPLACE" validate="" depinput="TB" deppattern="y|Y" prompt="Enter the table owner:">USERINPUT-OWNER</user_input>
+    </user_inputs>
+    <duration>12h</duration>
+    <awrduration>1h</awrduration>
+    <clusterwide>yes</clusterwide>
+    <filter_files>
+      <types>
+      </types>
+      <filter_file_patterns>
+        <filter_file_pattern>alert_.*\.log</filter_file_pattern>
+        <filter_file_pattern>trc</filter_file_pattern>
+        <filter_file_pattern>log</filter_file_pattern>
+        <filter_file_pattern>\.xml</filter_file_pattern>
+        <filter_file_pattern>archive\/osw</filter_file_pattern>
+        <filter_file_pattern>ExaWatcher\/archive</filter_file_pattern>
+      </filter_file_patterns>
+    </filter_files>
+    <components>
+      <component>OS</component>
+      <component>DATABASE</component>
+    </components>
+    <commands>
+      <script type="SQLSCRIPT" name="ichc_11203.sql" timeout="300" validfor="" platform="" version="11.2.0.3"></script>
+      <script type="SQLSCRIPT" name="ogg_11204.sql" timeout="300" validfor="" platform="" version="11.2.0.4"></script>
+      <script type="SQLSCRIPT" name="ogg_12101.sql" timeout="300" validfor="" platform="" version="12.1.0.1"></script>
+      <script type="SQLSCRIPT" name="ogg_12102.sql" timeout="300" validfor="" platform="" version="12.1.0.2"></script>
+      <script type="SQLSCRIPT" name="srdc_gg_database.sql" timeout="300" validfor="" platform="" version=""></script>
+     <script type="DB" name="srdc_gg_table.sql" timeout="120" validfor="" platform="" version="" depinput="TB" deppattern="Y|y">
+       <![CDATA[
+        REM srdc_gg_table.sql
+        REM collect information about the table replicated by goldengate
+
+        set echo off
+        set feedback off
+
+        set term off
+
+        variable t_owner varchar2(50);
+        variable t_name varchar2(150);
+
+        begin
+        :t_owner := upper(trim('%OWNER%'));
+        :t_name := upper(trim('%TABLE%'));
+        end;
+        /
+
+        set serveroutput on
+        set term on
+
+        declare
+        tcnt number;
+        begin
+        select count(*) into tcnt from dba_tables where table_name=:t_name and owner=:t_owner;
+            if tcnt = 0 then
+                dbms_output.put_line(chr(10)||'Table '||:t_owner||'.'||:t_name||' does not exist. Please rerun the srcd_gg_table.sql script with correct owner and table name.'||chr(10));
+            end if;
+        end;
+        /
+
+        define SRDCNAME='gg_table'
+        set markup html on spool on
+        set pagesize 200 verify off sqlprompt "" term off entmap off echo off
+        COLUMN SRDCSPOOLNAME NOPRINT NEW_VALUE SRDCSPOOLNAME
+        select 'SRDC_'||upper('&&SRDCNAME')||'_'||:t_owner||'.'||:t_name SRDCSPOOLNAME from dual;
+
+        spool &&SRDCSPOOLNAME..htm
+        set markup html off
+
+        COLUMN tbl NOPRINT NEW_VALUE tbl
+        select :t_owner||'.'||:t_name tbl from dual;
+
+
+        prompt <b><font face="Arial" size="4" >Database information</font></b>
+        set markup html on
+
+        select 'Diagnostic-Name ' "Diagnostic-Name ", '&&SRDCNAME' "Report Info" from dual
+        union all
+        select 'Time ' , to_char(systimestamp, 'YYYY-MM-DD HH24MISS TZHTZM' ) from dual
+        union all
+        select 'Machine ' , host_name from v$instance
+        union all
+        select 'Version ',version from v$instance
+        union all
+        select 'DBName ',name from v$database
+        union all
+        select 'Instance ',instance_name from v$instance
+        /
+
+        alter session set nls_date_format='YYYY-MM-DD HH24:Mi:SS';
+        col next_change# for 9999999999999999999999999999
+        col first_change# for 9999999999999999999999999999
+        col CONSTRAINT_TYPE for a15
+
+        set markup html off
+
+        prompt <b><font face="Arial" size="4" >Database Instance information</font></b>
+        set markup html on
+        select INST_ID, INSTANCE_NAME, HOST_NAME, THREAD# from gv$instance;
+        set markup html off
+
+
+        col SUPPLEMENTAL_LOG_DATA_MIN for a25
+        col SUPPLEMENTAL_LOG_DATA_PK for a24
+        col SUPPLEMENTAL_LOG_DATA_UI for a24
+        col FORCE_LOGGING for a13
+
+        prompt <b><font face="Arial" size="4" >Database Logging information</font></b>
+        set markup html on
+        select SUPPLEMENTAL_LOG_DATA_MIN, SUPPLEMENTAL_LOG_DATA_PK, SUPPLEMENTAL_LOG_DATA_UI, FORCE_LOGGING from v$database;
+        set markup html off
+
+        prompt <b><font face="Arial" size="4" >Table informations for &&tbl</b><br><br>
+
+        prompt <a href="#TableDDL">Table DDL</a><br>
+        prompt <a href="#TableObj">Table's object ids</a><br>
+        prompt <a href="#TableLog">Table level logging</a><br>
+        prompt <a href="#Supplog">Supplemental log informations</a><br>
+        prompt <a href="#Indexes">Indexes on table</a><br>
+        prompt <a href="#Tablerelations">Table relations</a><br>
+        prompt <a href="#Constraints">Table constraints</a><br>
+        prompt <a href="#Triggers">Triggers on table</a><br><br>
+
+        prompt <a name="TableDDL"><font face="Arial" size="4">Table definition</font></a>
+
+        set markup html on
+        set long 9999;
+        set pages 100
+        select dbms_metadata.get_ddl ('TABLE', :t_name, :t_owner) "DDL for table" from dual;
+        set markup html off
+
+        prompt <a name="TableLog"><font face="Arial" size="4">Table level logging</font></a>
+
+        set markup html on
+        select owner, table_name, logging from dba_tables where table_name=:t_name and owner=:t_owner;
+        set markup html off
+
+
+        prompt <a name="TableObj"><font face="Arial" size="4">Table's object ids</font></a>
+
+        set markup html on
+        select owner, object_name, subobject_name, object_id, data_object_id from dba_objects where owner=:t_owner and object_name=:t_name;
+
+        select owner, object_id, object_name, object_type, status, created, last_ddl_time from dba_objects where owner=:t_owner and object_name=:t_name;
+
+        set markup html off
+
+        prompt <a name="Supplog"><font face="Arial" size="4">Supplemental log informations</font></a><br>
+
+        prompt <a href="#Loggroup">Log groups</a><br>
+        prompt <a href="#Logcolumns">Supplementally logged columns</a><br>
+        prompt <a href="#Schemalog">Schema level supplemental logging</a><br>
+        prompt <a href="#Schemalogcols">Schema level logged columns</a><br><br>
+
+
+        variable lgrp varchar2(200);
+        variable lgrpc varchar2(200);
+
+        declare
+        tcnt number;
+        begin
+        select count(*) into tcnt from  dba_log_groups where table_name=:t_name and owner=:t_owner;
+            if tcnt > 0 then
+              :lgrp := 'Log groups:';
+              :lgrpc := 'Supplementally logged columns:';
+            else
+              :lgrp := 'No log group is defined for table '||:t_owner||'.'||:t_name;
+              :lgrpc := '';
+            end if;
+        end;
+        /
+
+        column lgrpl noprint new_value lgrpl
+        column lgrpcl noprint new_value lgrpcl
+        select :lgrp lgrpl, :lgrpc lgrpcl from dual;
+
+        prompt <a name="Loggroup"><font face="Arial" size="4">&&lgrpl</font></a><br>
+        set markup html on
+        select * from  dba_log_groups where table_name=:t_name and owner=:t_owner;
+        set markup html off
+
+        prompt <a name="Logcolumns"><font face="Arial" size="4">&&lgrpcl</font></a><br>
+        set markup html on
+        select * from  dba_log_group_columns where table_name=:t_name and owner=:t_owner;
+        set markup html off
+
+        variable slgrp varchar2(200);
+        variable slgrpc varchar2(200);
+
+        declare
+        tcnt number;
+        begin
+        select count(*) into tcnt from LOGMNR$SCHEMA_ALLKEY_SUPLOG where schema_name=:t_owner and ALLKEY_SUPLOG='YES';
+            if tcnt > 0 then
+              :slgrp := 'Schema level supplemental logging:';
+              :slgrpc := 'Schema level logged columns:';
+            else
+              :slgrp := 'Supplement logging is not enabled at schema level for %OWNER%';
+              :slgrpc := '';
+            end if;
+        end;
+        /
+
+        column slgrpl noprint new_value slgrpl
+        column slgrpcl noprint new_value slgrpcl
+        select :slgrp slgrpl, :slgrpc slgrpcl from dual;
+
+        prompt <a name="Schemalog"><font face="Arial" size="4">&&slgrpl</font></a><br>
+        set markup html on
+        select SCHEMA_NAME, ALLKEY_SUPLOG "Enabled" from LOGMNR$SCHEMA_ALLKEY_SUPLOG where schema_name=:t_owner and ALLKEY_SUPLOG='YES';
+        set markup html off
+
+        prompt <a name="Schemalogcols"><font face="Arial" size="4">&&slgrpcl</font></a><br>
+        set markup html on
+        select column_name from table(logmnr$always_suplog_columns(:t_owner,:t_name)) lgmc, LOGMNR$SCHEMA_ALLKEY_SUPLOG lgm where lgmc.owner=lgm.SCHEMA_NAME and lgm.ALLKEY_SUPLOG='YES';
+        set markup html off
+
+        set markup html off
+        variable tinds varchar2(200);
+        variable tindsc varchar2(200);
+        variable tindsd varchar2(200);
+
+        declare
+        tcnt number;
+        begin
+        select count(*) into tcnt from dba_indexes where TABLE_OWNER=:t_owner and TABLE_NAME=:t_name;
+            if tcnt > 0 then
+              :tinds  := 'Indexes on table:';
+              :tindsc := 'Index columns:';
+              :tindsd := 'Index DDLs:';
+            else
+              :tinds  := 'No indexes on table '||:t_owner||'.'||:t_name;
+              :tindsc := '';
+              :tindsd := '';
+            end if;
+        end;
+        /
+
+        column tindsl noprint new_value tindsl
+        column tindslc noprint new_value tindslc
+        column tindsld noprint new_value tindsld
+        select :tinds tindsl, :tindsc tindslc, :tindsd tindsld from dual;
+
+        prompt <a name="Indexes"><font face="Arial" size="4">&&tindsl</font></a><br>
+        prompt <a href="#Indcols">&&tindslc</a><br>
+        prompt <a href="#Indddls">&&tindsld</a><br>
+
+        set markup html on
+        set markup html on entmap off
+        select '<a href="#'||OWNER||'.'||INDEX_NAME||'">'||OWNER||'.'||INDEX_NAME||'</a>' "OWNER.INDEX_NAME", INDEX_TYPE, UNIQUENESS from dba_indexes where TABLE_OWNER=:t_owner and TABLE_NAME=:t_name order by 1;
+        set markup html off
+
+        set markup html off
+        prompt <a name="Indcols"><font face="Arial" size="4" >&&tindslc</font></a><br>
+        set markup html on entmap off
+        select index_owner||'.'||index_name "INDEX_OWNER.INDEX_NAME", COLUMN_NAME, COLUMN_POSITION, DESCEND from dba_ind_columns where TABLE_NAME=:t_name and TABLE_OWNER=:t_owner order by 1,3;
+        set markup html off
+
+        set markup html off
+        prompt <a name="Indddls"><font face="Arial" size="4" >&&tindsld</font></a><br>
+        set markup html on entmap off
+        select '<a name="'||OWNER||'.'||INDEX_NAME||'">'||OWNER||'.'||INDEX_NAME||'</a>' "OWNER.INDEX_NAME", dbms_metadata.get_ddl ('INDEX', index_name, owner) "DDL for index" from dba_indexes where TABLE_OWNER=:t_owner and TABLE_NAME=:t_name order by owner, index_name;
+        set markup html off
+
+
+        variable cht varchar2(200);
+
+        declare
+        tcnt number;
+        begin
+        select count(*) into tcnt from dba_CONStraints cn, dba_CONS_COLUMNS cc where cn.R_CONSTRAINT_NAME = cc.CONSTRAINT_NAME and cc.TABLE_NAME=:t_name and cc.OWNER=:t_owner;
+            if tcnt > 0 then
+              :cht := 'Child tables:';
+            else
+              :cht := 'No child table for table '||:t_owner||'.'||:t_name;
+            end if;
+        end;
+        /
+
+        column ctl noprint new_value ctl
+        select :cht ctl from dual;
+
+        prompt <a name="Tablerelations"><font face="Arial" size="4">Table relations</font></a><br>
+        prompt <a href="#Childtables">Child tables</a><br>
+        prompt <a href="#Parenttables">Parent tables</a><br><br>
+
+
+        prompt <a name="Childtables"><font face="Arial" size="4">&&ctl</font></a><br>
+        set markup html on
+
+        select cn.OWNER child_owner,
+              cn.TABLE_NAME child_table ,
+              cn.CONSTRAINT_NAME child_constraint,
+              cc.OWNER parent_owner,
+              cc.TABLE_NAME parent_table,
+              cc.COLUMN_NAME parent_column
+        from dba_CONStraints cn,
+            dba_CONS_COLUMNS cc
+        where cn.R_CONSTRAINT_NAME = cc.CONSTRAINT_NAME and
+              cc.TABLE_NAME=:t_name and
+              cc.OWNER=:t_owner;
+
+        set markup html off
+
+
+        variable pht varchar2(200);
+
+        declare
+        tcnt number;
+        begin
+        select count(*) into tcnt from dba_CONStraints cn, dba_CONS_COLUMNS cc where cn.R_CONSTRAINT_NAME = cc.CONSTRAINT_NAME and cn.OWNER=:t_owner and cn.TABLE_NAME=:t_name;
+            if tcnt > 0 then
+              :pht := 'Parent tables:';
+            else
+              :pht := 'No parent table for table '||:t_owner||'.'||:t_name;
+            end if;
+        end;
+        /
+
+        column ptl noprint new_value ptl
+        select :pht ptl from dual;
+
+        prompt <a name="Parenttables"><font face="Arial" size="4">&&ptl</font></a><br>
+        set markup html on
+
+        select cn.OWNER child_owner,
+              cn.TABLE_NAME child_table ,
+              cn.CONSTRAINT_NAME child_constraint,
+              cc.OWNER parent_owner,
+              cc.TABLE_NAME parent_table,
+              cc.COLUMN_NAME parent_column
+        from dba_CONStraints cn,
+            dba_CONS_COLUMNS cc
+        where cn.R_CONSTRAINT_NAME = cc.CONSTRAINT_NAME and
+              cn.OWNER=:t_owner  and
+              cn.TABLE_NAME=:t_name;
+
+        set markup html off
+        variable tcst varchar2(200);
+        variable tcstc varchar2(200);
+
+        declare
+        tcnt number;
+        begin
+        select count(*) into tcnt from dba_CONStraints where TABLE_NAME=:t_name and OWNER=:t_owner;
+            if tcnt > 0 then
+              :tcst := 'Table constraints:';
+              :tcstc := 'Constraint columns:';
+            else
+              :tcst := 'No constraints on table '||:t_owner||'.'||:t_name;
+              :tcstc := '';
+            end if;
+        end;
+        /
+
+        column tcsl noprint new_value tcsl
+        column tcscl noprint new_value tcscl
+        select :tcst tcsl, :tcstc tcscl from dual;
+
+        prompt <a name="Constraints"><font face="Arial" size="4">&&tcsl</font></a><br>
+        set markup html on entmap off
+
+        select '<a href="#'||CONSTRAINT_NAME||'">'||CONSTRAINT_NAME||'</a>' CONSTRAINT_NAME , CONSTRAINT_TYPE, SEARCH_CONDITION, STATUS, DEFERRABLE, DEFERRED,VALIDATED, INVALID from dba_constraints where TABLE_NAME=:t_name and OWNER=:t_owner order by constraint_name;
+
+        set markup html off
+        prompt <a name="Constraintsc"><font face="Arial" size="4" >&&tcscl</font></a><br>
+        set markup html on entmap off
+
+        select '<a name="'||CONSTRAINT_NAME||'">'||CONSTRAINT_NAME||'</a>' CONSTRAINT_NAME, COLUMN_NAME, POSITION from  dba_cons_columns where TABLE_NAME=:t_name and OWNER=:t_owner order by constraint_name, column_name;
+
+        set markup html off
+
+        variable tgr varchar2(200);
+        variable tgrd varchar2(200);
+
+        declare
+        tcnt number;
+        begin
+        select count(*) into tcnt from dba_triggers where TABLE_NAME=:t_name and OWNER=:t_owner;
+            if tcnt > 0 then
+              :tgr := 'Triggers on table:';
+              :tgrd := 'Trigger definitions on table:';
+            else
+              :tgr := 'No trigger on table '||:t_owner||'.'||:t_name;
+              :tgrd := '';
+            end if;
+        end;
+        /
+
+        column tgrl noprint new_value tgrl
+        column tgrdl noprint new_value tgrdl
+        select :tgr tgrl, :tgrd tgrdl  from dual;
+
+
+        set markup html off
+        prompt <a name="Triggers"><font face="Arial" size="4">&&tgrl</font></a><br>
+        set markup html on
+
+        select '<a href="#'||TRIGGER_NAME||'">'||TRIGGER_NAME||'</a>' TRIGGER_NAME , TRIGGER_TYPE, TRIGGERING_EVENT, COLUMN_NAME REFERENCING_NAMES, WHEN_CLAUSE, STATUS, ACTION_TYPE
+        from dba_triggers
+        where TABLE_NAME=:t_name and
+              OWNER=:t_owner;
+
+        set markup html off
+        prompt <a name="Triggerbody"><font face="Arial" size="4">&&tgrdl</font></a><br>
+        set markup html on
+
+        select '<a name="'||trigger_name||'">'||trigger_name||'</a>'  trigger_name, TRIGGER_BODY from dba_triggers where table_name=:t_name and owner=:t_owner;
+
+        set echo off
+        set sqlprompt "SQL> " term on
+        set verify on
+        spool off
+        set markup html off spool off
+        set echo on
+      ]]>
+    </script>
+      <script type="OS" name="cp_files" timeout="120" validfor="" platform="allux" version="">
+        lc_comp=`/bin/echo %COMP_NAME% |tr '[A-Z]' '[a-z]'`
+        uc_comp=`/bin/echo %COMP_NAME% |tr '[a-z]' '[A-Z]'`
+       /bin/cp -rp %OGG_HOME%/dirprm/* .
+       /bin/cp -rp %OGG_HOME%/dirrpt/* .
+       /bin/cp -rp %OGG_HOME%/dirdef/* .
+       /bin/cp -rp %OGG_HOME%/ggserr.log .
+       /bin/cp -rp %OGG_HOME%/GLOBALS .
+     </script>
+     <script type="OS" name="extract_OGG_env" timeout="120" validfor="" platform="allux" version="">
+        start_flag=%STARTFLAG%
+        if [[ $start_flag = "Y" ]] || [[ $start_flag = "y" ]]
+        then
+                /bin/echo 'info %COMP_NAME% showch' |%OGG_HOME%/ggsci >SRDC_GG_CHKPINFO.txt
+                /bin/echo 'info %COMP_NAME% detail' |%OGG_HOME%/ggsci >>SRDC_GG_CHKPINFO.txt
+        else
+                /bin/echo 'info %COMP_NAME% showch' |%OGG_HOME%/ggsci >SRDC_GG_EXTINFO.txt
+                /bin/echo 'info %COMP_NAME% detail' |%OGG_HOME%/ggsci >>SRDC_GG_EXTINFO.txt
+        fi
+     </script>
+     <script type="OS" name="extract_OGG_env_Win32" timeout="500" validfor="" platform="MSWin32" version="">
+        start_flag=%STARTFLAG%
+        if [[ $start_flag = "Y" ]] || [[ $start_flag = "y" ]]
+        then
+                echo 'info %COMP_NAME% showch' |%OGG_HOME%/ggsci >SRDC_GG_EXTINFO.txt
+                echo 'info %COMP_NAME% detail' |%OGG_HOME%/ggsci >>SRDC_GG_EXTINFO.txt
+        else
+                echo 'info %COMP_NAME% showch' |%OGG_HOME%/ggsci >SRDC_GG_CHKPINFO.txt
+                echo 'info %COMP_NAME% detail' |%OGG_HOME%/ggsci >>SRDC_GG_CHKPINFO.txt
+        fi
+     </script>
+     <script type="OS" name="extract_OGG_env_Linux" timeout="120" validfor="" platform="Linux" version="">
+       OGG_OWNER=`/bin/ls -ld $OGG_HOME | /bin/awk '{print $3}'`
+        start_flag=%STARTFLAG%
+        if [[ $start_flag = "N" ]] || [[ $start_flag = "n" ]]
+        then
+                MANAGER_PID=`/bin/ps -u $OGG_OWNER -f | /bin/grep -i mgr | /bin/grep -v grep|/bin/awk '{print $2}'`
+                /usr/bin/strings -a /proc/$MANAGER_PID/environ > SRDC_GG_MGRENVINFO.txt
+        else
+                EXTRACT_PID=`/bin/ps -u $OGG_OWNER -f | /bin/grep -i extract| /bin/grep -v grep|/bin/awk '{print $2}'`
+                /usr/bin/strings -a /proc/$EXTRACT_PID/environ > SRDC_GG_PROCENVINFO.txt
+        fi
+     </script>
+     <script type="OS" name="extract_OGG_env_AIX" timeout="120" validfor="" platform="AIX" version="">
+       OGG_OWNER=`/bin/ls -ld $OGG_HOME | /bin/awk '{print $3}'`
+        start_flag=%STARTFLAG%
+        if [[ $start_flag = "N" ]] || [[ $start_flag = "n" ]]
+        then
+                MANAGER_PID=`/bin/ps -u $OGG_OWNER -f | /bin/grep -i mgr | /bin/grep -v grep|/bin/awk '{print $2}'`
+                /bin/ps eww $MANAGER_PID > SRDC_GG_MGRENVINFO.txt
+        else
+                EXTRACT_PID=`/bin/ps -u $OGG_OWNER -f | /bin/grep -i extract| /bin/grep -v grep|/bin/awk '{print $2}'`
+                /bin/ps eww $EXTRACT_PID > SRDC_GG_PROCENVINFO.txt
+        fi
+     </script>
+     <script type="OS" name="extract_OGG_env_Solaris" timeout="120" validfor="" platform="SunOS" version="">
+       OGG_OWNER=`/bin/ls -ld $OGG_HOME | /bin/awk '{print $3}'`
+        start_flag=%STARTFLAG%
+        if [[ $start_flag = "N" ]] || [[ $start_flag = "n" ]]
+        then
+                MANAGER_PID=`/bin/ps -u $OGG_OWNER -f | /bin/grep -i mgr | /bin/grep -v grep|/bin/awk '{print $2}'`
+                /bin/pargs -e $MANAGER_PID > SRDC_GG_MGRENVINFO.txt
+        else
+                EXTRACT_PID=`/bin/ps -u $OGG_OWNER -f | /bin/grep -i extract| /bin/grep -v grep|/bin/awk '{print $2}'`
+                /bin/pargs -e $EXTRACT_PID > SRDC_GG_PROCENVINFO.txt
+        fi
+     </script>
+  </commands>
+  <runtime_flags>
+  </runtime_flags>
+</collection>
+</collections>

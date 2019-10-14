@@ -1,0 +1,111 @@
+#!/bin/sh
+#
+# $Header: rdbms/src/common/java/oracle/security/rdbms/server/UserMigrate/umupre.sbs /linuxamd64/10 2018/04/14 11:57:17 risgupta Exp $
+#
+# Copyright (c) 2001, 2018, Oracle and/or its affiliates. All rights reserved.
+#
+#    NAME
+#      umu - Shell script to run User Migration Utility
+#
+#    DESCRIPTION
+#      Runs the User Migration Utility Java Application.  This file comes in two
+#      forms its original, with a .sbs extension, and its final, without
+#      a .sbs extension.  The .sbs version is source for the final
+#      version which the Oracle Universal Installer creates by
+#      doing variable substitution at install time.
+#
+#    MODIFIED   (MM/DD/YY)
+#    risgupta    03/26/17 - Bug 27637921: Update classpath to support SEPS
+#    risgupta    09/28/17 - Bug 26734447: Remove hardcoded reference
+#    risgupta    11/18/14 - Bug 20031696: Remove hardcoding of ojdbc6.jar
+#    skayoor     03/28/11 - Bug 11842192: migration from jdk5 to jdk6
+#    srtata      05/27/10 - use oracle_home jlib, also use oraclepki.jar
+#    srtata      03/14/08 - add oraclepki103 and osdt_core.jar to classpath
+#    srtata      03/14/08 - fix bug 6398178: merge porting fix to MAIN
+#    swkannan    05/16/07 - use verifier.jar
+#    swkannan    02/02/07 - Use ojdbc5.jar
+#    nmanappa    09/08/05 - Use ojdbc14.jar instead of classes12.jar for JDBC 
+#    nmanappa    01/29/04 - Bug 3366301 - check for lib32 
+#    nmanappa    10/16/03 - Bug 3137855 - User s_jreLocation  
+#    nmanappa    08/20/03 - Use jre home instead of jdk home
+#    nmanappa    07/01/03 - Use jdk1.4, jssl-1_1 and jsse jars
+#    wxie        06/04/03 - Merge to RDBMS_MAIN_SOLARIS_030604
+#    rtucker     01/28/03 - convert umu.sbs to class c for ia
+#    nmanappa    01/27/03 - Branching main/osds/unix/solaris
+#    ekarichk    06/12/02 - bug/2252468: Fix libpath and jdk home in umu scripts.
+#    nmanappa    02/25/02 - Adding SSL jars
+#    nmanappa    02/01/02 - using -classpath option of jre instead of -cp
+#    nmanappa    12/18/01 - using jdbc.jar
+#    nmanappa    11/20/01 - class name change
+#    nmanappa    11/05/01 - creation
+
+# Unset any existing JAVA_HOME variable to ensure that only
+# the JRE we want to use is used.
+unset JAVA_HOME
+
+# External Directory Variables set by the Installer
+JRE_HOME=/u01/app/oracle/product/19.0.0/dbhome_1/jdk/jre/
+JLIBDIR=/u01/app/oracle/product/19.0.0/dbhome_1/jlib
+RDBMSJLIBDIR=/u01/app/oracle/product/19.0.0/dbhome_1/rdbms/jlib
+VERIFIERDIR=/u01/app/oracle/product/19.0.0/dbhome_1/jlib
+JDBCLIBDIR=/u01/app/oracle/product/19.0.0/dbhome_1/jdbc/lib
+
+# NOTE TO PORTING : 
+# Please override LIBDIR, if your 64bit platform still use 32bit java
+
+LIBDIR=/u01/app/oracle/product/19.0.0/dbhome_1/lib
+
+JSSLJAR=$JLIBDIR/jssl-1_1.jar
+VERIFIERJAR=$VERIFIERDIR/verifier8.jar
+JDBCJAR=$JDBCLIBDIR/ojdbc8.jar
+LDAPCLNTJAR=$JLIBDIR/ldapjclnt19.jar
+# The below two jars needed by ldapjclnt.jar 
+PKIJAR=$JLIBDIR/oraclepki.jar
+OSDTJAR=$JLIBDIR/osdt_core.jar
+OSDTCERTJAR=$JLIBDIR/osdt_cert.jar
+
+# Set JRE Classpath
+JRE_CLASSPATH=$JRE_HOME/lib:$JRE_HOME/lib/rt.jar:$JRE_HOME/lib/i18n.jar:$JRE_HOME/lib/jsse.jar
+export JRE_CLASSPATH
+
+# Set SDK Classpath
+SDK_CLASSPATH=$JDBCJAR:$VERIFIERJAR:$JSSLJAR:$JAVAXSSL:$LDAPCLNTJAR:$PKIJAR:$OSDTJAR:$OSDTCERTJAR
+export SDK_CLASSPATH
+
+#Set Class Creation Path
+UMUJAR_CLASSPATH=$RDBMSJLIBDIR/usermigrate-1_0.jar
+export UMUJAR_CLASSPATH
+
+# Set Full classpath [Current dir+Source dir+JRE+SDK]
+UMU_CLASSPATH=$JRE_CLASSPATH:$SDK_CLASSPATH:$UMUJAR_CLASSPATH
+export UMU_CLASSPATH
+
+# Set LD_LIBRARY_PATH to pick libnjssl11.so
+LD_LIBRARY_PATH=$LIBDIR:$LD_LIBRARY_PATH
+export LD_LIBRARY_PATH
+
+# Set SHLIB_PATH for HP to pick libnjssl11.so
+SHLIB_PATH=$LIBDIR:$LD_LIBRARY_PATH
+export SHLIB_PATH
+
+# Set LIBPATH for AIX to pick libnjssl11.so
+LIBPATH=$LIBDIR:$LD_LIBRARY_PATH
+export LIBPATH
+
+#flag to pass to Java application launcher for 64bit JAVA
+JAVA64FLAG=
+if [ "`uname`" = "HP-UX" -o "`uname`" = "SunOS" ]; then
+	JAVA64FLAG="-d64"
+fi
+
+ARGUMENTS=""
+NUMBER_OF_ARGUMENTS=$#
+if [ $NUMBER_OF_ARGUMENTS -gt 0 ]; then
+        ARGUMENTS=$*
+fi
+
+# Run User Migration Tool
+
+$JRE_HOME/bin/java $JAVA64FLAG -DORACLE_HOME=/u01/app/oracle/product/19.0.0/dbhome_1 -classpath $UMU_CLASSPATH oracle.security.rdbms.server.UserMigrate.umu.UserMigrate $ARGUMENTS
+
+

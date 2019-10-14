@@ -1,0 +1,51 @@
+<?xml version="1.0"?>
+
+<!--  $Header: tfa/src/v2/tfa_home/resources/collect_all_directories.xml /main/3 2016/02/16 13:29:51 bburton Exp $ -->
+
+<!-- 
+ Copyright (c) 2014, 2016, Oracle and/or its affiliates. All rights reserved.
+
+   NAME
+     no_exclusion_directories.xml - <one-line expansion of the name>
+
+   DESCRIPTION
+     <short description of component this file declares/defines>
+
+   NOTES
+     <other useful comments, qualifications, etc.>
+
+   MODIFIED   (MM/DD/YY)
+   bburton     02/11/16 - do not collect wallets
+   bburton     05/28/14 - Changes for ODA Storage - 18727371
+   amchaura    05/27/14 - collect all noexclusion directories
+   amchaura    05/23/14 - Creation
+
+-->
+<directories>
+<collectall>
+<component>CRS</component>
+<base>ORACLE_BASE</base>
+<directory>CRSDATA.HOSTNAME</directory>
+<exceptions>
+<exception-directory>CVU</exception-directory>
+<exception-directory>ONSWALLET</exception-directory>
+<exception-directory>OVMMWALLETS</exception-directory>
+</exceptions>
+</collectall>
+<collectall>
+<component>ODA</component>
+<base>/opt/oracle</base>
+<directory>oak/conf</directory>
+<exceptions>
+<exception-directory>abcdefg</exception-directory>
+</exceptions>
+</collectall>
+<collectall>
+<component>ODA</component>
+<base>/opt/oracle</base>
+<directory>extapi</directory>
+<exceptions>
+<exception-directory>64</exception-directory>
+</exceptions>
+</collectall>
+</directories>

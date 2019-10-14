@@ -1,0 +1,119 @@
+<?xml version="1.0"?>
+
+<!--  $Header: tfa/src/v2/tfa_home/resources/srdc_dbexpdptts.xml /main/2 2018/08/15 16:55:52 bburton Exp $ -->
+
+<!-- 
+ Copyright (c) 2018, Oracle and/or its affiliates. All rights reserved.
+
+   NAME
+     srdc_dbexpdptts.xml 
+
+   DESCRIPTION
+     Implement for SRDC - Data to supply for Transportable Tablespace Datapump and original EXPORT, IMPORT Doc ID: 1674991.1
+
+   NOTES
+     None
+
+   MODIFIED   (MM/DD/YY)
+   xiaodowu    08/01/18 - Resolve Bug 28439844 - ADD PARENTHESIS FOR VALIDATE
+   xiaodowu    05/16/18 - Improve user prompts. e.g. allow command line input
+   xiaodowu    01/18/18 - Implement for SRDC - Data to supply for Transportable
+                          Tablespace Datapump and original EXPORT, IMPORTDoc
+                          ID: 1674991.1
+   xiaodowu    01/18/18 - Creation
+
+-->
+
+<collections>
+<collection id="dbexpdptts">
+    <description>SRDC - Data to supply for Transportable Tablespace Datapump and original EXPORT, IMPORT</description>
+    <srdc_docs>Doc ID 1674991.1: SRDC - Data to supply for Transportable Tablespace Datapump and original EXPORT, IMPORT.</srdc_docs>
+    <alias>dbexpdptts</alias>
+    <onevents>
+        <event>
+            <infile>
+                <name_patterns>
+                    <pattern>alert_.*\.log</pattern>
+                </name_patterns>
+            </infile>
+        </event>
+    </onevents>
+    <user_inputs>
+      <user_input cmdline="" default="" showprompt="1" setenv="NO" validate="" prompt="Enter the Database Name">USERINPUT-DATABASE_NAME</user_input>
+      <user_input cmdline="" default="" showprompt="1" setenv="REPLACE" validate="" prompt="Please enter the command line: ">USERINPUT-COMMAND_LINE</user_input>
+      <user_input cmdline="" default="" showprompt="1" setenv="" validate="(y|Y|n|N)" prompt="Do you use a parameter file in the above command? [Y|N]">USERINPUT-PARFLAG</user_input>
+      <user_input cmdline="" default="" showprompt="1" setenv="REPLACE" validate="file" depinput="PARFLAG" deppattern="y|Y" prompt="Enter the full path of the parameter file ">USERINPUT-PAR_FILE</user_input>
+      <user_input cmdline="" default="" showprompt="1" setenv="REPLACE" validate="file" prompt="Please give the full path of the log file? ">USERINPUT-LOG_FILE</user_input>
+      <user_input cmdline="" default="" showprompt="1" setenv="REPLACE" validate="" prompt="Enter the transportable tablespace names: (the my_tbs1, my_tbs2 in the above command line)">USERINPUT-TS_NAME</user_input>
+    </user_inputs>    
+    <duration>12h</duration>
+    <clusterwide>no</clusterwide>
+    <filter_files>
+        <types>
+        </types>
+        <filter_file_patterns>
+            <filter_file_pattern>alert_.*\.log</filter_file_pattern>
+            <filter_file_pattern>trc</filter_file_pattern>
+            <filter_file_pattern>log</filter_file_pattern>
+            <filter_file_pattern>archive\/osw</filter_file_pattern>
+            <filter_file_pattern>ExaWatcher\/archive</filter_file_pattern>
+        </filter_file_patterns>
+        <filter_file_exclude_patterns>
+            <filter_file_exclude_pattern>cdmp_.*_bucket\.tr[cm]</filter_file_exclude_pattern>
+        </filter_file_exclude_patterns>
+    </filter_files>
+    <components>
+        <component>OS</component>
+        <component>DATABASE</component>
+    </components>
+    <commands>
+      <script type="OS" name="cp_expdp_commandfile" timeout="120" validfor="" platform="allux" version="">
+       /bin/echo %COMMAND_LINE% >srdc_expdp_commandline_`date +%F`.txt
+     </script>
+      <script type="OS" name="cp_expdp_parfile" timeout="120" validfor="" platform="allux" version="">
+       /bin/cp %PAR_FILE% srdc_expdp_parfile_`date +%F`.txt
+     </script>
+      <script type="OS" name="cp_expdp_logfile" timeout="120" validfor="" platform="allux" version="">
+       /bin/cp %LOG_FILE% srdc_expdp_logfile_`date +%F`.txt
+     </script>
+     <script type="DB" name="srdc_expdptts_violations.sql" timeout="120" validfor="" platform="" version="" depinput="PARTITION_TO_ANALYZE" deppattern="Y|y">
+	REM srdc_expdptts_violations.sql 
+	set pagesize 200 verify off term off entmap off echo off
+	set markup html on spool on
+	COLUMN SRDCSPOOLNAME NOPRINT NEW_VALUE SRDCSPOOLNAME
+	spool SRDC_EXPDPTTS_%TS_NAME%_VIOLATIONS.htm
+	set long 100000
+	execute sys.dbms_tts.transport_set_check(UPPER('%TS_NAME%'),true);
+	select * from sys.transport_set_violations;
+	spool off
+	set markup html off spool off
+	set term on
+	set echo off
+	set verify on
+  	set echo on
+     </script>
+     <script type="DB" name="srdc_expdptts_unreferenceable_objects.sql" timeout="120" validfor="" platform="" version="" depinput="PARTITION_TO_ANALYZE" deppattern="Y|y">
+	REM srdc_expdptts_violations.sql 
+	set pagesize 200 verify off term off entmap off echo off
+	set markup html on spool on
+	COLUMN SRDCSPOOLNAME NOPRINT NEW_VALUE SRDCSPOOLNAME
+	spool SRDC_EXPDPTTS_%TS_NAME%_UNREFERENCEABLE_OBJECTS.htm
+   	col obj1_object heading 'Object in TTS ' format a10
+   	col obj2_object heading 'Object not in TTS'  format a10
+   	col constraint_name heading 'Constraint|Name' format a10
+   	col reason heading 'Reason' format a80
+	
+   	select obj1_subname||obj1_owner||obj1_name obj1_object, obj2_subname||obj2_owner||obj2_name obj2_object,constraint_name, reason
+   	from sys.pluggable_set_check  where ts1_name=UPPER('%TS_NAME%');
+	spool off
+	set markup html off spool off
+	set term on
+	set echo off
+	set verify on
+  	set echo on
+     </script>
+    </commands>
+    <runtime_flags>
+    </runtime_flags>
+</collection>
+</collections>

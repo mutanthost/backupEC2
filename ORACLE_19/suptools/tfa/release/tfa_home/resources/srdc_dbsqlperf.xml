@@ -1,0 +1,108 @@
+<?xml version="1.0"?>
+
+<!--  $Header: tfa/src/v2/tfa_home/resources/srdc_dbsqlperf.xml /main/3 2018/08/15 16:55:52 bburton Exp $ -->
+
+<!-- 
+ Copyright (c) 2018, Oracle and/or its affiliates. All rights reserved.
+
+   NAME
+     srdc_dbsqlperf.xml 
+
+   DESCRIPTION
+     SRDC - How to Collect Standard Information for a SQL Performance Problem 
+
+   MODIFIED   (MM/DD/YY)
+   xiaodowu    07/03/18 - Implement Enh Request 28284523 - MODIFY DBSQLPERF XML
+                          AFTER EXECUTION ORDER ENHANCEMENT
+   recornej    07/19/18 - Add validation to SQL_ID
+   xiaodowu    03/28/18 - SRDC - How to Collect Standard Information for a SQL
+                          Performance Problem Using TFA Collector (Recommended)
+                          or Manual Steps (Doc ID 2366043.1)
+   xiaodowu    03/28/18 - Creation
+
+-->
+<collections>
+	<collection id="dbsqlperf">
+		<description>SRDC - How to Collect Standard Information for a SQL Performance Problem Using TFA Collector.</description>
+		<srdc_docs>Doc ID 2366043.1:SRDC - How to Collect Standard Information for a SQL Performance Problem Using TFA Collector (Recommended) or Manual Steps.</srdc_docs>
+		<alias>dbsqlperf</alias>
+		<onevents>
+			<event>
+				<infile>
+					<name_patterns>
+						<pattern>alert_.*\.log</pattern>
+					</name_patterns>
+				</infile>
+			</event>
+		</onevents>
+		<user_inputs>
+			<user_input cmdline="" default="" showprompt="1" setenv="NO" validate="" prompt="Enter the Database Name">USERINPUT-DATABASE_NAME</user_input>
+			<user_input cmdline="" default="" showprompt="1" setenv="REPLACE" validate="" prompt="Enter the SQL ID ">USERINPUT-SQLID</user_input>
+			<user_input cmdline="" default="" showprompt="0" setenv="REPLACE" validate="" prompt="">USERINPUT-TFA_HOME</user_input>
+		</user_inputs>    
+		<duration>12h</duration>
+		<awrduration>1h</awrduration>
+		<clusterwide>yes</clusterwide>
+		<filter_files>
+			<types>
+			</types>
+			<filter_file_patterns>
+				<filter_file_pattern>alert_.*\.log</filter_file_pattern>
+				<filter_file_pattern>trc</filter_file_pattern>
+				<filter_file_pattern>log</filter_file_pattern>
+				<filter_file_pattern>archive\/osw</filter_file_pattern>
+				<filter_file_pattern>ExaWatcher\/archive</filter_file_pattern>
+			</filter_file_patterns>
+			<filter_file_exclude_patterns>
+				<filter_file_exclude_pattern>cdmp_.*_bucket\.tr[cm]</filter_file_exclude_pattern>
+			</filter_file_exclude_patterns>
+		</filter_files>
+		<components>
+			<component>OS</component>
+			<component>CRS</component>
+			<component>DATABASE</component>
+			<component>NOCHMOS</component>
+		</components>
+		<commands>
+			<script type="IPSPACK" name="ipspack" timeout="120" validfor="" platform="" version=""> </script>
+			<script type="DB" name="srdc_sqlhc.sql" timeout="300" validfor="" platform="" version="">
+       @%TFA_HOME%/resources/sql/sqlhc.sql T %SQLID%
+			</script>
+			<script type="DB" name="srdc_sqltc.sql" timeout="300" validfor="" platform="" version="11.2.0.4,12.1.0.1,12.1.0.2,12.2.0.1,18.0">
+        create or replace directory srdc_exp_tc as '%CWD%';
+
+	declare
+  	tc_out clob;
+  	v_dir VARCHAR2(20) := 'SRDC_EXP_TC';
+	begin
+   	dbms_sqldiag.export_sql_testcase(v_dir, sql_id=>'%SQLID%', exportMetadata=>TRUE, exportData=>FALSE, testcase=>tc_out);
+	end;
+        /
+
+	</script>
+	<script type="DB" name="srdc_sqltc.sql" timeout="300" validfor="" platform="" version="10.2.0.4,11.2.0.3">
+	create or replace directory srdc_exp_tc as '%CWD%';
+
+	declare
+  	tc_out clob;
+	begin
+   	dbms_sqldiag.export_sql_testcase(directory=>'SRDC_EXP_TC', sql_id=>'%SQLID%', testcase => tc_out);
+	end;
+	/
+</script>
+<script type="DB" name="srdc_sql_monitor.sql" timeout="300" validfor="" platform="" version="">
+	SET LONG 1000000 
+	SET FEEDBACK OFF
+	spool monitor_sql_%SQLID%.html 
+	SELECT DBMS_SQLTUNE.report_sql_monitor(sql_id =>'%SQLID%',type=> 'HTML') AS report FROM dual;
+	spool off
+</script>
+<script type="OS" name="srdc_zip_tcbfiles" timeout="300" validfor="" platform="" version="">
+	/usr/bin/zip srdc_tcb.zip %CWD%/oratcb*
+	/bin/rm -r oratcb*
+</script>
+</commands>
+<runtime_flags>
+</runtime_flags>
+</collection>
+</collections>

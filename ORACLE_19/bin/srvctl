@@ -1,0 +1,333 @@
+#!/bin/sh
+#
+# $Header: opsm/utl/srvctl.sbs /unix/79 2018/04/01 22:59:05 rtattuku Exp $
+#
+# srvctl
+#
+# Copyright (c) 2000, 2018, Oracle and/or its affiliates. All rights reserved.
+#
+#    NAME
+#      srvctl - Oracle Server Control Utility
+#
+#    DESCRIPTION
+#      Oracle Server Control Utility can be used to administer a RAC database,
+#      i.e., to modify the configuration information of a RAC 
+#      database server as well as to do start/stop/status operations on the
+#      instances of the server.
+#
+#    MODIFIED   (MM/DD/YY)
+#       yizhang  03/02/18 - fix bug 27292107
+#       jorgepe  01/22/18 - Fix bug 26734991: Remove hardcoded references
+#       bhshanmu 06/12/17 - bhshanmu_bug-26003322_linux
+#       rdesale  06/26/16 - fix bug 23522607
+#       ocordova 01/25/16 - Enable TLS support
+#       mavohra  05/27/15 - Fix for bug 21079481
+#       mpradeep 03/18/15 - 14201274 - Provide absolute path for dirname
+#       vgunredd 03/16/15 - Fix bug 20709539
+#       bmanry   12/08/14 - add ORACLE_BASE environment variable
+#       vobulapu 11/13/14 - added mail.jar and activation.jar
+#       rgoteti  04/21/14 - removed TEST_SRVCTL_CTRLC_PROPERTY property
+#       rgoteti  01/10/14 - add TEST_SRVCTL_CTRLC_PROPERTY property
+#       sidshank 11/21/13 - add JNITRACE property.
+#       satg     07/24/13 - Added chaconfig.jar to the class path
+#       sidshank 06/14/13 - add SRVM_NATIVE_TRACE environment var.
+#       epineda  10/10/12 - Added ldapjclnt12.jar to classpath
+#       vobulapu 19/03/12 - Fix bug 13773388(Removing SCJAR)
+#       ccharits 03/16/12 - Fixed bug 13828290
+#       agridnev 10/20/11 - fixed bug 13080540
+#       takiba   05/05/11 - bug11875695: prevent substitution of JREDIR, etc.
+#       agridnev 06/19/11 - adde clsce.jar to support snapshots
+#       yizhang  04/24/11 - fix bug 8742839
+#       yizhang  01/13/11 - add antlr jar to classpath
+#       yizhang  01/05/11 - set USING_ANTLR property when USING_ANTLR
+#                           environment variable is set
+#       yizhang  12/16/10 - fix bug 9256393
+#       sowong   04/09/10 - XbranchMerge sowong_bug-9536406 from
+#                           st_has_11.2.0.1.0
+#       sravindh 09/18/09 - XbranchMerge sravindh_mrg2lnx2 from
+#                           st_has_11.2.0.1.0
+#       yizhang  03/01/10 - fix bug 9433691
+#       yizhang  12/24/09 - fix bug 9040155
+#       ksviswan 08/17/09 - Fix LD_LIBRARY_PATH for Sol.X64
+#       sravindh 05/05/09 - Bug 8481528
+#       rxkumar  02/03/09 - fix bug8218759
+#       rxkumar  01/22/09 - fix bug7715235
+#       rxkumar  07/16/08 - fix EONSJAR
+#       sowong   05/20/08 - change ORACLE_HOME to OHOME
+#       spavan   05/12/08 - fix bug6937911
+#       spavan   04/16/08 - fix bug6957022
+#       spavan   03/26/08 - fix srvctl installer variables.
+#       rwessman 04/04/08 - Added GNS jar file to support additions for GNS.
+#       rxkumar  01/08/08 - fix bug6730574
+#       sowong   10/30/07 - remove -x
+#       srisanka 10/15/07 - replace Installer vars
+#       yizhang  09/25/07 - add property oracle.eonsd.tracefile
+#       rxkumar  09/06/07 - update classpath to include eons.jar
+#       lweng    05/09/07 - add option to get srvctl11.jar
+#       rajkris  03/07/07 - 
+#       sowong   02/27/07 - fix bug5387862
+#       rxkumar  07/25/06 - fix bug5313735 
+#       rxkumar  07/05/06 - add srvctl trace file support: bug5377319
+#       rxkumar  07/06/06 - fix bug5330848 
+#       rxkumar  05/08/06 - fix bug5211942 
+#       sowong   04/11/06 - fix bug 5140038. 
+#       mnijasur 02/21/06 - fix 5029615 - merge linux-ppc port changes 
+#       bkannike 02/07/06 - Fix for 4937400 
+#       sowong   10/05/05 - fix bug 4624796 
+#       rxkumar  11/29/04 - fix bug4024708 
+#       dliu     11/18/04 - replace OH 
+#       khsingh  10/07/04 - add workaround for bug (3937317)
+#       khsingh  09/27/04 - update case statement (3914991)
+#       gdyoung  09/17/04 - ;;
+#       gdyoung  08/20/04 - ple/st script merging 
+#       dliu     08/04/04 - get them work on linux 
+#       dliu     11/20/03 - support for trace 
+#       dliu     11/12/03 - unset ORA_CRSDEBUG 
+#       bhamadan 09/18/03 - replacing s_jre131Location with s_jreLocation 
+#       khsingh  06/25/03 - remove policy file
+#       rxkumar  06/03/03 - add srvmasm.jar
+#       rdasari  06/02/03 - set LD_LIBRARY_PATH appropriately for 32 and 64 bit solaris platforms
+#       dliu     02/21/03 - add i18n.jar
+#       dliu     11/13/02 - use ORA_CRS_UI_FMT to turn on output capture
+#       dliu     10/17/02 - turn on output capture
+#       jtellez  10/04/02 - make policy ==
+#       surchatt 09/06/02 - puttint policy file location
+#       rdasari  08/07/02 - use java instead of jre
+#       rdasari  08/01/02 - use jdk131
+#       jtellez  07/26/02 - add srvmhas.jar to classpath
+#       rdasari  05/09/01 - changing the header information
+#       rdasari  03/22/01 - changing to ops to srv.
+#       dliu     03/02/01 - use "$@" for argument list. this iscritical for correct interpretation of arguments with spaces in them..
+#       dliu     02/26/01 - fix bug #1656127: SHLIB_PATH change.
+#       dliu     02/23/01 - replace $ORACLE_HOME in classpath with an install variable..
+#       jcreight 11/08/00 - define OPSMJAR, not OPSJAR
+#       rdasari  10/27/00 - Making corrections
+#       jcreight 10/25/00 - opsctl.jar is in $ORACLE_HOME/opsm/jlib.
+#       rdasari  09/11/00 - Adding the case for HI-UX
+#       rdasari  08/25/00 - Adding the definition of JREJAR variable
+#
+
+DIRNAME=/usr/bin/dirname
+
+# External Variable set by the Installer
+OHOME=/u01/app/oracle/product/19.0.0/dbhome_1
+
+cmdpath=`$DIRNAME ${0}`
+
+case "$cmdpath" in
+    /*) ;;
+    .) cmdpath=`pwd`;;
+    *) cmdpath=`pwd`/$cmdpath;;
+esac
+  
+OHOMEDIR=`$DIRNAME $cmdpath`
+
+if [ ! -d ${OHOMEDIR}/bin ] || [ ! -f ${OHOMEDIR}/jlib/srvm.jar ]
+then
+    OHOMEDIR=/u01/app/oracle/product/19.0.0/dbhome_1
+fi
+
+JREDIR=${OHOMEDIR}/jdk
+JLIBDIR=${OHOMEDIR}/jlib
+LDAP_VERSION=%ldap_version%
+# jar files
+
+# SRVM-ASM jar file
+SRVMASMJAR=${JLIBDIR}/srvmasm.jar
+
+### ORATST_SRVCTL11 is a for upgrade tests and WLM folks to add nodeapps in 11.1 style
+if [ -z "${ORATST_SRVCTL11}" ]
+then
+#SRVM jar file
+   SRVMJAR=${JLIBDIR}/srvm.jar
+
+#SRVCTL jar file
+   SRVCTLJAR=${OHOMEDIR}/srvm/jlib/srvctl.jar
+
+if [ -f ${OHOMEDIR}/srvm/jlib/antlr-3.3-complete.jar ]
+then
+   ANTLRJAR=${OHOMEDIR}/srvm/jlib/antlr-3.3-complete.jar
+else
+   ANTLRJAR=${OHOMEDIR}/srvm/jlib/antlr-complete.jar
+fi
+
+# SRVM-HAS jar file
+   SRVMHASJAR=${JLIBDIR}/srvmhas.jar
+fi
+
+# Grid Naming Service jar file.
+GNSJAR=${JLIBDIR}/gns.jar
+
+# JWC cred jar file
+JWCCREDJAR=${JLIBDIR}/jwc-cred.jar
+
+#clsce.jar for snapshot support
+CLSCEJAR=${JLIBDIR}/clsce.jar
+
+#chaconfig.jar for cha support
+CHACONFIGJAR=${JLIBDIR}/chaconfig.jar
+
+#ojdbc6.jar for jdbc connectivity
+JDBCJAR=${OHOMEDIR}/jdbc/lib/ojdbc6.jar
+
+# Supercluster jar files
+EONSJAR=${OHOMEDIR}/ons/lib/ons.jar
+
+#NetCa config jar
+NETCFGJAR=${JLIBDIR}/netcfg.jar
+
+#LDAP jar to read listener.ora file on upgrade
+LDAPJAR=${JLIBDIR}/ldapjclnt${LDAP_VERSION}.jar
+
+#mail.jar
+MAILJAR=${OHOMEDIR}/lib/mail.jar
+
+#activation.jar
+ACTIVATIONJAR=${OHOMEDIR}/lib/activation.jar
+
+# JRE Executable and Class File Variables
+JRE=${JREDIR}/bin/java
+JREJAR=${JREDIR}/jre/lib/rt.jar:${JREDIR}/jre/lib/i18n.jar
+
+CLASSPATH=${NETCFGJAR}:${LDAPJAR}:${JREJAR}:${SRVMJAR}:${SRVMHASJAR}:${SRVMASMJAR}:${EONSJAR}:${SRVCTLJAR}:${GNSJAR}:${ANTLRJAR}:${CLSCEJAR}:${CHACONFIGJAR}:${JDBCJAR}:${MAILJAR}:${ACTIVATIONJAR}:${JWCCREDJAR}
+
+# turn on output capture
+_CRS_UI_FMT=-v
+export _CRS_UI_FMT
+
+#Used for setting stack size for java thread
+JAVA_STACK_SIZE="-Xss2048k"
+
+#Used for specifying any platform specific Java options
+JRE_OPTIONS=""
+
+# Set the shared library path for JNI shared libraries
+# A few platforms use an environment variable other than LD_LIBRARY_PATH
+PLATFORM=`/bin/uname`
+case ${PLATFORM} in 
+HP-UX)
+   LD_LIBRARY_PATH=${OHOMEDIR}/lib:${OHOMEDIR}/srvm/lib
+   export LD_LIBRARY_PATH
+   SHLIB_PATH=
+   JRE_OPTIONS="-d64"
+   ;;
+AIX)
+   LIBPATH=${OHOMEDIR}/lib:${OHOMEDIR}/srvm/lib:${LIBPATH}
+   export LIBPATH
+   JRE_OPTIONS="-d64"
+   JAVA_STACK_SIZE="${JAVA_STACK_SIZE} -Xmso2048k"
+   ;;
+Linux)
+   LD_LIBRARY_PATH=${OHOMEDIR}/lib:${OHOMEDIR}/srvm/lib:${LD_LIBRARY_PATH}
+   # Linux ( ppc64 || s390x ) => LD_LIBRARY_PATH lib32
+   ARCH=`/bin/uname -m`;
+   if [ "${ARCH}" = "ppc64" -o "${ARCH}" = "s390x" ]
+   then
+     LD_LIBRARY_PATH=${OHOMEDIR}/lib32:${OHOMEDIR}/srvm/lib32:${LD_LIBRARY_PATH}
+     JAVA_STACK_SIZE="${JAVA_STACK_SIZE} -Xmso2048k"
+   fi
+   export LD_LIBRARY_PATH
+   ;;
+SunOS) 
+    LD_LIBRARY_PATH_64=${OHOMEDIR}/lib:${OHOMEDIR}/srvm/lib:${LD_LIBRARY_PATH_64}
+    export LD_LIBRARY_PATH_64
+    LD_LIBRARY_PATH=${OHOMEDIR}/lib:${OHOMEDIR}/srvm/lib:${LD_LIBRARY_PATH}
+    export LD_LIBRARY_PATH
+    JRE_OPTIONS="-d64"
+    ;;
+OSF1) LD_LIBRARY_PATH=${OHOMEDIR}/lib:${OHOMEDIR}/srvm/lib:${LD_LIBRARY_PATH}
+      export LD_LIBRARY_PATH
+      ;;
+Darwin) 
+      DYLD_LIBRARY_PATH=${OHOMEDIR}/lib:${OHOMEDIR}/srvm/lib:${DYLD_LIBRARY_PATH} 
+      export DYLD_LIBRARY_PATH 
+      ;; 
+*)    if [ -d ${OHOMEDIR}/lib32 ];
+      then
+        LD_LIBRARY_PATH=${OHOMEDIR}/lib32:${OHOMEDIR}/srvm/lib32:${LD_LIBRARY_PATH}
+      else
+        LD_LIBRARY_PATH=${OHOMEDIR}/lib:${OHOMEDIR}/srvm/lib:${LD_LIBRARY_PATH}
+      fi
+      export LD_LIBRARY_PATH
+      ;;
+esac
+
+# Set java stack size
+JRE_OPTIONS="${JRE_OPTIONS} ${JAVA_STACK_SIZE}"
+
+#Get crshome
+CHOME=`${OHOME}/srvm/admin/getcrshome`
+
+if [ "$?" = 1 ]
+then
+    echo "****Unable to retrieve Oracle Clusterware home."
+    echo "Start Oracle Clusterware stack and try again."
+    exit 1
+fi
+
+if [ "X${CHOME}" != "X${OHOME}" ]
+then  
+    case ${ORACLE_HOME} in
+        "") echo "****ORACLE_HOME environment variable is not set."
+            echo "    ORACLE_HOME should be set to the main"
+            echo "    directory that contains Oracle products."
+            echo "    Set and export ORACLE_HOME, then re-run."
+            exit 1;;
+	 *) ORACLE_HOME=${ORACLE_HOME};;
+    esac
+else
+    ORACLE_HOME=${CHOME}
+fi
+export ORACLE_HOME
+
+# Properties to pass directly to java
+if [ "X${SRVM_PROPERTY_DEFS}" = "X" ]
+then
+  SRVM_PROPERTY_DEFS=""
+fi
+
+
+# Environment variable to turn on tracing
+if [ "X${SRVM_TRACE}" != "X" ]
+then
+  if [ "${SRVM_TRACE}" != "false" ]  && [ "${SRVM_TRACE}" != "FALSE" ]
+  then
+    SRVM_PROPERTY_DEFS="${SRVM_PROPERTY_DEFS} -DTRACING.ENABLED=true -DTRACING.LEVEL=2"
+    if [ "X${SRVM_NATIVE_TRACE}" != "X" ]
+    then
+      if [ "${SRVM_NATIVE_TRACE}" != "false" ]  && [ "${SRVM_NATIVE_TRACE}" != "FALSE" ]
+      then
+        SRVM_PROPERTY_DEFS="${SRVM_PROPERTY_DEFS} -DNATIVETRACING.ENABLED=true"
+      fi
+    fi
+    if [ "X${SRVM_JNI_TRACE}" != "X" ]
+    then
+      if [ "${SRVM_JNI_TRACE}" != "false" ]  && [ "${SRVM_JNI_TRACE}" != "FALSE" ]
+      then
+        SRVM_PROPERTY_DEFS="${SRVM_PROPERTY_DEFS} -DJNITRACING.ENABLED=true"
+      fi
+    fi
+    # Environment variable to turn on tracing to a file.
+    if [ "X${SRVCTL_TRACEFILE}" != "X" ]
+    then
+        SRVM_PROPERTY_DEFS="${SRVM_PROPERTY_DEFS} -Dsrvm.srvctl.tracefile=${SRVCTL_TRACEFILE} -Doracle.eonsd.tracefile=${SRVCTL_TRACEFILE}"
+    fi
+  fi
+fi
+
+if [ "X${USING_ANTLR}" != "X" ]
+then
+    SRVM_PROPERTY_DEFS="${SRVM_PROPERTY_DEFS} -Dusing_antlr=${USING_ANTLR}"
+fi
+
+# Environment variable to turn on checking
+if [ "X${CHECK_LEVEL}" != "X" ]
+then
+    SRVM_PROPERTY_DEFS="${SRVM_PROPERTY_DEFS} -DNETWORK.CHECKLEVEL=${CHECK_LEVEL}"
+fi
+
+# Add configuration file containing logging properties.
+SRVM_PROPERTY_DEFS="${SRVM_PROPERTY_DEFS} -Djava.util.logging.config.file=${CHOME}/srvm/admin/logging.properties"
+# Run srvctl 
+${JRE} ${JRE_OPTIONS} -DORACLE_HOME=${ORACLE_HOME} -classpath ${CLASSPATH} ${SRVM_PROPERTY_DEFS} oracle.ops.opsctl.OPSCTLDriver "$@"
+exit $?

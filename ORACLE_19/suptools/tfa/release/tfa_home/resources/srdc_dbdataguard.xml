@@ -1,0 +1,154 @@
+<?xml version="1.0"?>
+
+<!--  $Header: tfa/src/v2/tfa_home/resources/srdc_dbdataguard.xml /main/1 2018/05/28 15:06:28 bburton Exp $ -->
+
+<!-- 
+ Copyright (c) 2017, 2018, Oracle and/or its affiliates. All rights reserved.
+
+   NAME
+     srdc_dbdataguard.xml - <one-line expansion of the name>
+
+   DESCRIPTION
+     <short description of component this file declares/defines>
+
+   NOTES
+     <other useful comments, qualifications, etc.>
+
+   MODIFIED   (MM/DD/YY)
+   xiaodowu    02/27/18 - XbranchMerge xiaodowu_addxmls from st_tfa_12.2.1.3.1
+   xiaodowu    01/18/18 - Fix the issue of prompt:Instead of prompting for
+                          db_unique_name, prompt for database name.
+   recornej    11/03/17 - Add REPLACE to DATABASE_NAME
+   recornej    11/02/17 - Add new changes
+   bburton     09/22/17 - SRDC to capture diagnostic data for Data Guard issues
+   bburton     09/22/17 - Creation
+
+-->
+<collections>
+  <collection id="dbdataguard">
+    <user_description></user_description>
+    <description>SRDC to capture diagnostic data for Data Guard issues</description>
+    <onevents>
+    </onevents>
+    <user_inputs>
+        <user_input cmdline="" default="" showprompt="1" setenv="REPLACE" validate="" prompt="Enter the Database Name">USERINPUT-DATABASE_NAME</user_input>
+    </user_inputs>
+    <duration>12h</duration>
+    <awrduration>1h</awrduration>
+    <clusterwide>yes</clusterwide>
+    <filter_files>
+      <filter_file_patterns>
+            <filter_file_pattern>alert_.*\.log</filter_file_pattern>
+            <filter_file_pattern>trc</filter_file_pattern>
+            <filter_file_pattern>log</filter_file_pattern>
+            <filter_file_pattern>\.xml</filter_file_pattern>
+            <filter_file_pattern>messages</filter_file_pattern>
+            <filter_file_pattern>archive\/osw</filter_file_pattern>
+            <filter_file_pattern>ExaWatcher\/archive</filter_file_pattern>
+      </filter_file_patterns>
+      <filter_file_exclude_patterns>
+            <filter_file_exclude_pattern>cdmp_.*_bucket\.tr[cm]</filter_file_exclude_pattern>
+      </filter_file_exclude_patterns>
+    </filter_files>
+    <components>
+      <component>DATABASE</component>
+      <component>CRS</component>
+      <component>NOCHMOS</component>
+      <component>OS</component>
+      <component>TNS</component>
+    </components>
+    <commands>
+      <script type="SQLSCRIPT" name="db_dg_lsby_progress.sql" timeout="120" validfor="" platform="" version="">
+      </script>
+      <script type="SQLSCRIPT" name="db_dg_lsby_diag.sql" timeout="120" validfor="" platform="" version="">
+      </script>
+      <script type="SQLSCRIPT" name="db_dg_psby_diag.sql" timeout="120" validfor="" platform="" version="">
+      </script>
+      <script type="SQLSCRIPT" name="db_dg_prim_diag.sql" timeout="120" validfor="" platform="" version="">
+      </script>
+      <script type="OS" name="cp_parameter" timeout="120" validfor="" platform="allux" version="">
+       /bin/cp $ORACLE_HOME/network/admin/*.ora .
+      </script>
+      <script type="OS" name="listener_status" timeout="120" validfor="" platform="allux" version="">
+	echo "Oracle listener(s) currently running on `hostname`:"
+	echo "`ps -ef|grep tnslsnr|grep -v grep|awk '{print $(NF-1)}'`"
+	echo "----------------------------------"
+	echo ""
+	for i in `ps -ef|grep tnslsnr|grep -v grep|awk '{print $(NF-1)}'`
+	do
+		echo "	Listener $i details:"
+		echo "	+++++++++++++++++++++"
+		lsnrctl status $i
+		echo ""
+		echo "	Listener $i log file: `lsnrctl status $i|grep "^Listener Log File"|awk '{print $NF}'`"
+		echo "	+++++++++++++++++++++"
+		echo ""
+	done
+      </script>
+      <script type="OS" name="pmon_environment" timeout="120" validfor="" platform="Linux" version="">
+	echo "Oracle database(s) currently running on `hostname`:"
+	ps -ef|grep pmon|grep -v grep|awk -F\_ '{print $NF}'|grep -v environment|sort
+	echo ""
+	for db in `ps -ef|grep pmon|grep -v grep|awk -F\_ '{print $NF}'|grep -v environment|sort`
+	do
+		#DB=`ps -ef|grep pmon|grep -v grep|awk -F\_ '{print $NF}'|grep -v environment|sort|sed s/^\-//`
+		#echo "DB is $DB"
+		pid=`ps -ef|grep pmon|grep -v grep|grep $db|awk '{print $2}'`
+		echo "The pid for $db pmon process is: $pid"
+		echo "Its environment is:" 
+		strings -a /proc/$pid/environ
+		echo ""
+	done
+      </script>
+      <script type="OS" name="pmon_environment" timeout="120" validfor="" platform="AIX" version="">
+	echo "Oracle database(s) currently running on `hostname`:"
+	ps -ef|grep pmon|grep -v grep|awk -F\_ '{print $NF}'|grep -v environment|sort
+	echo ""
+	for db in `ps -ef|grep pmon|grep -v grep|awk -F\_ '{print $NF}'|grep -v environment|sort`
+	do
+		#DB=`ps -ef|grep pmon|grep -v grep|awk -F\_ '{print $NF}'|grep -v environment|sort|sed s/^\-//`
+		#echo "DB is $DB"
+		pid=`ps -ef|grep pmon|grep -v grep|grep $db|awk '{print $2}'`
+		echo "The pid for $db pmon process is: $pid"
+		echo "Its environment is:" 
+		ps eww $pid
+		echo ""
+	done
+      </script>
+      <script type="OS" name="pmon_environment" timeout="120" validfor="" platform="SunOS" version="">
+	echo "Oracle database(s) currently running on `hostname`:"
+	ps -ef|grep pmon|grep -v grep|awk -F\_ '{print $NF}'|grep -v environment|sort
+	echo ""
+	for db in `ps -ef|grep pmon|grep -v grep|awk -F\_ '{print $NF}'|grep -v environment|sort`
+	do
+		#DB=`ps -ef|grep pmon|grep -v grep|awk -F\_ '{print $NF}'|grep -v environment|sort|sed s/^\-//`
+		#echo "DB is $DB"
+		pid=`ps -ef|grep pmon|grep -v grep|grep $db|awk '{print $2}'`
+		echo "The pid for $db pmon process is: $pid"
+		echo "Its environment is:" 
+		pargs -e $pid
+		echo ""
+	done
+      </script>
+      <script type="OS" name="dataguard_broker_info" timeout="120" validfor="" platform="allux" version="">
+	echo "+++++++++++++++++++++++++++++++++"
+	echo "show configuration verbose:" 
+	echo "+++++++++++++++++++++++++++++++++"
+	dgmgrl / "show configuration verbose" 
+	echo "+++++++++++++++++++++++++++++++++"
+	echo "show database verbose %DATABASE_NAME%:" 
+	echo "+++++++++++++++++++++++++++++++++"
+	dgmgrl / "show database verbose %DATABASE_NAME%" 
+	if [ `ps -ef|grep ora_lms|grep -v grep|wc -l` -ne 0 ]
+	then
+		echo "+++++++++++++++++++++++++++++++++"
+		echo "show instance verbose %INSTANCE_NAME%:" 
+		dgmgrl / "show instance verbose %INSTANCE_NAME%" 
+		echo "+++++++++++++++++++++++++++++++++"
+	fi
+      </script>
+    </commands>
+    <runtime_flags>
+    </runtime_flags>
+  </collection>
+</collections>

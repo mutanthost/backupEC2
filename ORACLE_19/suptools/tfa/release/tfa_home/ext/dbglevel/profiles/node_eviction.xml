@@ -1,0 +1,71 @@
+<?xml version="1.0"?>
+
+<!--  $Header: tfa/src/v2/ext/dbglevel/profiles/node_eviction.xml /main/2 2015/12/09 01:45:19 bibsahoo Exp $ -->
+
+<!-- 
+ Copyright (c) 2015, Oracle and/or its affiliates. All rights reserved.
+
+   NAME
+     node_eviction.xml - <one-line expansion of the name>
+
+   DESCRIPTION
+     <short description of component this file declares/defines>
+
+   NOTES
+     <other useful comments, qualifications, etc.>
+
+   MODIFIED   (MM/DD/YY)
+   bibsahoo    12/02/15 - FIX BUG 22301591 - TIMEOUTS MISSING FROM DBGLEVEL
+                          PROFILES
+   bibsahoo    09/22/15 - Creation
+
+-->
+<profile name="node_eviction" description="For debugging cluster node evictions if directed by Oracle Support." type="default" timeout="-1">
+<change>
+<command>crsctl</command>
+<command_location>GI_HOME</command_location>
+<command_type>log</command_type>
+<daemon>css</daemon>
+<module>CLSF</module>
+<set>4</set>
+<unset>0</unset>
+</change>
+<change>
+<command>crsctl</command>
+<command_location>GI_HOME</command_location>
+<command_type>log</command_type>
+<daemon>css</daemon>
+<module>CSSD</module>
+<set>4</set>
+<unset>2</unset>
+</change>
+<change>
+<command>crsctl</command>
+<command_location>GI_HOME</command_location>
+<command_type>log</command_type>
+<daemon>css</daemon>
+<module>CSSDGMCC</module>
+<set>4</set>
+<unset>2</unset>
+</change>
+<change>
+<command>crsctl</command>
+<command_location>GI_HOME</command_location>
+<command_type>log</command_type>
+<daemon>css</daemon>
+<module>CSSDGMPC</module>
+<set>4</set>
+<unset>2</unset>
+</change>
+<change>
+<command>crsctl</command>
+<command_location>GI_HOME</command_location>
+<command_type>log</command_type>
+<daemon>css</daemon>
+<module>CSSDNMC</module>
+<set>4</set>
+<unset>2</unset>
+</change>
+</profile>
+
+

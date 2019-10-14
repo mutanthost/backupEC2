@@ -1,0 +1,42 @@
+printf("==========START_OF_REPORT_chkShareQuota.aksh==========\n");
+
+var founderrorsShareQuota = false;
+var report = 1;
+var MAX_UTILIZATION=85;
+
+getHostname();
+
+if(!isExalogicNode()) {
+    printreport("OK: " + host_name + " Share Quota Check Completed: Passive Header\n");
+}
+else {
+	var projects, p, shares, s, shareDedup, projDedup, zfs_total_used, zfs_total_avail, zfs_utilization,  projUtilization, myUtilization, projQuota, projSpaceTotal, projSpaceUnusedRes, projSpaceAvailable, myQuota, mySpaceTotal, mySpaceUnusedRes, mySpaceAvailable;
+
+    run('cd /');
+    run('status storage');
+    run('select exalogic');    
+    zfs_total_used=Number(safeGet('used'));
+    zfs_total_avail=Number(safeGet('avail'));
+    zfs_utilization=Math.round(zfs_total_used*1000/(zfs_total_used + zfs_total_avail))/10;
+    
+    if (zfs_utilization >= MAX_UTILIZATION) {
+        founderrorsShareQuota = true;
+    }
+    printreport("ZFS total used space is: " + zfs_total_used + " bytes\n ZFS total available space is: " + zfs_total_avail + " bytes\n ZFS space utilization is: " + zfs_utilization + " percent. \n\n");    
+    
+
+    checkShareQuota();
+
+    if ( founderrorsShareQuota == false ) {
+        printreport("OK: " + host_name + " Share Quota Check Completed: Space utilization on all ZFS projects and shares are less than " + MAX_UTILIZATION + " percent\n");
+    }
+    else {
+        printreport("WARNING: " + host_name + " Share Quota Check Completed: Space utilization on one or more ZFS projects and shares more than or at least " + MAX_UTILIZATION + " percent\n");
+    }
+}    
+printf("==========END_OF_REPORT_chkShareQuota.aksh==========\n");
+
+printf("==========START_OF_AUDIT_CHECK_chkShareQuota.aksh==========\n");
+printf("share_quota_check_status = %d\n", founderrorsShareQuota);
+printf("==========END_OF_AUDIT_CHECK_chkShareQuota.aksh==========\n");
+

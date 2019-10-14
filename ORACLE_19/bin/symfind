@@ -1,0 +1,149 @@
+#!/bin/sh
+#
+# $Header: symfind.pp 3090000.1 95/09/05 14:55:46 wyim Osd<base> $ Copyr (c) 1994 Oracle
+#
+# symfind 	Find symbols in archives and/or object files
+#
+# Options:	[-i] [-v] [-o outfile] [-l libstring] symbol [dirs]
+# 
+CMD="$0 $*"
+#
+#
+#
+usage()
+{
+cat <<!
+Usage: symfind [-c] [-i] [-v] [-o outfile] [-l libstring] symbol [dirs]
+
+-c Start in current directory, otherwise assumes ORACLE_HOME
+-i Ignore upper/lower case matching
+-v Verbose
+-o Output to outfile
+-l Match filenames to '*libstring*'
+!
+exit 1
+}
+
+if [ $# -lt 1 ]; then
+	usage
+fi;
+#
+# Defaults
+#
+GREP="grep"			# Use this to grep for symbols
+SRCH=""				# What to search for
+SAVENAME="(none)"		# Output filename if -o specified
+SAVE="cat"			# (internal command used for output)
+VERBOSE=""			# Y if -v chosen
+DOLINKS=""			# Should we find and report on Symbolic links ?
+SRCHDIR="."			# Directory list to search, default if '.'
+if [ "$ORACLE_HOME" != "" ]; then
+	STARTDIR="$ORACLE_HOME" # Where to assume the command starts
+else
+	STARTDIR=".";
+fi;
+#
+# Which echo to use ? - for portability.
+#
+if `echo -n| grep n >/dev/null 2>&1` ; then
+	ECHO="echo"
+	NC='\c'
+else
+	ECHO="echo -n"
+	NC=""
+fi;
+#
+# Process any parameters
+#
+while [ "$1" = "-c" -o "$1" = "-v" -o "$1" = "-i" \
+     -o "$1" = "-l" -o "$1" = "-o" ] ; do
+  case "$1" in
+  "-c") STARTDIR="."
+	;;
+  "-v") VERBOSE="Y"
+	DOLINKS="-type l -o"
+	;;
+  "-i") GREP='grep -i'
+	;;
+  "-o") shift
+	if [ "$1" = "" ]; then
+		echo "-o needs an output filename"
+		usage
+	fi
+	SAVENAME="$1"
+	SAVE="tee $1"
+	;;
+  "-l") shift
+	if [ "$1" = "" ]; then
+		echo "-l needs characters to form part of a library name"
+		echo "   Eg: -l ora will look for libraries of like '*ora*'"
+		usage
+	fi
+	SRCH=$1
+	;;
+  *)    echo "Unknown option: $1"
+	usage
+	;;
+  esac
+  shift;
+done;
+#
+# Now we should be at the symbol name:
+# 
+if [ "$1" = "" ]; then
+	echo "No symbol name supplied"
+	usage
+fi;
+SYM=$1
+shift
+# 
+# Any remaining parameters are search directories
+#
+if [ "$1" != "" ]; then
+   SRCHDIR="$*"
+fi;
+#
+if [ "$SAVENAME" != "(none)" ]; then
+    touch $SAVENAME
+    if [ ! -w $SAVENAME ]; then
+	echo "Cannot write to output file: $SAVENAME"
+	usage
+    fi;
+fi;
+#
+if [ ! -d $STARTDIR ] ; then
+	echo "Cannot locate directory to start in ($STARTDIR)"
+	echo "This is usually taken from ORACLE_HOME environment variable."
+	ehco "Please check your environment or use -c for current directory"
+	usage
+fi;
+( cd $STARTDIR
+  echo " "
+  echo "SymFind - Find Symbol <$SYM> in <*$SRCH*>.a, .o, .so "
+  echo "------------------------------------------------------"
+  echo "Command:         $CMD"
+  echo "Local Directory: `pwd`"
+  echo "Output File:     $SAVENAME"
+  echo "Note:		 I do not traverse symbolic links"
+  echo "                 Use '-v' option to show any symbolic links"
+  echo " "
+  #
+  echo "Locating Archive and Object files ..."
+  for FILE in `find $SRCHDIR \( $DOLINKS -name '*'$SRCH'*.so' \
+	-o  -name '*'$SRCH'*.a' -o  -name '*'$SRCH'*.o' \) -print`
+  do
+  if [ "$VERBOSE" = "Y" ]; then
+	$ECHO "Processing: $FILE ... $NC"
+	if find $FILE -type l -print | grep $FILE >/dev/null 2>&1 ; then
+		$ECHO " << Symbolic Link$NC"
+	fi;
+	echo " "
+  fi;
+  (
+	if nm $FILE 2>/dev/null | grep $SYM ; then
+		echo "^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^ $FILE"
+	fi;
+  )
+  done
+  echo " "
+) | $SAVE

@@ -1,0 +1,77 @@
+<?xml version="1.0"?>
+
+<!--  $Header: tfa/src/v2/tfa_home/resources/srdc_tns12519.xml /main/1 2018/08/15 16:55:53 bburton Exp $ -->
+
+<!-- 
+ Copyright (c) 2018, Oracle and/or its affiliates. All rights reserved.
+
+   NAME
+     srdc_tns12519.xml
+
+   DESCRIPTION
+     SRDC - Data Collection for TNS-12516 / TNS-12518 / TNS-12519 / TNS-12520
+
+   MODIFIED   (MM/DD/YY)
+   xiaodowu    08/01/18 - Revolve Bug 28438363 - INCORRECT COLLECTION_ID FORMAT
+   xiaodowu    03/28/18 - SRDC - Data Collection for TNS-12516 / TNS-12518 /
+                          TNS-12519 / TNS-12520 (Doc ID 1680114.1)
+   xiaodowu    03/28/18 - Creation
+
+-->
+<collections>
+<collection id="TNS-12519">
+    <description>SRDC - Data Collection for TNS-12519.</description>
+    <srdc_docs>Doc ID 1680114.1: SRDC - Data Collection for TNS-12516 / TNS-12518 / TNS-12519 / TNS-12520.</srdc_docs>
+    <alias>Listener_Services</alias>
+    <onevents>
+        <event>
+            <infile>
+                <name_patterns>
+                    <pattern>alert_.*\.log</pattern>
+                </name_patterns>
+            </infile>
+        </event>
+    </onevents>
+    <user_inputs>
+        <user_input cmdline="" default="" showprompt="1" setenv="REPLACE" validate="" prompt="Enter the Database Name">USERINPUT-DATABASE_NAME</user_input>
+    </user_inputs>    
+    <duration>12h</duration>
+    <clusterwide>no</clusterwide>
+    <filter_files>
+        <types>
+        </types>
+        <filter_file_patterns>
+            <filter_file_pattern>alert_.*\.log</filter_file_pattern>
+            <filter_file_pattern>trc</filter_file_pattern>
+            <filter_file_pattern>log</filter_file_pattern>
+            <filter_file_pattern>archive\/osw</filter_file_pattern>
+            <filter_file_pattern>ExaWatcher\/archive</filter_file_pattern>
+        </filter_file_patterns>
+        <filter_file_exclude_patterns>
+            <filter_file_exclude_pattern>cdmp_.*_bucket\.tr[cm]</filter_file_exclude_pattern>
+        </filter_file_exclude_patterns>
+    </filter_files>
+    <components>
+        <component>OS</component>
+        <component>CRS</component>
+        <component>DATABASE</component>
+        <component>NOCHMOS</component>
+    </components>
+    <commands>
+    <script type="OS" name="srdc_get_listener_info" timeout="120" validfor="" platform="allux" version="">
+      $ORACLE_HOME/bin/lsnrctl services >  srdc_listener_services_`date +%F`.log
+    </script>
+    <script type="OS" name="srdc_get_listener_log_10g" timeout="120" validfor="" platform="allux" version="10.2">
+      /bin/cp -p $ORACLE_HOME/network/log/listener.log srdc_listener_`date +%F`.log
+    </script>
+    <script type="OS" name="srdc_get_listener_log" timeout="120" validfor="" platform="allux" version="11.2.0.3,11.2.0.4,12.1.0.1,12.1.0.2,12.2.0.1,18.0">
+      Oracle_Base=`$ORACLE_HOME/bin/orabase`
+      Hostname=`/bin/hostname -s`
+      /bin/cp -p $Oracle_Base/diag/tnslsnr/$Hostname/listener/trace/listener.log srdc_listener_`date +%F`.log
+    </script>
+    <script type="SQLSCRIPT" name="srdc_get_resource_limit_info.sql" timeout="300" validfor="" platform="" version=""> </script> 
+    </commands>
+    <runtime_flags>
+    </runtime_flags>
+</collection>
+</collections>

@@ -1,0 +1,121 @@
+<?xml version="1.0"?>
+
+<!--  $Header: tfa/src/v2/tfa_home/resources/srdc_ora8102.xml /main/3 2018/08/15 16:55:53 bburton Exp $ -->
+
+<!-- 
+ Copyright (c) 2018, Oracle and/or its affiliates. All rights reserved.
+
+   NAME
+     srdc_ora8102.xml 
+
+   DESCRIPTION
+     SRDC collection for ORA-08102 error.
+
+   MODIFIED   (MM/DD/YY)
+   xiaodowu    08/01/18 - Revolve Bug 28438363 - INCORRECT COLLECTION_ID FORMAT
+   recornej    07/18/18 - Fix java exception.
+   xiaodowu    06/06/18 - Implement Enh 28057852 (ADD IDENTIFYING ALL AFFECTED
+                          KEY VALUES OUTPUT TO ORA8102 SRDC COLLECTION)
+   xiaodowu    03/28/18 - SRDC - Required Diagnostic Data Collection for
+                          ORA-08102 (Doc ID 1949651.1)
+   xiaodowu    03/28/18 - Creation
+
+-->
+<collections>
+	<collection id="ORA-08102">
+		<description>SRDC - Required Diagnostic Data Collection for ORA-08102.</description>
+		<srdc_docs>Doc ID 1949651.1: SRDC - Required Diagnostic Data Collection for ORA-08102.</srdc_docs>
+		<alias>ora8102</alias>
+		<onevents>
+			<event>
+				<infile>
+					<name_patterns>
+						<pattern>alert_.*\.log</pattern>
+					</name_patterns>
+				</infile>
+			</event>
+		</onevents>
+		<user_inputs>
+			<user_input cmdline="" default="" showprompt="1" setenv="REPLACE" validate="" prompt="Enter the Database Name">USERINPUT-DATABASE_NAME</user_input>
+			<user_input cmdline="" default="" showprompt="1" setenv="REPLACE" validate="" prompt="Enter the obj# in ORA-08102 error message">USERINPUT-OBJECTID</user_input>
+			<user_input cmdline="" default="" showprompt="0" setenv="REPLACE" validate="" prompt="">USERINPUT-TFA_HOME</user_input>
+		</user_inputs>    
+		<duration>12h</duration>
+		<clusterwide>no</clusterwide>
+		<filter_files>
+			<types>
+			</types>
+			<filter_file_patterns>
+				<filter_file_pattern>alert_.*\.log</filter_file_pattern>
+				<filter_file_pattern>trc</filter_file_pattern>
+				<filter_file_pattern>log</filter_file_pattern>
+				<filter_file_pattern>archive\/osw</filter_file_pattern>
+				<filter_file_pattern>ExaWatcher\/archive</filter_file_pattern>
+			</filter_file_patterns>
+			<filter_file_exclude_patterns>
+				<filter_file_exclude_pattern>cdmp_.*_bucket\.tr[cm]</filter_file_exclude_pattern>
+			</filter_file_exclude_patterns>
+		</filter_files>
+		<components>
+			<component>OS</component>
+			<component>CRS</component>
+			<component>DATABASE</component>
+			<component>NOCHMOS</component>
+		</components>
+		<commands>
+			<script type="OS" name="srdc_get_object_info" timeout="120" validfor="" platform="allux" version="">
+		/bin/sed "s/OBJECT_ID/%OBJECTID%/" $TFA_HOME/resources/sql/srdc_get_object_info.sql.template > srdc_get_object_info$$.sql
+		$ORACLE_HOME/bin/sqlplus -s / as sysdba @srdc_get_object_info$$.sql
+		/bin/rm -f srdc_get_object_info$$.sql
+		</script>
+		<script type="OS" name="srdc_analyze_table" timeout="120" validfor="" platform="allux" version="">
+			<![CDATA[
+		/bin/echo "set heading off" >srdc_get_object_info$$.sql
+		/bin/cat $TFA_HOME/resources/sql/srdc_get_object_info.sql.template >>srdc_get_object_info$$.sql
+		/bin/sed "s/OBJECT_ID/%OBJECTID%/" srdc_get_object_info$$.sql >srdc_get_object_info2_$$.sql
+		OBJ_OWNER=`$ORACLE_HOME/bin/sqlplus -s / as sysdba @srdc_get_object_info2_$$.sql |/bin/grep -v "^$"|awk '{print $1}'`
+		INDEX_NAME=`$ORACLE_HOME/bin/sqlplus -s / as sysdba @srdc_get_object_info2_$$.sql |/bin/grep -v "^$"|awk '{print $2}'`
+		/bin/sed "s/INDEXOWNER/$OBJ_OWNER/" $TFA_HOME/resources/sql/srdc_get_table_name_from_index.sql.template	|
+		/bin/sed "s/INDEXNAME/$INDEX_NAME/" > srdc_get_table_name_from_index$$.sql
+
+		TABLE_OWNER=`$ORACLE_HOME/bin/sqlplus -s / as sysdba @srdc_get_table_name_from_index$$.sql |/bin/grep -v "^$"|awk '{print $1}'`
+		TABLE_NAME=`$ORACLE_HOME/bin/sqlplus -s / as sysdba @srdc_get_table_name_from_index$$.sql |/bin/grep -v "^$"|awk '{print $2}'`
+		/bin/sed "s/TABLE_OWNER/$TABLE_OWNER/" $TFA_HOME/resources/sql/srdc_analyze_table.sql.template |
+		/bin/sed "s/TABLE_NAME/$TABLE_NAME/" > srdc_analyze_table$$.sql
+
+		$ORACLE_HOME/bin/sqlplus / as sysdba @srdc_analyze_table$$.sql >srdc_analyze_${TABLE_OWNER}_${TABLE_NAME}.log
+
+		/bin/sed "s/INDEXOWNER/$OBJ_OWNER/" $TFA_HOME/resources/sql/srdc_get_index_columns.sql.template |
+		/bin/sed "s/INDEXNAME/$INDEX_NAME/" > srdc_get_index_columns$$.sql
+
+		$ORACLE_HOME/bin/sqlplus -s / as sysdba @srdc_get_index_columns$$.sql |
+		/bin/grep -v "^$"	|
+		/bin/sed "s/$/\,/" 	|
+		%PERL_PATH% -e 'while (<stdin>)   { chomp $_; print "$_"; } print "\n";' |
+		/bin/sed "s/,$//" >srdc_index_columns$$
+
+		/bin/echo "set echo on;" >srdc_tablenotindex$$.sql
+		/bin/echo "spool srdc_tablenotindex.log;" >>srdc_tablenotindex$$.sql
+		/bin/cat srdc_index_columns$$ |/bin/sed "s/^/select \/\*\+ FULL\(t1\) \*\/ rowid,/" >>srdc_tablenotindex$$.sql
+		/bin/echo "FROM   $TABLE_OWNER.$TABLE_NAME t1" >>srdc_tablenotindex$$.sql
+		/bin/echo "MINUS" >>srdc_tablenotindex$$.sql
+		/bin/cat srdc_index_columns$$ |/bin/sed "s/^/select \/\*\+ index\(t $OBJ_OWNER\.$INDEX_NAME\) \*\/ rowid,/" >>srdc_tablenotindex$$.sql
+		/bin/echo "FROM   $TABLE_OWNER.$TABLE_NAME t;" >>srdc_tablenotindex$$.sql
+		/bin/echo "spool off;" >>srdc_tablenotindex$$.sql
+		/bin/echo "exit;" >>srdc_tablenotindex$$.sql
+		$ORACLE_HOME/bin/sqlplus / as sysdba @srdc_tablenotindex$$.sql
+
+		/bin/rm -f srdc_get_object_info$$.sql
+		/bin/rm -f srdc_get_object_info2_$$.sql
+		/bin/rm -f srdc_get_table_name_from_index$$.sql
+		/bin/rm -f srdc_analyze_table$$.sql
+		/bin/rm -f srdc_get_index_columns$$.sql
+		/bin/rm -f srdc_index_columns$$ 
+		/bin/rm -f srdc_tablenotindex$$.sql
+]]>
+		</script>
+	</commands>
+	<runtime_flags>
+	</runtime_flags>
+</collection>
+</collections>

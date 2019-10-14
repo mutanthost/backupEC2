@@ -1,0 +1,134 @@
+<?xml version="1.0"?>
+
+<!--  $Header: tfa/src/v2/tfa_home/resources/srdc_emprocdisc.xml /main/1 2018/05/28 15:06:26 bburton Exp $ -->
+
+<!-- 
+ Copyright (c) 2016, 2018, Oracle and/or its affiliates. All rights reserved.
+
+   NAME
+     srdc_emprocdisc.xml - <one-line expansion of the name>
+
+   DESCRIPTION
+     <short description of component this file declares/defines>
+
+   NOTES
+     <other useful comments, qualifications, etc.>
+
+   MODIFIED   (MM/DD/YY)
+   manuegar   09/27/17 - Creation
+
+-->
+<collections>
+<collection id="emprocdisc">
+        <description>EM SRDC - Database/listener/ASM target is not discovered/detected by the discovery process.</description>
+        <user_inputs>
+            <user_input cmdline="" default="" showprompt="1" setenv="REPLACE" validate="directory" prompt="Enter the ORACLE_HOME for the DB that can't be discovered">USERINPUT-EMDISCDB_OHOME</user_input>
+            <user_input cmdline="" default="" showprompt="1" setenv="NO" validate="" prompt="Is the EM Repository Database running locally?">USERINPUT-REPODB_LOCAL</user_input>
+            <user_input cmdline="" default="" showprompt="1" setenv="NO" validate="" prompt="Enter the EM Repository Database Name. You can get the repository connect details from EM using the following navigation: Setup -&gt; Manage Cloud Control -&gt; Health Overview -&gt; Repository Details.">USERINPUT-REPOSITORY_DBNAME</user_input>
+            <user_input cmdline="" default="" showprompt="1" setenv="REPLACE" validate="" prompt="Enter the sysman credential for Repository DB">USERINPUT-SYSMAN_PWD</user_input>
+        </user_inputs>
+        <onevents>
+                <event>
+                </event>
+        </onevents>
+        <duration>12h</duration>
+        <clusterwide>no</clusterwide>
+        <filter_files>
+                <types>
+                </types>
+                <filter_file_patterns>
+                    <filter_file_pattern>alert_.*\.log</filter_file_pattern>
+                    <filter_file_pattern>trc</filter_file_pattern>
+                    <filter_file_pattern>log</filter_file_pattern>
+                    <filter_file_pattern>archive\/osw</filter_file_pattern>
+                    <filter_file_pattern>ExaWatcher\/archive</filter_file_pattern>
+                </filter_file_patterns>
+        </filter_files>
+        <components>
+            <component>OS</component>
+        </components>
+        <commands>
+            <script type="OS" name="os_AgentInfo" timeout="500" validfor="EMAGENT" platform="allux" version="">
+            export ORACLE_HOME=%EMDISCDB_OHOME%
+            export PATH=$ORACLE_HOME/bin:$PATH
+            $ORACLE_HOME/bin/lsnrctl status
+            cp $ORACLE_HOME/network/admin/listener.ora . 2&gt;/dev/null
+            cp $ORACLE_HOME/network/admin/tnsnames.ora . 2&gt;/dev/null
+            cp $ORACLE_HOME/network/admin/sqlnet.ora . 2&gt;/dev/null
+            export ORACLE_HOME=%EMAGENTOHOME%
+            export PATH=$ORACLE_HOME/bin:$PATH
+            emctl status agent
+            </script>
+            <script type="OS" name="os_AgentInfoWin" timeout="500" validfor="EMAGENT" platform="MSWin32" version="">
+            set ORACLE_HOME=%EMDISCDB_OHOME%
+            set PATH=%ORACLE_HOME%\bin;%PATH%
+            %ORACLE_HOME%\bin\lsnrctl status
+            copy %ORACLE_HOME%\network\admin\listener.ora .
+            copy %ORACLE_HOME%\network\admin\tnsnames.ora .
+            copy %ORACLE_HOME%\network\admin\sqlnet.ora .
+            set ORACLE_HOME=%EMAGENTOHOME%
+            set PATH=%ORACLE_HOME%\bin;%PATH%
+            emctl status agent
+            </script>
+            <script type="OS" name="os_listenerResults" timeout="500" validfor="EMAGENT" platform="allux" version="">
+            export ORACLE_HOME=%EMDISCDB_OHOME%
+            export PATH=$ORACLE_HOME/bin:$PATH
+            ls -ltr $ORACLE_HOME/bin/tnslsnr 2&gt;/dev/null
+            ls -ltr $ORACLE_HOME/bin/oracle 2&gt;/dev/null
+            ls -ltr $ORACLE_HOME/network/admin/listener.ora 2&gt;/dev/null
+            ls -ltr $ORACLE_HOME/network/admin/tnsnames.ora 2&gt;/dev/null
+            ls -ltr /etc/oratab 2&gt;/dev/null
+            ls -ltr /var/opt/oracle/oratab 2&gt;/dev/null
+            </script>
+            <script type="OS" name="os_listenerResultsWin" timeout="500" validfor="EMAGENT" platform="MSWin32" version="">
+            set ORACLE_HOME=%EMDISCDB_OHOME%
+            set PATH=%ORACLE_HOME%\bin;$PATH
+            dir /q %ORACLE_HOME%\bin\tnslsnr.exe
+            dir /q %ORACLE_HOME%\bin\oracle.exe
+            dir /q %ORACLE_HOME%\network\admin\listener.ora
+            dir /q %ORACLE_HOME%\network\admin\tnsnames.ora
+            </script>
+            <script type="EMSQL" name="sql_RepEntities" timeout="300" validfor="REPOSITORYDB" platform="" version="">
+                conn sysman/%SYSMAN_PWD%;
+                set mark html on
+                spool RepEntities.html
+                select entity_guid, entity_type,entity_name, manage_status,promote_status, 
+                       host_name, emd_url, display_name
+                from sysman.em_manageable_entities
+                where entity_type in ('oracle_database','rac_database','oracle_listener',
+                                      'osm_instance','osm_cluster','has','cluster','oracle_pdb','oracle_dbsys');
+
+                select target_name, target_type
+                from sysman.MGMT_TARGETS_DELETE
+                where DELETE_COMPLETE_TIME is NULL;
+
+                SELECT plugin_id, plugin_name, version, destination_name
+                FROM sysman.gc$current_deployed_plugin
+                WHERE content_type= 'Discovery' AND destination_type = 'Agent' and 
+                destination_name like '%EMHOSTNAME%'
+                ORDER BY destination_name, plugin_name, version;
+
+                select entity_guid, entity_type,entity_name, manage_status,promote_status, host_name, 
+                       emd_url, display_name
+                from sysman.em_manageable_entities
+                where entity_type in ('oracle_database','rac_database','oracle_listener','osm_instance',
+                      'osm_cluster','has','cluster','oracle_pdb','oracle_dbsys');
+
+                select target_name, target_type
+                from sysman.MGMT_TARGETS_DELETE
+                where DELETE_COMPLETE_TIME is NULL;
+
+                SELECT plugin_id, plugin_name, version, destination_name
+                FROM sysman.gc$current_deployed_plugin
+                WHERE content_type= 'Discovery' AND destination_type = 'Agent' and 
+                      destination_name like '%EMHOSTNAME%' ORDER BY destination_name, plugin_name, version;
+
+                spool off;
+                set mark html off;
+                exit;
+            </script>
+        </commands>
+        <runtime_flags>
+        </runtime_flags>
+</collection>
+</collections>

@@ -1,0 +1,65 @@
+<?xml version="1.0"?>
+
+<!--  $Header: tfa/src/v2/tfa_home/resources/srdc_dbaudit.xml /main/1 2018/05/28 15:06:27 bburton Exp $ -->
+
+<!-- 
+ Copyright (c) 2018, Oracle and/or its affiliates. All rights reserved.
+
+   NAME
+     srdc_dbaudit.xml
+
+   DESCRIPTION
+     SRDC collection for database audit
+
+   MODIFIED   (MM/DD/YY)
+   xiaodowu    03/28/18 - SRDC - How to Collect Standard Information for
+                          Database Auditing (Doc ID 1901113.1)
+   xiaodowu    03/28/18 - Creation
+
+-->
+
+<collections>
+<collection id="dbaudit">
+    <description>SRDC - How to Collect Standard Information for Database Auditing</description>
+    <srdc_docs>Doc ID 1901113.1: SRDC - How to Collect Standard Information for Database Auditing</srdc_docs>
+    <alias>dbaudit</alias>
+    <onevents>
+        <event>
+            <infile>
+                <name_patterns>
+                    <pattern>alert_.*\.log</pattern>
+                </name_patterns>
+            </infile>
+        </event>
+    </onevents>
+    <user_inputs>
+        <user_input cmdline="" default="" showprompt="1" setenv="REPLACE" validate="" prompt="Enter the Database Name">USERINPUT-DATABASE_NAME</user_input>
+    </user_inputs>    
+    <duration>12h</duration>
+    <clusterwide>no</clusterwide>
+    <filter_files>
+        <filter_file_patterns>
+            <filter_file_pattern>alert_.*\.log</filter_file_pattern>
+            <filter_file_pattern>trc</filter_file_pattern>
+            <filter_file_pattern>log</filter_file_pattern>
+            <filter_file_pattern>archive\/osw</filter_file_pattern>
+            <filter_file_pattern>ExaWatcher\/archive</filter_file_pattern>
+        </filter_file_patterns>
+        <filter_file_exclude_patterns>
+            <filter_file_exclude_pattern>cdmp_.*_bucket\.tr[cm]</filter_file_exclude_pattern>
+        </filter_file_exclude_patterns>
+    </filter_files>
+    <components>
+        <component>OS</component>
+        <component>CRS</component>
+        <component>DATABASE</component>
+        <component>NOCHMOS</component>
+    </components>
+    <commands>
+     <script type="SQLSCRIPT" name="srdc_audit.sql" timeout="120" validfor="" platform="" version=""> </script>
+     <script type="SQLSCRIPT" name="srdc_unified_audit.sql" timeout="120" validfor="" platform="" version="12.1.0.1,12.1.0.2,12.2.0.1,18.0"> </script>
+    </commands>
+    <runtime_flags>
+    </runtime_flags>
+</collection>
+</collections>

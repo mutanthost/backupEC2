@@ -1,0 +1,92 @@
+#!/bin/sh
+#
+# Copyright (c) 2001, 2017, Oracle and/or its affiliates. All rights reserved.
+#
+
+ORA_CRS_HOME=%ORA_CRS_HOME%
+ORACLE_BASE=%ORACLE_BASE%
+if [ ! -d $ORA_CRS_HOME ]; then
+  ORA_CRS_HOME=$ORACLE_HOME
+fi
+
+ORACLE_HOME=$ORA_CRS_HOME
+export ORA_CRS_HOME ORACLE_HOME ORACLE_BASE
+
+case `/bin/uname` in
+Linux) 
+       LD_LIBRARY_PATH=$ORA_CRS_HOME/lib
+       export LD_LIBRARY_PATH 
+
+       # forcibly eliminate LD_ASSUME_KERNEL to ensure NPTL where available
+       LD_ASSUME_KERNEL=
+       export LD_ASSUME_KERNEL
+
+       # Ensure that PATH includes the install location of the ACFS commands
+       PATH=$PATH:/sbin
+       export PATH
+       ;;
+
+HP-UX) MACH_HARDWARE=`/bin/uname -m`
+       if [ "$MACH_HARDWARE" = "ia64" ]; then
+          SO_EXT=so
+          NMAPIDIR_64=/opt/nmapi/nmapi2/lib/hpux64
+          NMAPIDIR_32=/opt/nmapi/nmapi2/lib/hpux32
+       else
+          SO_EXT=sl
+          NMAPIDIR_64=/opt/nmapi/nmapi2/lib/pa20_64
+          NMAPIDIR_32=/opt/nmapi/nmapi2/lib
+       fi 
+       LD_LIBRARY_PATH=$ORA_CRS_HOME/lib:$NMAPIDIR_64:/usr/lib:$LD_LIBRARY_PATH
+       SHLIB_PATH=$ORA_CRS_HOME/lib32:$NMAPIDIR_32:$SHLIB_PATH
+       export LD_LIBRARY_PATH
+       export SHLIB_PATH 
+       ;;
+
+SunOS) MACH_HARDWARE=`/bin/uname -i`
+       case $MACH_HARDWARE in
+       i86pc)
+         CLUSTERDIR=/opt/ORCLcluster
+         LD_LIBRARY_PATH=$ORA_CRS_HOME/lib:$CLUSTERDIR/lib:/usr/lib:/usr/ucblib:$LD_LIBRARY_PATH
+         LD_LIBRARY_PATH_64=$ORA_CRS_HOME/lib:$CLUSTERDIR/lib:/usr/lib:/usr/ucblib:/usr/lib/amd64:/usr/ucblib/amd64:$LD_LIBRARY_PATH_64
+         export LD_LIBRARY_PATH
+         export LD_LIBRARY_PATH_64
+         ;;
+       *)
+         CLUSTERDIR=/opt/ORCLcluster
+         LD_LIBRARY_PATH=$ORA_CRS_HOME/lib32:$CLUSTERDIR/lib:/usr/lib:/usr/ucblib:$LD_LIBRARY_PATH
+         LD_LIBRARY_PATH_64=$ORA_CRS_HOME/lib:$CLUSTERDIR/lib:/usr/lib:/usr/ucblib:/usr/lib/sparcv9:/usr/ucblib/sparcv9:$LD_LIBRARY_PATH_64
+         export LD_LIBRARY_PATH
+         export LD_LIBRARY_PATH_64
+         ;;
+       esac
+
+       # Ensure that PATH includes the install location of the ACFS commands
+       PATH=$PATH:/usr/lib/fs/acfs
+       export PATH
+       ;;
+
+AIX)   ORACLUSTER_LIB=/opt/ORCLcluster/lib 
+       ORACLUSTER_LIB32=/opt/ORCLcluster/lib32
+       LIBPATH=$ORA_CRS_HOME/lib:$ORACLUSTER_LIB:$ORA_CRS_HOME/lib32:$ORACLUSTER_LIB32:/usr/lib:
+       LD_LIBRARY_PATH=$LIBPATH:$LD_LIBRARY_PATH
+       export LIBPATH
+       export LD_LIBRARY_PATH
+
+       # Ensure that PATH includes the install location of the ACFS commands
+       PATH=$PATH:/sbin
+       export PATH
+
+       ;;
+OSF1)  LD_LIBRARY_PATH=$ORA_CRS_HOME/lib:/shlib:/usr/lib
+       export LD_LIBRARY_PATH
+
+       ;;
+*)     /bin/echo "ERROR: Unknown Operating System"
+       exit -1
+       ;;
+esac
+
+case $0 in
+*.bin) exec $ORA_CRS_HOME/bin/`basename $0 .bin` "$@" ;;
+*)     exec $0.bin "$@" ;;
+esac

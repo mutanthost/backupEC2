@@ -1,0 +1,38 @@
+#!/bin/ksh
+
+trap "echo Ignoring User Abort..." 1 2 15
+
+export ORACLE_HOME=/u01/app/oracle/product/19.0.0/dbhome_1
+
+export SHLIB_PATH=$ORACLE_HOME/lib32:$SHLIB_PATH
+export LIBPATH=$ORACLE_HOME/lib32:$LIBPATH
+
+if  [ -d ${ORACLE_HOME}/lib32 ]; then
+  export LD_LIBRARY_PATH=$ORACLE_HOME/lib32:$LD_LIBRARY_PATH
+  export LD_LIBRARY_PATH_64=$ORACLE_HOME/lib:$LD_LIBRARY_PATH_64
+else
+  export LD_LIBRARY_PATH=$ORACLE_HOME/lib:$LD_LIBRARY_PATH
+fi
+
+PATH=$ORACLE_HOME/bin:$PATH ; export PATH
+
+# If ORACLE JRE native thread patch not installed, use oidadmin JRE
+
+JAVA_HOME=/u01/app/oracle/product/19.0.0/dbhome_1/jdk
+JAVAEXE=java
+
+# make sure JRE is installed
+if [ ! -d ${JAVA_HOME} ]; then
+  echo "$JAVA_HOME not found.";
+  exit
+fi
+
+ODI_HOME=$ORACLE_HOME/ldap/odi
+
+export CLASSPATH=$ORACLE_HOME/jlib/oraclepki103.jar:$ORACLE_HOME/ldap/odi/jlib/sync.jar:$ORACLE_HOME/jlib/ldapjclnt11.jar:$ORACLE_HOME/jlib/ojmisc.jar:$ORACLE_HOME/j2ee/home/jps-api.jar:$ORACLE_HOME/j2ee/home/jps-internal.jar:$ORACLE_HOME/j2ee/home/jacc-spi.jar:$ORACLE_HOME/ldap/lib/madintegrator.jar:$ORACLE_HOME/diagnostics/lib/ojdl.jar:$ORACLE_HOME/jlib/dms.jar
+
+JPS_CONFIG=${J2EE_HOME}/config/jps-config.xml
+
+$JAVA_HOME/bin/$JAVAEXE -classpath ${CLASSPATH} -Doracle.security.jps.config=${JPS_CONFIG} oracle.ldap.odip.engine.OdiReg $ORACLE_HOME "$@"
+
+exit $?

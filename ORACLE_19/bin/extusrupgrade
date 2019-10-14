@@ -1,0 +1,10 @@
+#!/bin/sh
+
+unset JAVA_HOME
+
+JRE_HOME=/u01/app/oracle/product/19.0.0/dbhome_1/jdk/jre/
+JLIBDIR=/u01/app/oracle/product/19.0.0/dbhome_1/rdbms/jlib
+LIBDIR=/u01/app/oracle/product/19.0.0/dbhome_1/jdbc/lib
+OJDBC=ojdbc8.jar
+
+$JRE_HOME/bin/java -classpath $JLIBDIR/extusrupgrade.jar:$LIBDIR/$OJDBC:$ORACLE_HOME/jlib/oraclepki.jar:$ORACLE_HOME/jlib/osdt_cert.jar:$ORACLE_HOME/jlib/osdt_core.jar oracle.security.rdbms.server.ExtUsrUpgrade.upgrade.ExtUsrUpgrade "$@"

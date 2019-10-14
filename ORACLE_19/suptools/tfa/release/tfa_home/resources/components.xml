@@ -1,0 +1,768 @@
+<?xml version="1.0"?>
+
+<!--  $Header: tfa/src/v2/tfa_home/resources/components.xml /main/35 2018/07/17 04:50:46 bburton Exp $ -->
+
+<!-- 
+ Copyright (c) 2014, 2018, Oracle and/or its affiliates. All rights reserved.
+
+   NAME
+     components.xml - <one-line expansion of the name>
+
+   DESCRIPTION
+     <short description of component this file declares/defines>
+
+   NOTES
+     <other useful comments, qualifications, etc.>
+
+   MODIFIED   (MM/DD/YY)
+   bburton     04/09/18 - XbranchMerge bburton_bug-22936622 from main
+   bburton     03/05/18 - XbranchMerge bburton_tfa_122131_fixes_txn from
+                          st_tfa_12.2.1.3.1
+   bburton     12/12/17 - add tfahome to afd script
+   recornej    10/26/17 - Removing ohome parameter for asmcollect.pl
+   bburton     10/05/17 - run os script only for O/S component
+   manuegar    07/05/17 - Bug 25536278 - LNX64-121-CMT: NEED AN ALL-IN-ONE
+                          SCRIPT TO COLLECT ODA AND ODALITE LOGS FOR SR.
+   bburton     05/05/17 - Add other components for zdlra
+   bburton     09/22/16 - changes for odalite
+   bibsahoo    08/01/16 - FIX BUG 24285186
+   bburton     06/09/16 - add special component procinfo
+   bburton     04/28/16 - add afd specific component and CRSCLIENT
+   bburton     04/15/16 - CRS needs to be marked as action
+   bburton     03/07/16 - do not run exadom0 script on non exadom0
+   bibsahoo    02/09/16 - FIX BUG 22015359 - TFA : CRS COMPONENT SPECIFIC DIAG
+                          COLLECTION
+   bburton     01/19/16 - add RAC Database Cloud Service component
+   bburton     11/17/15 - Also collect ASMIO for ASM collections
+   bburton     10/13/15 - always collect O/S logs for CRS collections.
+   bibsahoo    09/30/15 - FIX BUG 21774147 - LNX64-12.2-TFA:DID NOT COLLECT APX
+                          TRACE FILES WHEN HIT ORA-07445 IN APX ALERT
+   amchaura    09/22/15 - Fix 19515764 LNX64-12.1-TFA-SCS:THE SHOW COMP AND
+                          COLLECT COMP ARE NOT CONSISTENT FOR OPATCH
+   amchaura    09/14/15 - Fix BUG 20351538 - LNX64-12.2-TFA-FCS:DIAGCOLLECT
+                          -TNS DID NOT COLLECT ASMNETLSNR AND MGMTLNSR LOGS
+   manuegar    05/20/15 - TFA/Ips collection Logic 2.
+   manuegar    05/04/15 - Validate the default attribute for the subcomponent
+                          element.
+   manuegar    04/14/15 - Bug 20351399 - LNX64-12.2-TFA-FCS:DIAGCOLLECT HELP
+                          MESSAGE NEED DESCRIPTIONS FOR NEW OPTIONS
+   amchaura    03/19/15 - XbranchMerge amchaura_bug-20695006 from
+                          st_tfa_12.1.2.4
+   amchaura    03/09/15 - support multiple types for a component
+   bburton     03/03/15 - script for ODA Dom0 Collections
+   bburton     01/28/15 - pass hostname to exadom0 script
+   gadiga      11/18/14 - add wls
+   bburton     09/23/14 - add supprt for ZDLRA
+   amchaura    09/05/14 - 19569045 - ER: XML DRIVEN COMPONENTS FOR DIAGCOLLECT
+                          AND INVENTORY
+   amchaura    08/26/14 - ER: 19504818
+   amchaura    07/18/14 - Creation
+
+-->
+<components>
+<component>
+<name>RDBMS</name>
+<description>Database logs</description>
+<types>
+<type>collection</type>
+<type>action</type>
+</types>
+<sub-components>
+<subcomponent idx="1" name="database" />
+<subcomponent idx="2" name="instance" />
+</sub-components>
+<config>all</config>
+</component>
+<component>
+<name>ASM</name>
+<description>ASM logs</description>
+<types>
+<type>collection</type>
+<type>action</type>
+</types>
+<sub-components>
+<subcomponent idx="1" name="instance" />
+</sub-components>
+<config>all</config>
+<also-collects>
+<also-collect-component>TNS</also-collect-component>
+<also-collect-component>AFD</also-collect-component>
+<also-collect-component>ASMPROXY</also-collect-component>
+<also-collect-component>ASMIO</also-collect-component>
+</also-collects>
+<scripts>
+<script name="asmcollect.pl">
+<runuser>root</runuser>
+<interpreter>/usr/bin/perl</interpreter>
+<parameter>hostname</parameter>
+<parameter>crshome</parameter>
+<parameter>tfahome</parameter>
+</script>
+</scripts>
+</component>
+<component>
+<name>CRSCLIENT</name>
+<description>Client Logs that are under GIBASE/diag/clients</description>
+<types>
+<type>collection</type>
+</types>
+<config>all</config>
+</component>
+<component>
+<name>DBCLIENT</name>
+<description>Client Logs that are under DB ORABASE/diag/clients</description>
+<types>
+<type>collection</type>
+</types>
+<config>all</config>
+</component>
+<component>
+<name>DBWLM</name>
+<description>DBWLM logs</description>
+<types>
+<type>collection</type>
+</types>
+<config>all</config>
+</component>
+<component>
+<name>TNS</name>
+<description>TNS logs</description>
+<types>
+<type>collection</type>
+</types>
+<config>all</config>
+</component>
+<component>
+<name>RHP</name>
+<description>RHP logs</description>
+<types>
+<type>collection</type>
+</types>
+<config>all</config>
+</component>
+<component>
+<name>PROCINFO</name>
+<description>Gathers stack and fd from /proc for all processes</description>
+<types>
+<type>collection</type>
+<type>action</type>
+</types>
+<config>all</config>
+<scripts>
+<script name="procinfocollect.pl">
+<runuser>root</runuser>
+<interpreter>/usr/bin/perl</interpreter>
+<parameter>hostname</parameter>
+</script>
+</scripts>
+</component>
+<component>
+<name>AFD</name>
+<description>AFD logs</description>
+<types>
+<type>collection</type>
+<type>action</type>
+</types>
+<config>all</config>
+<also-collects>
+<also-collect-component>OS</also-collect-component>
+<also-collect-component>ASM</also-collect-component>
+<also-collect-component>CRSCLIENT</also-collect-component>
+</also-collects>
+<scripts>
+<script name="afdcollect.pl">
+<runuser>root</runuser>
+<interpreter>/usr/bin/perl</interpreter>
+<parameter>crshome</parameter>
+<parameter>hostname</parameter>
+<parameter>tfahome</parameter>
+</script>
+</scripts>
+</component>
+<component>
+<name>CRS</name>
+<description>CRS logs</description>
+<types>
+<type>collection</type>
+<type>action</type>
+</types>
+<config>all</config>
+<also-collects>
+<also-collect-component>OS</also-collect-component>
+<also-collect-component>CHA</also-collect-component>
+<also-collect-component>RACDBCLOUD</also-collect-component>
+</also-collects>
+<scripts>
+<script name="crscollect.pl">
+<runuser>root</runuser>
+<interpreter>/usr/bin/perl</interpreter>
+<parameter>crshome</parameter>
+<parameter>hostname</parameter>
+<parameter>from</parameter>
+<parameter>to</parameter>
+</script>
+</scripts>
+</component>
+<component>
+<name>CHA</name>
+<description>Cluster Health Analyzer logs/Data</description>
+<types>
+<type>collection</type>
+<type>action</type>
+</types>
+<config>all</config>
+<scripts>
+<script name="chacollect.pl">
+<runuser>root</runuser>
+<interpreter>/usr/bin/perl</interpreter>
+<parameter>crshome</parameter>
+<parameter>hostname</parameter>
+<parameter>from</parameter>
+<parameter>to</parameter>
+</script>
+</scripts>
+</component>
+<component>
+<name>WLS</name>
+<description>WLS logs</description>
+<types>
+<type>collection</type>
+</types>
+<config>all</config>
+</component>
+<component>
+<name>EMAGENT</name>
+<description>EMAGENT logs</description>
+<types>
+<type>collection</type>
+</types>
+<config>all</config>
+</component>
+<component>
+<name>OMS</name>
+<description>OMS logs</description>
+<types>
+<type>collection</type>
+</types>
+<config>all</config>
+</component>
+<component>
+<name>OCM</name>
+<description>OCM logs</description>
+<types>
+<type>collection</type>
+</types>
+<config>all</config>
+</component>
+<component>
+<name>EMPLUGINS</name>
+<description>EMPLUGINS logs</description>
+<types>
+<type>collection</type>
+</types>
+<config>all</config>
+</component>
+<component>
+<name>EM</name>
+<description>EM logs</description>
+<types>
+<type>collection</type>
+</types>
+<config>all</config>
+<also-collects>
+<also-collect-component>EMAGENT</also-collect-component>
+<also-collect-component>OCM</also-collect-component>
+<also-collect-component>OMS</also-collect-component>
+<also-collect-component>WLS</also-collect-component>
+<also-collect-component>EMPLUGINS</also-collect-component>
+</also-collects>
+</component>
+<component>
+<name>ACFS</name>
+<description>ACFS logs and Data</description>
+<types>
+<type>collection</type>
+<type>action</type>
+</types>
+<config>all</config>
+<also-collects>
+<also-collect-component>CRS</also-collect-component>
+<also-collect-component>CRSCLIENT</also-collect-component>
+<also-collect-component>ASM</also-collect-component>
+<also-collect-component>OS</also-collect-component>
+<also-collect-component>ASMPROXY</also-collect-component>
+<also-collect-component>AFD</also-collect-component>
+</also-collects>
+<scripts>
+<script name="acfscollect.pl">
+<runuser>root</runuser>
+<interpreter>/usr/bin/perl</interpreter>
+<parameter>crshome</parameter>
+<parameter>hostname</parameter>
+</script>
+</scripts>
+</component>
+<component>
+<name>INSTALL</name>
+<description>Oracle Installation related files</description>
+<types>
+<type>collection</type>
+</types>
+<config>all</config>
+</component>
+<component>
+<name>CFGTOOLS</name>
+<description>CFGTOOLS logs</description>
+<types>
+<type>collection</type>
+</types>
+<config>all</config>
+<also-collects>
+<also-collect-component>INSTALL</also-collect-component>
+</also-collects>
+</component>
+<component>
+<name>OS</name>
+<description>OS files such as /var/log/messages</description>
+<types>
+<type>collection</type>
+<type>action</type>
+</types>
+<config>all</config>
+<scripts>
+<script name="oscollect.pl">
+<runuser>root</runuser>
+<interpreter>/usr/bin/perl</interpreter>
+<parameter>hostname</parameter>
+</script>
+</scripts>
+</component>
+<component>
+<name>IPS</name>
+<description>Incident Packaging Service</description>
+<types>
+<type>collection</type>
+</types>
+<config>all</config>
+</component>
+<component>
+<name>ODADOM0</name>
+<description>ODADOM0 logs</description>
+<types>
+<type>collection</type>
+<type>action</type>
+</types>
+<config>ODADom0</config>
+<also-collects>
+<also-collect-component>OS</also-collect-component>
+</also-collects>
+<scripts>
+<script name="odadom0collect.pl">
+<runuser>root</runuser>
+<interpreter>/usr/bin/perl</interpreter>
+<parameter>hostname</parameter>
+</script>
+</scripts>
+</component>
+<component>
+<name>ODA</name>
+<description>ALL ODA/DCS Component logs</description>
+<types>
+<type>collection</type>
+<type>action</type>
+</types>
+<config>ODA</config>
+<also-collects>
+<also-collect-component>OS</also-collect-component>
+<also-collect-component>ODADOM0</also-collect-component>
+<also-collect-component>ODALITE</also-collect-component>
+<also-collect-component>ODABACKUP</also-collect-component>
+<also-collect-component>ODAPATCHING</also-collect-component>
+<also-collect-component>ODADATAGUARD</also-collect-component>
+<also-collect-component>ODASTORAGE</also-collect-component>
+<also-collect-component>ODACONFIG</also-collect-component>
+<also-collect-component>ODASYSTEM</also-collect-component>
+<also-collect-component>ODAPROVISIONING</also-collect-component>
+</also-collects>
+<scripts>
+<script name="odacollect.pl">
+<runuser>root</runuser>
+<interpreter>/usr/bin/perl</interpreter>
+<parameter>hostname</parameter>
+</script>
+</scripts>
+</component>
+<component>
+<name>EXADATA</name>
+<description>EXADATA</description>
+<types>
+<type>collection</type>
+</types>
+<config>EXADATA</config>
+</component>
+<component>
+<name>COMPUTENODE</name>
+<description>COMPUTENODE</description>
+<types>
+<type>collection</type>
+</types>
+<config>EXADATA</config>
+</component>
+<component>
+<name>RACDBCLOUD</name>
+<description>Data and Logs for RAC DB Cloud Service</description>
+<types>
+<type>collection</type>
+<type>action</type>
+</types>
+<config>RACDBCLOUD</config>
+<also-collects>
+<also-collect-component>OS</also-collect-component>
+</also-collects>
+<scripts>
+<script name="racdbcloudcollect.pl">
+<runuser>root</runuser>
+<interpreter>/usr/bin/perl</interpreter>
+<parameter>hostname</parameter>
+</script>
+</scripts>
+</component>
+<component>
+<name>ODALITE</name>
+<description>Extra Data and Logs for ODA Lite Machines</description>
+<types>
+<type>collection</type>
+<type>action</type>
+</types>
+<config>ODA</config>
+<also-collects>
+<also-collect-component>OS</also-collect-component>
+<also-collect-component>ODASYSTEM</also-collect-component>
+<also-collect-component>DCS</also-collect-component>
+</also-collects>
+<scripts>
+<script name="odalitecollect.pl">
+<runuser>root</runuser>
+<interpreter>/usr/bin/perl</interpreter>
+<parameter>hostname</parameter>
+</script>
+</scripts>
+</component>
+<component>
+<name>DCS</name>
+<description>Databse Cloud service Logs</description>
+<types>
+<type>collection</type>
+<type>action</type>
+</types>
+<config>ODA</config>
+<scripts>
+<script name="dcslogscollect.pl">
+<runuser>root</runuser>
+<interpreter>/usr/bin/perl</interpreter>
+<parameter>hostname</parameter>
+</script>
+</scripts>
+</component>
+<component>
+<name>ODABACKUP</name>
+<description>Collect RMAN Logs on ODA DCS</description>
+<types>
+<type>collection</type>
+</types>
+<config>ODA</config>
+<also-collects>
+<also-collect-component>DCS</also-collect-component>
+</also-collects>
+</component>
+<component>
+<name>ODAPATCHING</name>
+<description>Collect Logs for patching on ODA DCS</description>
+<types>
+<type>collection</type>
+</types>
+<config>ODA</config>
+<also-collects>
+<also-collect-component>DCS</also-collect-component>
+<also-collect-component>INSTALL</also-collect-component>
+</also-collects>
+</component>
+<component>
+<name>ODADATAGUARD</name>
+<description>Collect Logs for patching on ODA DCS</description>
+<types>
+<type>collection</type>
+</types>
+<config>ODA</config>
+<also-collects>
+<also-collect-component>DCS</also-collect-component>
+</also-collects>
+</component>
+<component>
+<name>ODAPROVISIONING</name>
+<description>Collect Logs for Provisioning of ODA DCS</description>
+<types>
+<type>collection</type>
+<type>action</type>
+</types>
+<config>ODA</config>
+<also-collects>
+<also-collect-component>DCS</also-collect-component>
+</also-collects>
+<scripts>
+<script name="odaprovisioningcollect.pl">
+<runuser>root</runuser>
+<interpreter>/usr/bin/perl</interpreter>
+<parameter>hostname</parameter>
+</script>
+</scripts>
+</component>
+<component>
+<name>ODACONFIG</name>
+<description>Collect Logs for Configuiration on ODA DCS</description>
+<types>
+<type>collection</type>
+<type>action</type>
+</types>
+<config>ODA</config>
+<also-collects>
+<also-collect-component>DCS</also-collect-component>
+</also-collects>
+<scripts>
+<script name="dcsconfigcollect.pl">
+<runuser>root</runuser>
+<interpreter>/usr/bin/perl</interpreter>
+<parameter>hostname</parameter>
+</script>
+</scripts>
+</component>
+<component>
+<name>ODASYSTEM</name>
+<description>System component for ODA DCS diagnostics</description>
+<types>
+<type>collection</type>
+<type>action</type>
+</types>
+<config>ODA</config>
+<also-collects>
+<also-collect-component>DCS</also-collect-component>
+</also-collects>
+<scripts>
+<script name="dcssystemcollect.pl">
+<runuser>root</runuser>
+<interpreter>/usr/bin/perl</interpreter>
+<parameter>hostname</parameter>
+</script>
+</scripts>
+</component>
+<component>
+<name>ASMIO</name>
+<description>ASMIO</description>
+<types>
+<type>collection</type>
+</types>
+<config>ALL</config>
+</component>
+<component>
+<name>ASMPROXY</name>
+<description>ASMPROXY</description>
+<types>
+<type>collection</type>
+</types>
+<config>ALL</config>
+<also-collects>
+<also-collect-component>ASM</also-collect-component>
+</also-collects>
+</component>
+<component>
+<name>CELL</name>
+<description>CELL</description>
+<types>
+<type>collection</type>
+</types>
+<config>EXADATA</config>
+</component>
+<component>
+<name>SUNDIAG</name>
+<description>sundiag logs</description>
+<types>
+<type>action</type>
+</types>
+<config>EXADATA</config>
+</component>
+<component>
+<name>CHMOS</name>
+<description>CHMOS files (Note that this can be large for longer durations)</description>
+<types>
+<type>action</type>
+</types>
+<config>ALL</config>
+</component>
+<component>
+<name>STORAGEMETRICS</name>
+<description>I/O metrics from Exadata storage cell(s)</description>
+<types>
+<type>action</type>
+</types>
+<config>EXADATA</config>
+</component>
+<component>
+<name>ASHHTML</name>
+<description>Generate ASH HTML Report</description>
+<types>
+<type>action</type>
+</types>
+<config>ALL</config>
+<scripts>
+<script name="runash.pl">
+<runuser>root</runuser>
+<interpreter>/usr/bin/perl</interpreter>
+<parameter>ohome</parameter>
+<parameter>osid</parameter>
+<parameter>ouser</parameter>
+<parameter>from</parameter>
+<parameter>to</parameter>
+<parameter>html</parameter>
+<parameter>hostname</parameter>
+<requiresdb>true</requiresdb>
+<requiresdbuser>true</requiresdbuser>
+</script>
+</scripts>
+</component>
+<component>
+<name>ASHTEXT</name>
+<description>Generate ASH TEXT Report</description>
+<types>
+<type>action</type>
+</types>
+<config>ALL</config>
+<scripts>
+<script name="runash.pl">
+<runuser>root</runuser>
+<interpreter>/usr/bin/perl</interpreter>
+<parameter>ohome</parameter>
+<parameter>osid</parameter>
+<parameter>ouser</parameter>
+<parameter>from</parameter>
+<parameter>to</parameter>
+<parameter>text</parameter>
+<parameter>hostname</parameter>
+<requiresdb>true</requiresdb>
+<requiresdbuser>true</requiresdbuser>
+</script>
+</scripts>
+</component>
+<component>
+<name>AWRHTML</name>
+<description>AWRHTML logs</description>
+<types>
+<type>action</type>
+
+</types>
+<config>ALL</config>
+<scripts>
+<script name="runawr.pl">
+<runuser>root</runuser>
+<interpreter>/usr/bin/perl</interpreter>
+<parameter>ohome</parameter>
+<parameter>osid</parameter>
+<parameter>ouser</parameter>
+<parameter>from</parameter>
+<parameter>to</parameter>
+<parameter>html</parameter>
+<parameter>hostname</parameter>
+<requiresdb>true</requiresdb>
+<requiresdbuser>true</requiresdbuser>
+</script>
+</scripts>
+</component>
+<component>
+<name>AWRTEXT</name>
+<description>AWRTEXT logs</description>
+<types>
+<type>action</type>
+</types>
+<config>ALL</config>
+<scripts>
+<script name="runawr.pl">
+<runuser>root</runuser>
+<interpreter>/usr/bin/perl</interpreter>
+<parameter>ohome</parameter>
+<parameter>osid</parameter>
+<parameter>ouser</parameter>
+<parameter>from</parameter>
+<parameter>to</parameter>
+<parameter>text</parameter>
+<parameter>hostname</parameter>
+<requiresdb>true</requiresdb>
+<requiresdbuser>true</requiresdbuser>
+</script>
+</scripts>
+</component>
+<component>
+<name>EXADOM0</name>
+<description>EXADOM0 logs</description>
+<types>
+<type>collection</type>
+<type>action</type>
+</types>
+<config>ExadataDom0</config>
+<scripts>
+<script name="exadom0collect.pl">
+<runuser>root</runuser>
+<interpreter>/usr/bin/perl</interpreter>
+<parameter>hostname</parameter>
+</script>
+</scripts>
+</component>
+<component>
+<name>ZDLRA</name>
+<description>ZDLRA logs</description>
+<types>
+<type>collection</type>
+<type>action</type>
+</types>
+<config>EXADATA</config>
+<also-collects>
+<also-collect-component>OS</also-collect-component>
+<also-collect-component>CRS</also-collect-component>
+<also-collect-component>ASM</also-collect-component>
+<also-collect-component>ASMIO</also-collect-component>
+<also-collect-component>ASMPROXY</also-collect-component>
+<also-collect-component>SUNDIAG</also-collect-component>
+<also-collect-component>CELL</also-collect-component>
+<also-collect-component>RDBMS</also-collect-component>
+<also-collect-component>TNS</also-collect-component>
+</also-collects>
+<scripts>
+<script name="zdlracollect.pl">
+<runuser>root</runuser>
+<interpreter>/opt/oracle.RecoveryAppliance/bin/perl</interpreter>
+<parameter>from</parameter>
+<parameter>to</parameter>
+<parameter>hostname</parameter>
+</script>
+</scripts>
+</component>
+<component>
+<name>ODASTORAGE</name>
+<description>ODA Storage logs and Data</description>
+<types>
+<type>action</type>
+</types>
+<config>ODA</config>
+<also-collects>
+<also-collect-component>OS</also-collect-component>
+<also-collect-component>ODA</also-collect-component>
+<also-collect-component>ASM</also-collect-component>
+<also-collect-component>DCS</also-collect-component>
+</also-collects>
+<scripts>
+<script name="odastoragecollect.pl">
+<runuser>root</runuser>
+<interpreter>/usr/bin/perl</interpreter>
+<parameter>hostname</parameter>
+</script>
+</scripts>
+</component>
+</components>

@@ -1,0 +1,101 @@
+#!/bin/sh
+#
+# $Header: trcasst.sbs 21-jan-2003.07:38:47 rneela Exp $
+#
+# Copyright (c) 1997, 2003, Oracle Corporation.  All rights reserved.  
+#
+#    NAME
+#      trcasst - Shell script to run the Trace Assistant in
+#              standalone mode.
+#
+#    DESCRIPTION
+#      Runs Trace Assistant Java application.  This file comes
+#      in two forms its original, with a .sbs extension, and its final, without
+#      a .sbs extension.  The .sbs version is source for the final
+#      version which the Oracle Universal creates by doing
+#      variables substitution at install time.
+#
+#    MODIFIED   (MM/DD/YY)
+#    rneela  01/21/03 - use java instead of jre
+#    rneela  11/08/01 - Merged rneela_ship_it_files
+#    rneela		10/22/01 - creation
+#
+
+case $ORACLE_HOME in
+    "") echo "****ORACLE_HOME environment variable not set!"
+        echo "    ORACLE_HOME should be set to the main"
+        echo "    directory that contains Oracle products."
+        echo "    Set and export ORACLE_HOME, then re-run."
+        exit 1;;
+esac
+
+# Get or set the platform.
+PLATFORM=`uname`
+
+# Unset any existing JAVA_HOME variable to ensure that only
+# the JRE we want to use is used.
+unset JAVA_HOME
+
+# Some platform may need other JVM environment variables set
+# or unset as appropriate.
+case $PLATFORM in "AIX")
+   JAVA_COMPILER=NONE
+   export JAVA_COMPILER   
+esac
+case $PLATFORM in "LINUX")
+   THREADS_FLAG=native
+   export THREADS_FLAG
+esac
+
+# External Directory Variables set by the Installer
+JREDIR=/u01/app/oracle/product/19.0.0/dbhome_1/jdk/jre
+JLIBDIR=/u01/app/oracle/product/19.0.0/dbhome_1/jlib
+
+# Net Trace Assistant Directory Variables
+NETJLIBDIR=$ORACLE_HOME/network/jlib
+
+# Net Trace Assistant File Variables
+NETTRCASSTJAR=$NETJLIBDIR/trcasst.jar
+    
+# JRE Executable and Class File Variables
+JRE=$JREDIR/bin/java
+JREJAR=$JREDIR/lib/rt.jar:$JREDIR/lib/i18n.jar
+
+# Set Classpath for Net Trace Assistant
+CLASSPATH=$NETTRCASSTJAR:$JREJAR:
+
+# Set the shared library path for JNI shared libraries
+# Some platforms have different requirements for shared libraries.
+# set control variable value to default.
+SET_DEFAULT_VAR=YES
+# use lib or lib32?
+if  [ -d ${ORACLE_HOME}/lib32 ]
+   then SLLIBDIRNAME=lib32
+   else SLLIBDIRNAME=lib
+fi
+# for specific platforms reset variables and set others as needed.
+case $PLATFORM in "HP-UX") 
+   SET_DEFAULT_VAR=NO
+   SHLIB_PATH=$ORACLE_HOME/$SLLIBDIRNAME:$ORACLE_HOME/network/$SLLIBDIRNAME:$SHLIB_PATH
+   export SHLIB_PATH
+esac
+case $PLATFORM in "AIX") 
+   SET_DEFAULT_VAR=NO
+   LIBPATH=$ORACLE_HOME/$SLLIBDIRNAME:$ORACLE_HOME/network/$SLLIBDIRNAME:$LIBPATH
+   export LIBPATH
+esac
+# if still selected, set the default variable name:LD_LIBRARY_PATH.
+case $SET_DEFAULT_VAR in "YES")
+   LD_LIBRARY_PATH=$ORACLE_HOME/$SLLIBDIRNAME:$ORACLE_HOME/network/$SLLIBDIRNAME:$LD_LIBRARY_PATH
+   export LD_LIBRARY_PATH
+esac
+
+#ifdef LINUX
+#Use Native Thread
+THREADS_FLAG=native
+export THREADS_FLAG
+#endif
+
+# Run Net Trace Assistant
+$JRE -classpath $CLASSPATH oracle.net.trcasst.Jtrcasst $*  
+exit $status

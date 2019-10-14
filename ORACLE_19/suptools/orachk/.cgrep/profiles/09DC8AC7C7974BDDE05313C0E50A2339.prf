@@ -1,0 +1,20 @@
+09F197AA30710C2EE05312C0E50A0AA1|Oracle database version verification for platinum certification
+09F1ED4D13696361E05313C0E50A60F6|Exadata software validation on database server for platinum certification
+09F1ED4D14C06361E05313C0E50A60F6|Exadata software validation on storage server for platinum certification
+09F3CF6B492E2EF4E05313C0E50A2EB9|Exadata software validation on database server for platinum certification
+09F5AD1ECBB774DFE05313C0E50AA4C9|Exadata software validation on storage server for platinum certification
+09F694665C896F97E05312C0E50A05DF|Oracle database version verification for platinum certification
+09F6B57161327DFBE05312C0E50AB85B|Oracle database version verification for platinum certification
+09F6FD05F7E02E86E05313C0E50A2DCC|Oracle database version verification for platinum certification
+41DB1DEC35A091F4E0530E98EB0A46A2|Oracle monitoring agent and/or OS settings on ADR diagnostic directories
+41E71DA0915E1EE4E0530E98EB0AB8F5|Oracle monitoring agent and/or OS settings on ADR diagnostic directories
+5AF2C2184BB0D4C5E0401490CACF2A2E|sysctl
+64C92BBAEF297BA6E0401490CACF2A52|v_parameter_asm
+6BF8792A2533F8E3E053D198EB0A4734|Exadata software validation on database server for platinum certification
+6BF8BF8884A8B9E6E053D598EB0A47C3|Exadata software validation on storage server for platinum certification
+6BF968FA2C9D834EE053D198EB0A7082|Oracle database version verification for platinum certification
+9AD94FEDF63F8296E040E50A1EC06A28|v_parameter
+9AD95A48A4CAE029E040E50A1EC062A1|v_parameter_asm
+A66547FF75BF05F1E040E50A1EC00EDE|asr_minver
+B5BC907CDEEB3AEFE0431EC0E50AA1A5|Exadata version on storage servers greater than 12.1.1.1.0
+E7ED4474A5695743E04313C0E50AA49F|Does $RTEMPDIR/cells.out exist?

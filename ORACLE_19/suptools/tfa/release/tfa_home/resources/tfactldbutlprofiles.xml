@@ -1,0 +1,45 @@
+<?xml version="1.0"?>
+
+<!--  $Header: tfa/src/v2/tfa_home/resources/tfactldbutlprofiles.xml /main/5 2018/08/20 12:45:48 manuegar Exp $ -->
+
+<!-- 
+ Copyright (c) 2018, Oracle and/or its affiliates. All rights reserved.
+
+   NAME
+     tfactldbutlprofiles.xml - <one-line expansion of the name>
+
+   DESCRIPTION
+     <short description of component this file declares/defines>
+
+   NOTES
+     <other useful comments, qualifications, etc.>
+
+   MODIFIED   (MM/DD/YY)
+   manuegar    08/05/18 - XbranchMerge manuegar_dbutils16 from main
+   manuegar    07/24/18 - manuegar_dbutils16.
+   manuegar    06/12/18 - manuegar_dbutils13_handlers.
+   manuegar    04/10/18 - manuegar_shared_dbutils06.
+   recornej    02/23/18 - Adding profile members
+   manuegar    02/19/18 - Creation
+
+-->
+<dduprofiles>
+   <dduprofile categoryid="availability" commandid="cat5min">
+     <profmember commandid="server"/>
+     <profmember commandid="server_cpu"/>
+     <profmember commandid="server_memory"/>
+     <profmember commandid="server_disk"/>
+     <profmember commandid="server_network"/>
+     <profmember commandid="crs_resource"/>
+     <profmember commandid="db_instance"/>
+     <profmember commandid="mgmtdb_instance"/>
+     <profmember commandid="asm_instance"/>
+     <profmember commandid="asm_diskgroup"/>
+   </dduprofile>
+   <dduprofile categoryid="availability" commandid="cat30min">
+   </dduprofile>
+   <dduprofile categoryid="availability" commandid="cat12hour">
+     <profmember commandid="server_ospackages"/>
+     <profmember commandid="server_osparameter"/>
+   </dduprofile>
+</dduprofiles>

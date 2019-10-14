@@ -1,0 +1,4121 @@
+#!/bin/bash
+#
+# $Header: rdbms/src/client/datapump/dml/bigsql/bdschecksw /st_rdbms_19/2 2019/02/11 21:27:10 apfwkr Exp $
+#
+# Copyright (c) 2016, 2019, Oracle and/or its affiliates. All rights reserved.
+#
+#    NAME
+#      bdschecksw - Oracle Big Data Sql CHECK SoftWare utility
+#
+#    DESCRIPTION
+#
+#    NOTES
+#      This script terminates with an exit code of 0 on success, 1 or above on failure.
+#
+#    MODIFIED   (MM/DD/YY)
+#    apfwkr      02/05/19 - Backport richen_bug-29273847 from main
+#    richen      02/01/19 - New option to run extensive sanity test on cells and bug#29038229
+#    richen      10/02/18 - Support alternate Oracle listener name and sqlplus/ping timeout
+#    richen      02/27/18 - Added gi_user & password prompt and misc enhancements
+#    richen      02/21/18 - Added sqlpatch check, 'klist as oracle' and diagnostic_dest
+#    richen      12/11/17 - Pre-process cell names in batch
+#    richen      10/12/17 - Check cell ip against db /etc/hosts for BDA
+#    richen      10/10/17 - Fixed problems with db_unique_name, db_name and instance_name 
+#    richen      09/14/17 - Bug#26734413
+#    richen      08/30/17 - IPSec check
+#    richen      07/27/17 - V3.2.1
+#    richen      03/02/17 - Parallel processing for Hadoop cell nodes and misc.
+#                           enhancements
+#    richen      01/17/17 - Added PDB container and hidden password support
+#    richen      11/03/16 - Option to turn on log4j and extproc tracing during testing
+#    richen      08/03/16 - Creation.
+#
+
+##====================
+#  Constants
+##====================
+
+BDSCHECKSW_REVISION="20190201"
+DB_NODE_INSTALL_ENV=$(/bin/ls -alrt $ORACLE_HOME/BDSJaguar*/*/database-install.env 2>/dev/null | /usr/bin/tail -n1 | /bin/awk '{print $9}')
+if [ -f $ORACLE_HOME/BDSJaguar*/*/database-install.env ]; then
+  BDS_RELEASE_NO=$(/bin/grep bdsversion $DB_NODE_INSTALL_ENV | /bin/cut -d= -f2 | /usr/bin/uniq | /bin/sed "/'/s///g")
+  DB_NODE_IS_WALLET=$(/bin/grep objectstoresupport $DB_NODE_INSTALL_ENV)
+else
+  BDS_RELEASE_NO="?"
+  DB_NODE_IS_WALLET=
+fi
+BDSCHECKSW_BANNER="Big Data SQL Diagnostics Collection Tool ($BDSCHECKSW_REVISION) in BDS v$BDS_RELEASE_NO"
+
+TITLE="Oracle Big Data SQL System Information for $HOSTNAME"
+
+BASENAME=$(basename $0)
+OS_TYPE=`uname`
+RIGHT_NOW=$(/bin/date +"%x %r %Z")
+RIGHT_NOW2=$(/bin/date +"%Y%m%d-%H:%M:%S")
+TIME_STAMP="Updated on $RIGHT_NOW by OS user $USER via $BASENAME ($BDSCHECKSW_REVISION) in BDS v$BDS_RELEASE_NO"
+
+CELLINIT="/etc/oracle/cell/network-config/cellinit.ora"
+HADOOP_CELLINIT="/opt/oracle/cell/cellsrv/deploy/config/cellinit.ora"
+CELLINITETH="/etc/oracle/cell/network-config/celliniteth.ora"
+ 
+DB_TABLE_CNAME=('' 'DB Node' 'Configuration Sanity Test' 'Directories, Files and SQL/Datapatch' 'Database Objects' 'Extproc' 'Prerequisite Software' 'Hadoop Cluster/Hive Connectivity' 'BDSQL Sanity Test' 'Kerberos' 'TLS/SSL/IPSec')
+
+CELL_TABLE_CNAME=('' 'Hadoop Cell Node' 'BDSQL Sanity Test' 'oracle in oinstall group' 'bdscli Quarantine' 'bdscli Alert History' 'BDSQL Online' 'Java JCE Files' 'Kerberos' 'TLS/SSL/IPSec')
+
+DB_TABLE_CVALUE_NA="N.A."
+DB_TABLE_CVALUE_PASSED="Passed"
+DB_TABLE_CVALUE_FAILED="Failed"
+DB_TABLE_CVALUE_ON="ON"
+DB_TABLE_CVALUE_OFF="OFF"
+
+CELL_TABLE_CVALUE_NA="N.A."
+CELL_TABLE_CVALUE_PASSED="Passed"
+CELL_TABLE_CVALUE_FAILED="Failed"
+CELL_TABLE_CVALUE_ON="ON"
+CELL_TABLE_CVALUE_OFF="OFF"
+
+DB_NODE_RPM_PACKAGE_1="oracle-instantclient12.1-basic-12.1.0.2.0-1.x86_64"
+DB_NODE_RPM_PACKAGE_2="oracle-instantclient12.1-jdbc-12.1.0.2.0-1.x86_64"
+DB_NODE_RPM_PACKAGE_3="perl-XML-LibXML-1.70-5.el6.x86_64"
+
+DB_NODE_DEFAULT_DIR=
+DB_NODE_BIGDATA_CONFIG=
+
+CELL_XT_OFFLOAD_RETRIES="cell XT granule predicate offload retries"
+CELL_XT_SMART_SCAN_BYTES="cell interconnect bytes returned by XT smart scan"
+
+DB_DYNAMIC_PROTOCOL="_skgxp_dynamic_protocol"
+CELL_DYNAMIC_PROTOCOL="_cell_big_data_sql_software_only"
+CELL_AUTHENTICATION="_cell_big_data_sql_enable_authentication"
+
+cpcmd='/bin/cp'
+rmcmd='/bin/rm'
+lncmd='/bin/ln'
+touchcmd='/bin/touch'
+catcmd='/bin/cat'
+echocmd='/bin/echo'
+chmodcmd='/bin/chmod'
+hostnamecmd='/bin/hostname'
+sedcmd='/bin/sed'
+sleepcmd='/bin/sleep'
+killcmd='/bin/kill'
+grepcmd='/bin/grep'
+lscmd='/bin/ls'
+pscmd='/bin/ps'
+awkcmd='/bin/awk'
+cutcmd='/bin/cut'
+sedcmd='/bin/sed'
+rpmcmd='/bin/rpm'
+basenamecmd='/bin/basename'
+findcmd='/bin/find'
+tarcmd='/bin/tar'
+gzipcmd='/bin/gzip'
+headcmd='/usr/bin/head'
+tailcmd='/usr/bin/tail'
+expectcmd='/usr/bin/expect'
+klistcmd='/usr/bin/klist'
+nmapcmd='/usr/bin/nmap'
+trcmd='/usr/bin/tr'
+getentcmd='/usr/bin/getent'
+whoamicmd='/usr/bin/whoami'
+bdaclicmd='/opt/oracle/bda/bin/bdacli'
+ipcmd='/sbin/ip'
+ifconfigcmd='/sbin/ifconfig'
+timeoutcmd='/usr/bin/timeout'
+pingcmd='/bin/ping'
+wccmd='/usr/bin/wc'
+mtactlcmd=
+hadoopcmd=
+
+##====================
+#  Functions
+##====================
+
+function spinning_cursor
+{
+    pid=$! # Process Id of the previous running command
+
+    spin='-\|/'
+
+    i=0
+    while $killcmd -0 $pid 2>/dev/null
+    do
+      i=$(( (i+1) %4 ))
+      printf "\r${spin:$i:1}"
+      $sleepcmd .1
+    done
+}   # end of spinning_cursor
+
+
+function spinning_cursor2
+{
+    pid_list=$* # a list of pids of the running commands
+
+    spin='-\|/'
+
+    i=0
+    for pid in $pid_list
+    do
+        while $killcmd -0 $pid 2>/dev/null
+        do
+          i=$(( (i+1) %4 ))
+          printf "\r${spin:$i:1}"
+          $sleepcmd .1
+        done
+    done
+}   # end of spinning_cursor
+
+
+function grid_lsinventory
+{
+    oracle_home_saved=$ORACLE_HOME
+    ld_library_path_saved=$LD_LIBRARY_PATH
+    path_saved=$PATH
+    export ORACLE_HOME=$gi_home
+    export PATH=$gi_home/bin:$PATH
+    export LD_LIBRARY_PATH=${ORACLE_HOME}/lib:${LD_LIBRARY_PATH}
+
+    checkpoint_echo_bold "Oracle Net Service Configuration (GI_HOME):"
+
+    if [[ -z "${TNS_ADMIN}" ]]; then
+#       TNS_ADMIN is not defined!
+        $echocmd "<b>TNS_ADMIN is not defined!</b>"
+        $echocmd
+        $echocmd "<b>\$ORACLE_HOME/network/admin/sqlnet.ora:</b>"
+        $catcmd ${ORACLE_HOME}/network/admin/sqlnet.ora 2>/dev/null
+        tmpoh=$($catcmd ${ORACLE_HOME}/sqlnet.ora 2>/dev/null | $grepcmd -i SQLNET.WALLET_OVERRIDE | $grepcmd -v '#' | $cutcmd -d= -f2 | $sedcmd 's/[[:space:]]//g' | $trcmd [:upper:] [:lower:])
+    else
+#       TNS_ADMIN is defined!
+        $echocmd "<b>TNS_ADMIN = ${TNS_ADMIN}</b>"
+        $echocmd
+        $echocmd "<b>\$TNS_ADMIN/sqlnet.ora:</b>"
+        $catcmd ${TNS_ADMIN}/sqlnet.ora 2>/dev/null
+        tmpta=$($catcmd ${TNS_ADMIN}/sqlnet.ora 2>/dev/null | $grepcmd -i SQLNET.WALLET_OVERRIDE | $grepcmd -v '#' | $cutcmd -d= -f2 | $sedcmd 's/[[:space:]]//g' | $trcmd [:upper:] [:lower:])
+    fi
+    $echocmd
+    if [[ "$tmpoh" == "true" ]]; then
+        fatal_error_echo "SQLNET.WALLET_OVERRIDE=TRUE is defined in your \$ORACLE_HOME/network/admin/sqlnet.ora"
+        db_table_result[2]=${DB_TABLE_CVALUE_FAILED}
+        echo_bold "Refer to the following Oracle Doc to help you to configure sqlnet.ora properly!"
+        echo_bold "Setting up Oracle Big Data SQL and Oracle Secure External Password Store (Doc ID 2126903.1)"
+    fi
+    if [[ "$tmpta" == "true" ]]; then
+        if [[ "${TNS_ADMIN}" == "${ORACLE_HOME}/network/admin" ]]; then
+            fatal_error_echo "SQLNET.WALLET_OVERRIDE=TRUE is defined in your \$ORACLE_HOME/network/admin/sqlnet.ora"
+            db_table_result[2]=${DB_TABLE_CVALUE_FAILED}
+        else
+            nonfatal_error_echo "SQLNET.WALLET_OVERRIDE=TRUE is defined in your \$TNS_ADMIN/network/admin/sqlnet.ora"
+        fi
+        echo_bold "Refer to the following Oracle Doc to help you to configure sqlnet.ora properly!"
+        echo_bold "Setting up Oracle Big Data SQL and Oracle Secure External Password Store (Doc ID 2126903.1)"
+    fi
+    $echocmd
+
+    checkpoint_echo_bold "Oracle Listener Status (GI_HOME):"
+
+    if [ "$gi_user" != "" ] && [ "$gi_passwd" != "" ]
+    then
+      verbose_echo "Running 'lsnrctl status' as OS user '${gi_user}'..."
+
+      # only feasible if oracle is in the sudoers file.
+      if [ "$x_mode" == "1" ]; then
+          if [ "${oracle_listener}" != "" ]; then
+              run_as $gi_user $db_root_passwd "$ORACLE_HOME/bin/lsnrctl status \"${oracle_listener}\""
+          else
+              run_as $gi_user $db_root_passwd "$ORACLE_HOME/bin/lsnrctl status"
+          fi
+      else
+          if [ "${oracle_listener}" != "" ]; then
+              run_as $gi_user $gi_passwd "$ORACLE_HOME/bin/lsnrctl status \"${oracle_listener}\""
+          else
+              run_as $gi_user $gi_passwd "$ORACLE_HOME/bin/lsnrctl status"
+          fi
+      fi
+
+      if [ "$tmp" != "" ]; then
+        verbose_echo $tmp
+      else
+        nonfatal_error_echo "Failed to run 'lsnrctl status'."
+      fi
+    else
+      if [ "${oracle_listener}" != "" ]; then
+          verbose_echo "Running 'lsnrctl status \"${oracle_listener}\"' as OS user '`$whoamicmd`'..."
+          lsnrctl status "${oracle_listener}"
+      else
+          verbose_echo "Running 'lsnrctl status' as OS user '`$whoamicmd`'..."
+          lsnrctl status
+      fi
+    fi
+
+    $echocmd
+    $echocmd "<b>Installation Inventory for GI_HOME \"${GI_HOME}\"</b>"
+    $echocmd
+    if [ "$ade_mode" == "" ]; then
+      if [ -x ${ORACLE_HOME}/OPatch/opatch ]; then
+        if [ "$gi_user" != "" ] && [ "$gi_passwd" != "" ]
+        then
+          verbose_echo "Running 'opatch lsinventory' as OS user '${gi_user}'..."
+
+          # only feasible if oracle is in the sudoers file.
+          if [ "$x_mode" == "1" ]; then
+              run_as $gi_user $db_root_passwd "$ORACLE_HOME/OPatch/opatch lsinventory"
+          else
+              run_as $gi_user $gi_passwd "$ORACLE_HOME/OPatch/opatch lsinventory"
+          fi
+
+          if [ "$tmp" != "" ]; then
+            verbose_echo $tmp
+          else
+            nonfatal_error_echo "Failed to run 'opatch lsinventory'."
+          fi
+        else
+          verbose_echo "Running 'opatch lsinventory' as OS user '`$whoamicmd`'..."
+          $echocmd "`${ORACLE_HOME}/OPatch/opatch lsinventory 2>/dev/null`"
+        fi
+      fi
+    else
+      if [ -x ${ORACLE_HOME}/opatch/OPatch/opatch ]; then
+        $echocmd "You are running $BASENAME in Oarcle ADE view name \"$ADE_VIEW_NAME\"."
+        $echocmd
+        $echocmd "`${ORACLE_HOME}/opatch/OPatch/opatch lsinventory 2>/dev/null`"
+      fi
+    fi
+
+    export ORACLE_HOME=$oracle_home_saved
+    export LD_LIBRARY_PATH=$ld_library_path_saved
+    export PATH=$path_saved
+}   # end of grid_lsinventory
+
+
+function checkpoint_echo
+{
+    $echocmd "<font color="GREEN">[V]</font> $1"
+    $echocmd
+}   # end of checkpoint_echo
+
+
+function checkpoint_echo_bold
+{
+    $echocmd "<font color="GREEN">[V]</font> <b>$1</b>"
+    $echocmd
+}   # end of checkpoint_echo
+
+
+function echo_bold
+{
+    $echocmd "<b>$1</b>"
+}   # end of checkpoint_echo
+
+
+function verbose_echo
+{
+    if [ "$verbose_mode" == "1" ]; then
+      $echocmd "<font color="ORANGE">Verbose mode: </font>[O] $1"
+      $echocmd
+    fi
+}   # end of verbose_echo
+
+
+function fatal_error_echo
+{
+    $echocmd "<blink><font color="RED">Error! [X] $1</font></blink>"
+    $echocmd "<blink><font color="RED">Check this error manually and see if it's legit!</font></blink>"
+    $echocmd
+#   exit 2
+}   # end of fatal_error_echo
+
+
+function nonfatal_error_echo
+{
+    $echocmd "<blink><font color="ORANGE">WARNING! [X] $1</font></blink>"
+    $echocmd
+    $echocmd "<blink><font color="ORANGE">Check this warning manually and see if it's legit!</font></blink>"
+    $echocmd
+#   exit 2
+}   # end of nonfatal_error_echo
+
+
+function remote_command
+{
+    USER=$1
+    HOST=$2
+    PASS=$3
+    CMD=$4
+    
+    if [ "$PASS" == "<NULL>" ]; then
+        PASS=
+    fi
+
+    if [ "$#" == "5" ]; then
+        KEY=$5
+        RCMD=$($expectcmd -c "
+    spawn ssh -t -t -t -t -o StrictHostKeyChecking=no -o ConnectTimeout=900 -o LogLevel=INFO -i $KEY $USER@$HOST $CMD
+    expect {
+    \"password:\" {
+      send \"$PASS\r\"
+      expect eof
+      }
+    \"\\\\$\" {
+      expect eof
+      }
+    }")
+    else
+        RCMD=$($expectcmd -c "
+    spawn ssh -t -t -t -t -o StrictHostKeyChecking=no -o ConnectTimeout=900 -o LogLevel=INFO $USER@$HOST $CMD
+    expect {
+    \"password:\" {
+      send \"$PASS\r\"
+      expect eof
+      }
+    \"\\\\$\" {
+      expect eof
+      }
+    }")
+    fi
+
+    $echocmd "<b>Calling \"$CMD\" on cell node $HOST...</b>"
+    $echocmd "$RCMD" 2>/dev/null
+
+}   # end of remote_command
+
+
+function remote_copy
+{
+    FROM=$1
+    TO=$2
+    PASS=$3
+
+    if [ "$PASS" == "<NULL>" ]; then
+        PASS=
+    fi
+
+    if [ "$#" == "4" ]; then
+        KEY=$4
+        RCMD=$($expectcmd -c "
+    spawn scp -p -r -o StrictHostKeyChecking=no -i $KEY $FROM $TO
+    expect {
+    \"password:\" {
+      send \"$PASS\r\"
+      expect eof
+      }
+    \"\\\\$\" {
+      expect eof
+      }
+    }")
+    else
+        RCMD=$($expectcmd -c "
+    spawn scp -p -r -o StrictHostKeyChecking=no $FROM $TO
+    expect {
+    \"password:\" {
+      send \"$PASS\r\"
+      expect eof
+      }
+    \"\\\\$\" {
+      expect eof
+      }
+    }")
+    fi
+
+    $echocmd "$RCMD"
+
+}   # end of remote_copy
+
+
+function get_value_by_xml_name
+{
+    FILE=$1
+    NAME=$2
+
+    if [ -f $FILE ]; then
+        x=`$grepcmd -n $NAME $FILE | $cutcmd -d: -f1`
+        y=1
+        ans=$(( x + y ))
+        VALUE=`$sedcmd -n "${ans}p" $FILE | $sedcmd 's/<\/value>//g' | $cutcmd -d'>' -f2 | $trcmd -d '\n' | $trcmd -d '\r'`
+    else
+        VALUE=
+    fi
+
+    echo $VALUE
+
+}   #end of get_value_by_xml_name
+
+
+function print_dbnode_table
+{
+    $echocmd "<h2>Oracle Big Data SQL System Information Overview</h2>"
+
+    db_table_result_html=('0' '1' '2' '3' '4' '5' '6' '7' '8' '9' '10')
+    var=1
+    while IFS='' read -r line || [[ -n "$line" ]];
+    do
+        case ${line} in
+          "${DB_TABLE_CVALUE_PASSED}")
+            db_table_result_html[$var]="<font color="green">$line</font>"
+            ;;
+          "${DB_TABLE_CVALUE_FAILED}")
+            db_table_result_html[$var]="<font color="red">$line</font>"
+            ;;
+          *)
+            db_table_result_html[$var]=$line
+            ;;
+        esac
+        ((var+=1))
+    done < "$MY_ERROR_LOG_DIRECTORY/bdsql_dbnode_result.txt"
+
+    $echocmd "<table border="1" cellpadding="0" cellspacing="0" style="border-collapse: collapse" width="800">
+    <tr>
+      <td height="20" width="10%">&nbsp; <font color="blue">${DB_TABLE_CNAME[1]}</font></td> 
+      <td height="20" width="10%">&nbsp; <font color="blue">${DB_TABLE_CNAME[2]}</font></td> 
+      <td height="20" width="10%">&nbsp; <font color="blue">${DB_TABLE_CNAME[3]}</font></td> 
+      <td height="20" width="10%">&nbsp; <font color="blue">${DB_TABLE_CNAME[4]}</font></td> 
+      <td height="20" width="10%">&nbsp; <font color="blue">${DB_TABLE_CNAME[5]}</font></td> 
+      <td height="20" width="10%">&nbsp; <font color="blue">${DB_TABLE_CNAME[6]}</font></td> 
+      <td height="20" width="10%">&nbsp; <font color="blue">${DB_TABLE_CNAME[7]}</font></td> 
+      <td height="20" width="10%">&nbsp; <font color="blue">${DB_TABLE_CNAME[8]}</font></td> 
+      <td height="20" width="10%">&nbsp; <font color="blue">${DB_TABLE_CNAME[9]}</font></td> 
+      <td height="20" width="10%">&nbsp; <font color="blue">${DB_TABLE_CNAME[10]}</font></td> 
+    </tr>
+    <tr>
+      <td height="20" width="10%">&nbsp; <a href="#D1"><pre>$hostname</pre></td> 
+      <td height="20" width="10%">&nbsp; <a href="#D2">${db_table_result_html[2]}</td> 
+      <td height="20" width="10%">&nbsp; <a href="#D3">${db_table_result_html[3]}</td> 
+      <td height="20" width="10%">&nbsp; <a href="#D4">${db_table_result_html[4]}</td> 
+      <td height="20" width="10%">&nbsp; <a href="#D5">${db_table_result_html[5]}</td> 
+      <td height="20" width="10%">&nbsp; <a href="#D6">${db_table_result_html[6]}</td> 
+      <td height="20" width="10%">&nbsp; <a href="#D7">${db_table_result_html[7]}</td> 
+      <td height="20" width="10%">&nbsp; <a href="#D8">${db_table_result_html[8]}</td> 
+      <td height="20" width="10%">&nbsp; <a href="#D9">${db_table_result_html[9]}</td> 
+      <td height="20" width="10%">&nbsp; <a href="#D10">${db_table_result_html[10]}</td> 
+    </table>"
+
+}   # end of print_dbnode_table
+
+
+function print_hadoop_cellnode_table
+{
+    cell_name=$1
+    cell_table_result_html=('1' '2' '3' '4' '5' '6' '7' '8' '9')
+    var=1
+    while IFS='' read -r line || [[ -n "$line" ]];
+    do
+        case ${line} in
+          "${CELL_TABLE_CVALUE_PASSED}")
+            cell_table_result_html[$var]="<font color="green">$line</font>"
+            ;;
+          "${CELL_TABLE_CVALUE_FAILED}")
+            cell_table_result_html[$var]="<font color="red">$line</font>"
+            ;;
+          *)
+            cell_table_result_html[$var]=$line
+            ;;
+        esac
+        ((var+=1))
+    done < "$MY_ERROR_LOG_DIRECTORY/bdsql_${cell_name}_result.txt"
+
+$echocmd "<table border="1" cellpadding="0" cellspacing="0" style="border-collapse: collapse" width="800">
+<tr>
+ <td height="20" width="10%">&nbsp; <font color="blue">${CELL_TABLE_CNAME[1]}</font></td> 
+ <td height="20" width="10%">&nbsp; <font color="blue">${CELL_TABLE_CNAME[2]}</font></td>
+ <td height="20" width="10%">&nbsp; <font color="blue">${CELL_TABLE_CNAME[3]}</font></td>
+ <td height="20" width="10%">&nbsp; <font color="blue">${CELL_TABLE_CNAME[4]}</font></td>
+ <td height="20" width="10%">&nbsp; <font color="blue">${CELL_TABLE_CNAME[5]}</font></td>
+ <td height="20" width="10%">&nbsp; <font color="blue">${CELL_TABLE_CNAME[6]}</font></td>
+ <td height="20" width="10%">&nbsp; <font color="blue">${CELL_TABLE_CNAME[7]}</font></td>
+ <td height="20" width="10%">&nbsp; <font color="blue">${CELL_TABLE_CNAME[8]}</font></td>
+ <td height="20" width="10%">&nbsp; <font color="blue">${CELL_TABLE_CNAME[9]}</font></td>
+</tr>
+<tr>
+ <td height="20" width="10%">&nbsp; <a href="#C1"$cell_name><pre>$cell_name</pre></td> 
+ <td height="20" width="10%">&nbsp; <a href="#C2"$cell_name>${cell_table_result_html[2]}</td> 
+ <td height="20" width="10%">&nbsp; <a href="#C3"$cell_name>${cell_table_result_html[3]}</td> 
+ <td height="20" width="10%">&nbsp; <a href="#C4"$cell_name>${cell_table_result_html[4]}</td> 
+ <td height="20" width="10%">&nbsp; <a href="#C5"$cell_name>${cell_table_result_html[5]}</td> 
+ <td height="20" width="10%">&nbsp; <a href="#C6"$cell_name>${cell_table_result_html[6]}</td> 
+ <td height="20" width="10%">&nbsp; <a href="#C7"$cell_name>${cell_table_result_html[7]}</td> 
+ <td height="20" width="10%">&nbsp; <a href="#C8"$cell_name>${cell_table_result_html[8]}</td> 
+ <td height="20" width="10%">&nbsp; <a href="#C9"$cell_name>${cell_table_result_html[9]}</td> 
+</table>"
+}   # end of print_hadoop_cellnode_table
+
+
+function run_dbnode_bdsql_sanity_test
+{
+    db_table_result[8]=${DB_TABLE_CVALUE_FAILED}
+
+    $rmcmd -f $MY_ERROR_LOG_DIRECTORY/hadoop_fs_mkdir.out > /dev/null
+    $rmcmd -f $MY_ERROR_LOG_DIRECTORY/hadoop_fs_mkdir.pid > /dev/null
+    $rmcmd -f $MY_ERROR_LOG_DIRECTORY/hadoop_fs_put.out > /dev/null
+    $rmcmd -f $MY_ERROR_LOG_DIRECTORY/hadoop_fs_put.pid > /dev/null
+
+    $echocmd "<h3 id="D7"><font color="blue">${DB_TABLE_CNAME[7]}</font></h3>"
+    #-----------------------------------------------------------------------------------    
+    # hadoop fs <sub-command> would hang if Hadoop is in trouble!
+    # Use nohup...
+    #-----------------------------------------------------------------------------------    
+
+    $hadoopcmd fs -mkdir /tmp/oracle > $MY_ERROR_LOG_DIRECTORY/hadoop_fs_mkdir.out 2>&1
+    checkpoint_echo_bold "$hadoopcmd fs -mkdir /tmp/oracle"
+    verbose_echo "`$catcmd $MY_ERROR_LOG_DIRECTORY/hadoop_fs_mkdir.out | $grepcmd -v SLF4J`"
+
+    tmp=$($grepcmd failed $MY_ERROR_LOG_DIRECTORY/hadoop_fs_mkdir.out | $sedcmd -n '1p')
+
+    if [ "$tmp" != "" ]
+    then
+        db_table_result[7]=${DB_TABLE_CVALUE_FAILED}
+        db_table_action[7]="$tmp"
+        fatal_error_echo "${db_table_action[7]}"
+    else
+        $catcmd <<- _EOF_ > $MY_ERROR_LOG_DIRECTORY/bdsql_sanity_test1.txt
+This is a test created by $BASENAME from $HOSTNAME on $RIGHT_NOW.
+_EOF_
+
+        $hadoopcmd fs -rm /tmp/oracle/bdsql_sanity_test1.txt > $MY_ERROR_LOG_DIRECTORY/hadoop_fs_rm.out 2>&1
+        checkpoint_echo_bold "$hadoopcmd fs -rm /tmp/oracle/bdsql_sanity_test1.txt"
+        verbose_echo "`$catcmd $MY_ERROR_LOG_DIRECTORY/hadoop_fs_rm.out | $grepcmd -v SLF4J`"
+
+        $hadoopcmd fs -put $MY_ERROR_LOG_DIRECTORY/bdsql_sanity_test1.txt /tmp/oracle/bdsql_sanity_test1.txt > $MY_ERROR_LOG_DIRECTORY/hadoop_fs_put.out 2>&1
+        checkpoint_echo_bold "$hadoopcmd fs -put bdsql_sanity_test1.txt /tmp/oracle/bdsql_sanity_test1.txt"
+        verbose_echo "`$catcmd $MY_ERROR_LOG_DIRECTORY/hadoop_fs_put.out | $grepcmd -v SLF4J`"
+
+        tmp=$($grepcmd failed $MY_ERROR_LOG_DIRECTORY/hadoop_fs_put.out | $sedcmd -n '1p')
+
+        if [ "$tmp" != "" ]
+        then
+#           pkill -TERM $($pscmd -aef | $grepcmd $BASENAME | $grepcmd -v grep | $awkcmd '{print $2}' | $grepcmd -v $BASHPID) > /dev/null
+            db_table_result[7]=${DB_TABLE_CVALUE_FAILED}
+            db_table_action[7]="$tmp"
+            fatal_error_echo "${db_table_action[7]}"
+        else
+            db_table_result[7]=${DB_TABLE_CVALUE_PASSED}
+
+            if [ "$pdb_container" != "" ]
+            then
+              $catcmd <<- _EOF_ > $MY_ERROR_LOG_DIRECTORY/bdsql_sanity_test1.sql
+ALTER SESSION SET CONTAINER = ${pdb_container};
+DROP TABLE bds_test;
+CREATE TABLE bds_test (line VARCHAR2(4000)) ORGANIZATION EXTERNAL (TYPE ORACLE_HDFS DEFAULT DIRECTORY DEFAULT_DIR access parameters (com.oracle.bigdata.debug=true) LOCATION('/tmp/oracle/bdsql_sanity_test1.txt')) REJECT LIMIT UNLIMITED;
+exit;
+_EOF_
+            else
+              $catcmd <<- _EOF_ > $MY_ERROR_LOG_DIRECTORY/bdsql_sanity_test1.sql
+DROP TABLE bds_test;
+CREATE TABLE bds_test (line VARCHAR2(4000)) ORGANIZATION EXTERNAL (TYPE ORACLE_HDFS DEFAULT DIRECTORY DEFAULT_DIR access parameters (com.oracle.bigdata.debug=true) LOCATION('/tmp/oracle/bdsql_sanity_test1.txt')) REJECT LIMIT UNLIMITED;
+exit;
+_EOF_
+            fi
+
+            if [ "$pdb_container" != "" ]
+            then
+              $catcmd <<- _EOF_ > $MY_ERROR_LOG_DIRECTORY/bdsql_sanity_test11.sql
+ALTER SESSION SET CONTAINER = ${pdb_container};
+set linesize 132
+ALTER SESSION SET EVENTS = 'TRACE[KCFIS] MEMORY HIGHEST, DISK HIGHEST';
+ALTER SESSION SET TRACEFILE_IDENTIFIER = 'bdschecksw';
+
+SELECT * FROM bds_test;
+exit;
+_EOF_
+            else
+              $catcmd <<- _EOF_ > $MY_ERROR_LOG_DIRECTORY/bdsql_sanity_test11.sql
+set linesize 132
+ALTER SESSION SET EVENTS = 'TRACE[KCFIS] MEMORY HIGHEST, DISK HIGHEST';
+ALTER SESSION SET TRACEFILE_IDENTIFIER = 'bdschecksw';
+
+SELECT * FROM bds_test;
+exit;
+_EOF_
+            fi
+        fi
+    fi
+
+
+    $echocmd "<h3 id="D8"><font color="blue">${DB_TABLE_CNAME[8]}</font></h3>"
+
+    #---------------------------------------
+    # SqlPlus would time out in 10 seconds
+    #---------------------------------------
+    if [ "$sqlplus_uid_passwd" != "" ]
+    then
+        $timeoutcmd 10s sqlplus $sqlplus_uid_passwd @$MY_ERROR_LOG_DIRECTORY/bdsql_sanity_test1 > $MY_ERROR_LOG_DIRECTORY/bdsql_sanity_test1.err
+        $timeoutcmd 10s sqlplus $sqlplus_uid_passwd @$MY_ERROR_LOG_DIRECTORY/bdsql_sanity_test11 > $MY_ERROR_LOG_DIRECTORY/bdsql_sanity_test11.err
+    else
+        $timeoutcmd 10s sqlplus system/manager @$MY_ERROR_LOG_DIRECTORY/bdsql_sanity_test1 > $MY_ERROR_LOG_DIRECTORY/bdsql_sanity_test1.err
+        $timeoutcmd 10s sqlplus system/manager @$MY_ERROR_LOG_DIRECTORY/bdsql_sanity_test11 > $MY_ERROR_LOG_DIRECTORY/bdsql_sanity_test11.err
+    fi
+
+    checkpoint_echo_bold "sqlplus $sqlplus_uid_passwd @$MY_ERROR_LOG_DIRECTORY/bdsql_sanity_test1"
+    $echocmd "$catcmd ${MY_ERROR_LOG_DIRECTORY}/bdsql_sanity_test1.sql"
+    $echocmd "`$catcmd $MY_ERROR_LOG_DIRECTORY/bdsql_sanity_test1.sql`"
+    verbose_echo "`$catcmd $MY_ERROR_LOG_DIRECTORY/bdsql_sanity_test1.err`"
+
+    checkpoint_echo_bold "sqlplus $sqlplus_uid_passwd @$MY_ERROR_LOG_DIRECTORY/bdsql_sanity_test11"
+    $echocmd "$catcmd $MY_ERROR_LOG_DIRECTORY/bdsql_sanity_test11.sql"
+    $echocmd "`$catcmd $MY_ERROR_LOG_DIRECTORY/bdsql_sanity_test11.sql`"
+    verbose_echo "`$catcmd $MY_ERROR_LOG_DIRECTORY/bdsql_sanity_test11.err`"
+
+    tmp=`$grepcmd "by $BASENAME" $MY_ERROR_LOG_DIRECTORY/bdsql_sanity_test11.err`
+    checkpoint_echo_bold "Input:  `$catcmd $MY_ERROR_LOG_DIRECTORY/bdsql_sanity_test1.txt`"
+    checkpoint_echo_bold "Output: $tmp"
+
+    check_hs_cores 8
+    if [ "$hs_core" != "" ]; then
+        start_time=$(/bin/date +%s)
+    fi
+
+    if [[ $tmp == "`$catcmd $MY_ERROR_LOG_DIRECTORY/bdsql_sanity_test1.txt`" ]]; 
+    then
+        smart_scan_bytes_before=`$grepcmd "${CELL_XT_SMART_SCAN_BYTES}" $MY_ERROR_LOG_DIRECTORY/bdsql_statistics.lst | $awkcmd '{print $9}'`
+
+        if [ "$sqlplus_uid_passwd" != "" ]
+        then
+            sqlplus $sqlplus_uid_passwd @$MY_ERROR_LOG_DIRECTORY/bdsql_statistics > $MY_ERROR_LOG_DIRECTORY/bdsql_statistics.err
+        else
+            sqlplus system/manager @$MY_ERROR_LOG_DIRECTORY/bdsql_statistics > $MY_ERROR_LOG_DIRECTORY/bdsql_statistics.err
+        fi
+ 
+        $echocmd
+        checkpoint_echo "<b>Statistics:</b>"
+        $echocmd "`$catcmd bdsql_statistics.lst`"
+
+        retry_err_count_after=`$grepcmd "${CELL_XT_OFFLOAD_RETRIES}" $MY_ERROR_LOG_DIRECTORY/bdsql_statistics.err | $awkcmd '{print $7}'`
+        $echocmd
+        checkpoint_echo_bold "Offload retry counts: ${retry_err_count_before} (before) --> ${retry_err_count_after} (after)"
+
+        db_table_result[8]=${DB_TABLE_CVALUE_PASSED}
+        if [ ${retry_err_count_before} -ne ${retry_err_count_after} ]; then
+            fatal_error_echo "Although the sanity test passed, offload retry is observed and it may be involving fallback."
+            db_table_result[8]=${DB_TABLE_CVALUE_FAILED}
+        fi
+
+        smart_scan_bytes_after=`$grepcmd "${CELL_XT_SMART_SCAN_BYTES}" $MY_ERROR_LOG_DIRECTORY/bdsql_statistics.err | $awkcmd '{print $9}'`
+        checkpoint_echo_bold "Smart scan counts: ${smart_scan_bytes_before} (before) --> ${smart_scan_bytes_after} (after)"
+
+        if [ ${smart_scan_bytes_before} -eq ${smart_scan_bytes_after} ]; then
+            fatal_error_echo "cell interconnect bytes returned by XT smart scan did not grow."
+            db_table_result[8]=${DB_TABLE_CVALUE_FAILED}
+            db_table_action[8]="Check if database init parameter _external_table_smart_scan = OFF?"
+        fi
+    else 
+        db_table_result[8]=${DB_TABLE_CVALUE_FAILED}
+    fi
+
+    echo ${db_table_result[8]} > $MY_ERROR_LOG_DIRECTORY/.db_node_sanity
+
+    if [ "${db_table_result[8]}" == "${DB_TABLE_CVALUE_FAILED}" ]
+    then
+        #
+        # Sanity test failed! Let's collect trace files generated by the test.
+        #
+        my_timestamp="`/bin/date +%Y%m%d%H%M`"
+
+        # 1. tar *bdschecksw.trc and alert_<sid>.log in ${diagnostic_dest}/diag/rdbms/<db_sid>/db_sid>/trace
+        tmp=`cd ${diagnostic_dest}/diag/rdbms/$db_name/$instance_name/trace; $findcmd . -maxdepth 1 -cmin -10 -type f | $grepcmd "bdschecksw\.trc" | $tarcmd cf ${MY_LOG_DIRECTORY}/bdsql_sanity_test1_${my_timestamp}.tar -T -`
+        tmp=`cd ${diagnostic_dest}/diag/rdbms/$db_name/$instance_name/trace; $tarcmd -r -f ${MY_LOG_DIRECTORY}/bdsql_sanity_test1_${my_timestamp}.tar ./alert_$instance_name.log`
+
+        # 2. tar *.trc in ${diagnostic_dest}/diag/crs/$hostname/crs/trace or $ORACLE_HOME/log/$hostname
+        if [ "${GI_HOME}" != "" ]; then
+          if [ -d "${diagnostic_dest}/diag/crs/$hostname/crs/trace" ]; then
+            tmp=`cd ${diagnostic_dest}/diag/crs/$hostname/crs/trace; $findcmd . -maxdepth 1 -cmin -10 -type f | $grepcmd "\.trc" | $tarcmd rf ${MY_LOG_DIRECTORY}/bdsql_sanity_test1_${my_timestamp}.tar -T -`
+          fi
+        else
+          if [ -d "$$ORACLE_HOME/log" ]; then
+            tmp=`cd $ORACLE_HOME/log; $findcmd . -maxdepth 1 -cmin -10 -type f | $grepcmd "\.trc" | $tarcmd rf ${MY_LOG_DIRECTORY}/bdsql_sanity_test1_${my_timestamp}.tar -T -`
+          fi
+        fi
+
+        # 3. gzip bdsql_sanity_test1_${my_timestamp}.tar
+        if [ -f "${MY_LOG_DIRECTORY}/bdsql_sanity_test1_${my_timestamp}.tar" ]; then
+          tmp=`$gzipcmd ${MY_LOG_DIRECTORY}/bdsql_sanity_test1_${my_timestamp}.tar`
+          fatal_error_echo "Sanity test failed! (Send ${MY_LOG_DIRECTORY}/bdsql_sanity_test1_${my_timestamp}.tar.gz back to Oracle for further analysis)"
+          db_table_action[8]="Check ${MY_LOG_DIRECTORY}/bdsql_sanity_test1_${my_timestamp}.tar.gz for great details"
+        fi
+    fi
+
+    check_hs_cores 8
+    if [ "$hs_core" != "" ]; then
+        start_time=$(/bin/date +%s)
+    fi
+
+}   # end of run_dbnode_bdsql_sanity_test
+
+
+function give_me_a_name_value
+{
+    local IFS
+    local line
+    local name
+    local value="_NOT_FOUND_"
+
+    while IFS='' read -r line || [[ -n "$line" ]];
+     do
+         if [[ $line == *"$2"* ]]; then
+             name=`$echocmd $line | $sedcmd 's/ //g'`
+             read -r line
+             value=`$echocmd $line | $sedcmd 's/ //g'`
+             break;
+         fi
+     done < "$1"
+    $echocmd "$value"
+
+}   # end of give_me_a_name_value
+
+
+function turn_on_tracing
+{
+    checkpoint_echo "<b>Turn on bigdata extproc (including HS) and log4j tracing!</b>"
+
+    #--------------------------------------------------------------------------
+    # On DB/Compute node, turn on tracing and re-start MTA extproc.
+    #
+    # 1. ${DB_NODE_BIGDATA_CONFIG}/bigdata.properties
+    #    e.g.
+    #    bigdata.extproc.debug=true
+    # 
+    # 2. ${DB_NODE_BIGDATA_CONFIG}/bigdata-log4j.properties
+    #    e.g.
+    #    log4j.logger.oracle.hadoop.sql=DEBUG
+    # 
+    # 3. $ORACLE_HOME/hs/admin/init<mta_sid>.ora
+    #    e.g.
+    #    TRACE_LEVEL=1
+    #--------------------------------------------------------------------------
+
+    if [ -f "${DB_NODE_BIGDATA_CONFIG}/bigdata.properties" ]; then
+        $cpcmd ${DB_NODE_BIGDATA_CONFIG}/bigdata.properties ${DB_NODE_BIGDATA_CONFIG}/bigdata.properties.bdschecksw 2>/dev/null
+        tmp=`$grepcmd -i "bigdata.extproc.debug=" ${DB_NODE_BIGDATA_CONFIG}/bigdata.properties`
+        tmp2=`$echocmd $tmp | $trcmd [:upper:] [:lower:] | sed 's/ //g'`
+
+        if [ "$tmp" == "" ] 
+        then
+            $echocmd "bigdata.extproc.debug=true" >> ${DB_NODE_BIGDATA_CONFIG}/bigdata.properties
+        else
+            if [[ ${tmp2:0:1} == "#" ]]
+            then
+                $grepcmd -v "$tmp" ${DB_NODE_BIGDATA_CONFIG}/bigdata.properties.bdschecksw > ${DB_NODE_BIGDATA_CONFIG}/bigdata.properties
+                $echocmd "bigdata.extproc.debug=true" >> ${DB_NODE_BIGDATA_CONFIG}/bigdata.properties
+            elif [ "$tmp2" != *"true"* ] 
+            then
+                $grepcmd -v "$tmp" ${DB_NODE_BIGDATA_CONFIG}/bigdata.properties.bdschecksw > ${DB_NODE_BIGDATA_CONFIG}/bigdata.properties
+                $echocmd "bigdata.extproc.debug=true" >> ${DB_NODE_BIGDATA_CONFIG}/bigdata.properties
+            fi
+        fi
+    fi
+
+    if [ -f "${DB_NODE_BIGDATA_CONFIG}/bigdata-log4j.properties" ]; then
+        $cpcmd ${DB_NODE_BIGDATA_CONFIG}/bigdata-log4j.properties ${DB_NODE_BIGDATA_CONFIG}/bigdata-log4j.properties.bdschecksw 2>/dev/null
+        tmp=`$grepcmd -i "log4j.logger.oracle.hadoop.sql=" ${DB_NODE_BIGDATA_CONFIG}/bigdata-log4j.properties`
+        tmp2=`$echocmd $tmp | $trcmd [:upper:] [:lower:] | sed 's/ //g'`
+
+        if [ "$tmp" == "" ]
+        then
+            $echocmd "log4j.logger.oracle.hadoop.sql=DEBUG" >> ${DB_NODE_BIGDATA_CONFIG}/bigdata-log4j.properties
+        else
+            if [[ ${tmp2:0:1} == "#" ]]
+            then
+                $grepcmd -v "$tmp" ${DB_NODE_BIGDATA_CONFIG}/bigdata-log4j.properties.bdschecksw > ${DB_NODE_BIGDATA_CONFIG}/bigdata-log4j.properties
+                $echocmd "log4j.logger.oracle.hadoop.sql=DEBUG" >> ${DB_NODE_BIGDATA_CONFIG}/bigdata-log4j.properties
+            elif [ "$tmp2" != *"debug"* ] 
+            then
+                $grepcmd -v "$tmp" ${DB_NODE_BIGDATA_CONFIG}/bigdata-log4j.properties.bdschecksw > ${DB_NODE_BIGDATA_CONFIG}/bigdata-log4j.properties
+                $echocmd "log4j.logger.oracle.hadoop.sql=DEBUG" >> ${DB_NODE_BIGDATA_CONFIG}/bigdata-log4j.properties
+            fi
+        fi
+    fi
+
+    if [ -f "$mta_init_file_pathname" ]; then
+        $cpcmd $mta_init_file_pathname tmp_mta_init_file 2>/dev/null
+        tmp=`$grepcmd -i trace_level $mta_init_file_pathname`
+        tmp2=`$echocmd $tmp | $trcmd [:upper:] [:lower:] | sed 's/ //g'`
+
+        if [ "$tmp" == "" ]
+        then
+            $echocmd "TRACE_LEVEL=1" >> $mta_init_file_pathname
+        elif [[ ${tmp2:0:1} == "#" ]]
+        then
+            $grepcmd -v "$tmp" tmp_mta_init_file > $mta_init_file_pathname
+            $echocmd "TRACE_LEVEL=1" >> $mta_init_file_pathname
+        else 
+            if [ "$tmp2" != *"=1"* ]; then
+                $grepcmd -v "$tmp" tmp_mta_init_file > $mta_init_file_pathname
+                $echocmd "TRACE_LEVEL=1" >> $mta_init_file_pathname
+            fi
+        fi
+    fi
+    mta_sid_name=`$basenamecmd $mta_init_file_pathname | $cutcmd -d. -f1 | $sedcmd 's/init//'`
+    if [ "${oracle_listener}" != "" ]; then
+        checkpoint_echo "<b>mtactl stop ${mta_sid_name} \"${oracle_listener}\"</b>"
+        $mtactlcmd stop ${mta_sid_name} "${oracle_listener}"
+    else
+        checkpoint_echo "<b>mtactl stop ${mta_sid_name}</b>"
+        $mtactlcmd stop ${mta_sid_name}
+    fi
+    if [ "${oracle_listener}" != "" ]; then
+        checkpoint_echo "<b>mtactl start ${mta_sid_name} \"${oracle_listener}\"</b>"
+        $mtactlcmd start ${mta_sid_name} "${oracle_listener}"
+    else
+        checkpoint_echo "<b>mtactl start ${mta_sid_name}</b>"
+        $mtactlcmd start ${mta_sid_name}
+    fi
+    checkpoint_echo "<b>Sleep up to 90 seconds to allow listener registration!</b>"
+
+    if [ "${oracle_listener}" != "" ]; then
+        tmp="`$mtactlcmd status ${mta_sid_name} "${oracle_listener}" | grep service_register | grep ${mta_sid_name} 2>/dev/null`"
+    else
+        tmp="`$mtactlcmd status ${mta_sid_name} | grep service_register | grep ${mta_sid_name} 2>/dev/null`"
+    fi
+    ans=0
+    while [[ "$tmp" == "" ]]
+    do
+      ans=$(( ans + 3 ))
+      $sleepcmd 3
+      verbose_echo "slept $ans seconds already..."
+      if [ $ans -gt 90 ]; then
+        nonfatal_error_echo "WARNING! Slept over 90 seconds for listener registration already."
+        break;
+      fi
+      if [ "${oracle_listener}" != "" ]; then
+          tmp="`$mtactlcmd status ${mta_sid_name} "${oracle_listener}" | grep service_register | grep ${mta_sid_name} 2>/dev/null`"
+      else
+          tmp="`$mtactlcmd status ${mta_sid_name} | grep service_register | grep ${mta_sid_name} 2>/dev/null`"
+      fi
+    done
+
+    if [ "${oracle_listener}" != "" ]; then
+        checkpoint_echo "<b>mtactl status ${mta_sid_name} \"${oracle_listener}\"</b>"
+        tmp=`$mtactlcmd status ${mta_sid_name} "${oracle_listener}"`
+    else
+        checkpoint_echo "<b>mtactl status ${mta_sid_name}</b>"
+        tmp=`$mtactlcmd status ${mta_sid_name}`
+    fi
+    checkpoint_echo "$tmp"
+
+}   # end of turn_on_tracing
+
+
+function turn_off_tracing
+{
+    checkpoint_echo "<b>Turn off or restore bigdata extproc (including HS) and log4j configuration for tracing!</b>"
+    #--------------------------------------------------------------------------
+    # On DB/Compute node, turn off tracing and re-start MTA extproc.
+    # Restore configuration files.
+    #--------------------------------------------------------------------------
+
+    $cpcmd ${DB_NODE_BIGDATA_CONFIG}/bigdata.properties.bdschecksw ${DB_NODE_BIGDATA_CONFIG}/bigdata.properties 2>/dev/null
+    $rmcmd ${DB_NODE_BIGDATA_CONFIG}/bigdata.properties.bdschecksw 2>/dev/null
+    $cpcmd ${DB_NODE_BIGDATA_CONFIG}/bigdata-log4j.properties.bdschecksw ${DB_NODE_BIGDATA_CONFIG}/bigdata-log4j.properties 2>/dev/null
+    $rmcmd ${DB_NODE_BIGDATA_CONFIG}/bigdata-log4j.properties.bdschecksw 2>/dev/null
+    $cpcmd tmp_mta_init_file ${mta_init_file_pathname} 2>/dev/null
+    $rmcmd tmp_mta_init_file 2>/dev/null
+
+    if [ "${oracle_listener}" != "" ]; then
+        checkpoint_echo "<b>mtactl stop ${mta_sid_name} \"${oracle_listener}\"</b>"
+        $mtactlcmd stop ${mta_sid_name} "${oracle_listener}"
+    else
+        checkpoint_echo "<b>mtactl stop ${mta_sid_name}</b>"
+        $mtactlcmd stop ${mta_sid_name}
+    fi
+    if [ "${oracle_listener}" != "" ]; then
+        checkpoint_echo "<b>mtactl start ${mta_sid_name} \"${oracle_listener}\"</b>"
+        $mtactlcmd start ${mta_sid_name} "${oracle_listener}"
+    else
+        checkpoint_echo "<b>mtactl start ${mta_sid_name}</b>"
+        $mtactlcmd stop ${mta_sid_name}
+    fi
+}   # end of turn_off_tracing
+
+
+function check_sqlpatch_status
+{
+    if [ "${pdb_container}" != "" ]; then
+      $catcmd <<- _EOF_ > $MY_ERROR_LOG_DIRECTORY/bdsql_sqlpatch_status.sql
+set echo off
+set serveroutput off
+set linesize 132
+
+ALTER SESSION SET CONTAINER = ${pdb_container};
+_EOF_
+    else
+      $catcmd <<- _EOF_ > $MY_ERROR_LOG_DIRECTORY/bdsql_sqlpatch_status.sql
+set echo off
+set serveroutput off
+set linesize 132
+
+_EOF_
+    fi
+
+    $catcmd <<- _EOF_ >> $MY_ERROR_LOG_DIRECTORY/bdsql_sqlpatch_status.sql
+
+spool $MY_ERROR_LOG_DIRECTORY/bdsql_sqlpatch_status
+
+SELECT patch_id, action, status FROM dba_registry_sqlpatch;
+
+spool off
+exit;
+_EOF_
+
+    if [ "$sqlplus_uid_passwd" != "" ]
+    then
+        sqlplus $sqlplus_uid_passwd @$MY_ERROR_LOG_DIRECTORY/bdsql_sqlpatch_status > $MY_ERROR_LOG_DIRECTORY/bdsql_sqlpatch_status.err
+    else
+        sqlplus system/manager @$MY_ERROR_LOG_DIRECTORY/bdsql_sqlpatch_status > $MY_ERROR_LOG_DIRECTORY/bdsql_sqlpatch_status.err
+    fi
+
+#   checkpoint_echo "<b>Database Sqlpath Status :</b>"
+#   $catcmd $MY_ERROR_LOG_DIRECTORY/bdsql_sqlpatch_status.lst
+
+}   # end of check_sqlpatch_status
+
+
+function check_database_initparams
+{
+    if [ "${pdb_container}" != "" ]; then
+      $catcmd <<- _EOF_ > $MY_ERROR_LOG_DIRECTORY/bdsql_database_initparams.sql
+set echo off
+set heading off
+set serveroutput off
+set linesize 132
+
+ALTER SESSION SET CONTAINER = ${pdb_container};
+_EOF_
+    else
+      $catcmd <<- _EOF_ > $MY_ERROR_LOG_DIRECTORY/bdsql_database_initparams.sql
+set echo off
+set heading off
+set serveroutput off
+set linesize 132
+
+_EOF_
+    fi
+
+    $catcmd <<- _EOF_ >> $MY_ERROR_LOG_DIRECTORY/bdsql_database_initparams.sql
+
+spool $MY_ERROR_LOG_DIRECTORY/bdsql_desc_dbms_hadoop
+--
+-- 0. Run desc dbms_hadoop and check 'GET_USER_MAP' to determine whether 
+--    datapatch has been executed or not
+--
+desc dbms_hadoop
+spool off
+
+spool $MY_ERROR_LOG_DIRECTORY/bdsql_database_initparams
+--
+-- 1. Check _external_table_scan and _bigdata_external_table
+--
+
+SELECT a.ksppinm "Parameter",b.ksppstvl "Session Value",c.ksppstvl "Instance Value"
+FROM
+x\$ksppi a,x\$ksppcv b,x\$ksppsv c
+WHERE
+a.indx = b.indx
+AND a.indx = c.indx
+AND a.ksppinm LIKE '/_%' escape '/'
+AND (a.ksppinm like '_external_table_smart_scan'
+OR a.ksppinm like '_bigdata_external_table');
+
+spool off
+exit;
+_EOF_
+
+    if [ "$sqlplus_uid_passwd" != "" ]
+    then
+        sqlplus $sqlplus_uid_passwd @$MY_ERROR_LOG_DIRECTORY/bdsql_database_initparams > $MY_ERROR_LOG_DIRECTORY/bdsql_database_initparams.err
+    else
+        sqlplus system/manager @$MY_ERROR_LOG_DIRECTORY/bdsql_database_initparams > $MY_ERROR_LOG_DIRECTORY/bdsql_database_initparams.err
+    fi
+
+    checkpoint_echo "<b>Database Init Parameters (_bigdata_external_table and _external_table_smart_scan):</b>"
+    $catcmd $MY_ERROR_LOG_DIRECTORY/bdsql_database_initparams.lst
+
+}   # end of check_database_initparams
+
+
+function check_database_objects
+{
+    db_table_result[4]=${DB_TABLE_CVALUE_PASSED}
+
+    if [ "${pdb_container}" != "" ]; then
+      $catcmd <<- _EOF_ > $MY_ERROR_LOG_DIRECTORY/bdsql_database_objects.sql
+set echo off
+set heading off
+set serveroutput off
+set linesize 132
+
+ALTER SESSION SET CONTAINER = ${pdb_container};
+_EOF_
+    else
+      $catcmd <<- _EOF_ > $MY_ERROR_LOG_DIRECTORY/bdsql_database_objects.sql
+set echo off
+set heading off
+set serveroutput off
+set linesize 132
+_EOF_
+    fi
+
+    $catcmd <<- _EOF_ >> $MY_ERROR_LOG_DIRECTORY/bdsql_database_objects.sql
+set echo off
+set heading off
+set serveroutput off
+set linesize 132
+
+spool bdsql_database_objects
+--
+-- 1. Check directory objects: DEFAULT_DIR, ORACLE_BIGDATA_CONFIG and ORA_BIGDATA_CL_<cluster>
+--
+
+select DIRECTORY_NAME, DIRECTORY_PATH
+from all_directories
+where DIRECTORY_NAME in ('DEFAULT_DIR', 'ORACLE_BIGDATA_CONFIG')
+or DIRECTORY_NAME like 'ORA_BIGDATA_CL_%';
+
+spool off
+spool bdsql_database_links
+--
+-- 2. Check database links: 
+--
+
+select DB_LINK, HOST
+from all_db_links
+where DB_LINK like 'BDSQL\$_DEFAULT_CLUSTER%'
+or DB_LINK like 'BDSQL\$_HADOOP_CL_%';
+
+spool off
+
+set echo on
+set serveroutput on
+
+spool $MY_ERROR_LOG_DIRECTORY/bdsql_dictionary_views
+--
+-- 3. Check data dictionary views: 
+--
+
+select count(*) from user_hive_tables;
+select count(*) from all_hive_tables;
+select count(*) from dba_hive_tables;
+
+select count(*) from user_hive_databases;
+select count(*) from all_hive_databases;
+select count(*) from dba_hive_databases;
+
+select count(*) from user_hive_columns;
+select count(*) from all_hive_columns;
+select count(*) from dba_hive_columns;
+
+select CELL_PATH from v\$cell where CELL_TYPE like 'BDSQL';
+
+spool off
+
+set echo off
+set serveroutput off
+
+spool bdsql_functions
+--
+-- 4. Check functions/procedures for Hive data dictionary: 
+--
+
+spool off
+spool $MY_ERROR_LOG_DIRECTORY/bdsql_tables
+--
+-- 5. Check tables:
+--
+
+desc SYS.HIVE_URI$;
+
+spool off
+spool $MY_ERROR_LOG_DIRECTORY/bdsql_statistics
+--
+-- 6. Check statistics:
+--
+
+column name format a64
+column value format 9999999999999999
+
+select stat.name, sys.value
+from v\$sysstat sys, v\$statname stat
+where sys.statistic# = stat.statistic#
+and stat.name like 'cell%XT%';
+
+exit;
+_EOF_
+
+    if [ "${pdb_container}" != "" ]; then
+      $catcmd <<- _EOF_ > $MY_ERROR_LOG_DIRECTORY/bdsql_statistics.sql
+set echo off
+set heading off
+set serveroutput off
+set linesize 132
+
+ALTER SESSION SET CONTAINER = ${pdb_container};
+_EOF_
+    else
+      $catcmd <<- _EOF_ > $MY_ERROR_LOG_DIRECTORY/bdsql_statistics.sql
+set echo off
+set heading off
+set serveroutput off
+set linesize 132
+
+_EOF_
+    fi
+
+    $catcmd <<- _EOF_ >> $MY_ERROR_LOG_DIRECTORY/bdsql_statistics.sql
+spool bdsql_statistics
+
+column name format a64
+column value format 9999999999999999
+
+select stat.name, sys.value
+from v\$sysstat sys, v\$statname stat
+where sys.statistic# = stat.statistic#
+and stat.name like 'cell%XT%';
+
+exit;
+_EOF_
+
+
+    if [ "$sqlplus_uid_passwd" != "" ]
+    then
+        sqlplus $sqlplus_uid_passwd @$MY_ERROR_LOG_DIRECTORY/bdsql_database_objects > $MY_ERROR_LOG_DIRECTORY/bdsql_database_objects.err
+    else
+        sqlplus system/manager @$MY_ERROR_LOG_DIRECTORY/bdsql_database_objects > $MY_ERROR_LOG_DIRECTORY/bdsql_database_objects.err
+    fi
+
+    retry_err_count_before=`$grepcmd "${CELL_XT_OFFLOAD_RETRIES}" ${MY_ERROR_LOG_DIRECTORY}/bdsql_database_objects.err | $awkcmd '{print $7}'`
+
+    checkpoint_echo "<b>Database Objects:</b>"
+
+    file="bdsql_database_objects.lst"
+    name="DEFAULT_DIR"
+    value=$(give_me_a_name_value $file $name)
+    if [ "$value" != "_NOT_FOUND_" ]; then
+        $echocmd "$name = $value"
+    else
+        db_table_result[4]=${DB_TABLE_CVALUE_FAILED}
+        db_table_action[4]="Database object $name is not found!"
+        fatal_error_echo "${db_table_action[4]}"
+    fi
+
+    name="ORACLE_BIGDATA_CONFIG"
+    value=$(give_me_a_name_value $file $name)
+    if [ "$value" != "_NOT_FOUND_" ]; then
+        $echocmd "$name = $value"
+    else
+        db_table_result[4]=${DB_TABLE_CVALUE_FAILED}
+        db_table_action[4]="Database object $name is not found!"
+        fatal_error_echo "${db_table_action[4]}"
+    fi
+
+    name="ORA_BIGDATA_CL_${bdsql_cluster_name}"
+    value=$(give_me_a_name_value $file $name)
+    if [ "$value" != "_NOT_FOUND_" ]; then
+        $echocmd "$name = $value"
+    else
+        db_table_result[4]=${DB_TABLE_CVALUE_FAILED}
+        db_table_action[4]="Database object $name is not found!"
+        fatal_error_echo "${db_table_action[4]}"
+    fi
+    $rmcmd -f $file > /dev/null
+
+    $echocmd
+    checkpoint_echo "<b>Database Links:</b>"
+
+    file="bdsql_database_links.lst"
+    name="BDSQL\$_DEFAULT_CLUSTER"
+    value=$(give_me_a_name_value $file $name)
+    if [ "$value" != "_NOT_FOUND_" ]; then
+        $echocmd "$name = $value"
+    else
+        db_table_result[4]=${DB_TABLE_CVALUE_FAILED}
+        db_table_action[4]="Database link $name is not found!"
+        fatal_error_echo "${db_table_action[4]}"
+    fi
+
+    name="BDSQL\$_HADOOP_CL_"
+    value=$(give_me_a_name_value $file $name)
+    if [ "$value" != "_NOT_FOUND_" ]; then
+        $echocmd "$name = $value"
+    fi
+    $rmcmd -f $file > /dev/null
+
+    file="$MY_ERROR_LOG_DIRECTORY/bdsql_tables.lst"
+
+    $echocmd
+    checkpoint_echo "<b>Dictionary Views:</b>"
+    $echocmd "`$catcmd $MY_ERROR_LOG_DIRECTORY/bdsql_dictionary_views.lst`"
+
+    ans=$($catcmd $MY_ERROR_LOG_DIRECTORY/bdsql_dictionary_views.lst | $grepcmd "ORA-")
+    if [ "$ans" != "" ]; then
+        db_table_result[4]=${DB_TABLE_CVALUE_FAILED}
+        db_table_action[4]="Failed to query BDS dictionary views!"
+        fatal_error_echo "${db_table_action[4]}"
+    fi
+
+    check_hs_cores 4
+
+    file="bdsql_functions.lst"
+    $rmcmd -f $file > /dev/null
+
+    $echocmd
+    checkpoint_echo "<b>Statistics:</b>"
+    $echocmd "`$catcmd $MY_ERROR_LOG_DIRECTORY/bdsql_statistics.lst`"
+
+    check_hs_cores 4
+
+    file="$MY_ERROR_LOG_DIRECTORY/bdsql_dictionary_views.lst"
+    start_time=$(/bin/date +%s)
+
+}   # end of check_database_objects
+
+
+function check_database_extproc
+{
+    # check mtactl 
+    if [ ! -x $mtactlcmd ]; then
+        db_table_result[5]=${DB_TABLE_CVALUE_FAILED}
+        db_table_action[5]="$mtactlcmd is not found!"
+        fatal_error_echo "${db_table_action[5]}"
+    fi
+
+    if [ ! -f ${mta_init_file_pathname} ]; then
+        db_table_result[5]=${DB_TABLE_CVALUE_FAILED}
+        db_table_action[5]="${mta_init_file_pathname} is not found!"
+        fatal_error_echo "${db_table_action[5]}"
+    fi
+
+    if [ "$ade_mode" == "" ]; then
+        mta_init_file=`basename $oracle_home/hs/admin/init*_${db_unique_name}_${bdsql_cluster_name}.ora`
+    else
+        mta_init_file=`basename $oracle_home/hs/admin/initBDSQL_${bdsql_cluster_name}.ora`
+    fi
+
+    mta_sid_name=`$echocmd $mta_init_file | $cutcmd -d. -f1 | $sedcmd 's/init//'`
+    mta_uid_name=`$pscmd -aef | $grepcmd extproc${mta_sid_name} | $grepcmd -v grep | $awkcmd '{print $1}'`
+    mta_pid=`$pscmd -aef | $grepcmd extproc${mta_sid_name} | $grepcmd -v grep | $awkcmd '{print $2}'`
+
+    if [ "${mta_uid_name}" == "" ]; then
+        db_table_result[5]=${DB_TABLE_CVALUE_FAILED}
+        fatal_error_echo "MTA extproc${mta_sid_name} is not found!"
+        db_table_action[5]="Bring up MTA extproc${mta_sid_name} via \"crsctl start resource ${mta_sid_name}\" or mtactl manually."
+        fatal_error_echo "${db_table_action[5]}"
+    elif [ "${mta_uid_name}" != "oracle" ]; then
+        nonfatal_error_echo "WARNING! You can ignore this warning if Kerberos is not used for your Big Data SQL system."
+        nonfatal_error_echo "         Your MTA extproc${mta_sid_name} was started up by Oracle GRID OS user ${mta_uid_name} which is not oracle."
+        nonfatal_error_echo "         When configuring Kerberos on your Big Data SQL system with two prinples (i.e. ${mta_uid_name} and oracle),"
+        nonfatal_error_echo "         make sure to run kinit and grant read permission of Kerberos cache files to group oinstall for all involved princiles."
+    fi
+
+    if [ "${oracle_listener}" != "" ]; then
+        checkpoint_echo "<b>mtactl status ${mta_sid_name} \"${oracle_listener}\"</b>"
+        tmp=`$mtactlcmd status ${mta_sid_name} "${oracle_listener}"`
+    else
+        checkpoint_echo "<b>mtactl status ${mta_sid_name}</b>"
+        tmp=`$mtactlcmd status ${mta_sid_name}`
+    fi
+    checkpoint_echo "$tmp"
+
+    if [[ $tmp == *"service_register"* ]]; 
+      then
+        db_table_result[5]=${DB_TABLE_CVALUE_PASSED}
+      else
+        if [[ $tmp == *"service_update"* ]]; 
+        then
+            db_table_result[5]=${DB_TABLE_CVALUE_PASSED}
+        else
+            if [[ $tmp == *"establish"* ]]; 
+            then
+                db_table_result[5]=${DB_TABLE_CVALUE_PASSED}
+            else
+                if [ "${mta_uid_name}" == "" ]; then
+                    db_table_result[5]=${DB_TABLE_CVALUE_FAILED}
+                    db_table_action[5]="MTA process \"extproc${mta_sid_name} -mt\" is not found!"
+                    fatal_error_echo "${db_table_action[5]}"
+                else
+                    db_table_result[5]=${DB_TABLE_CVALUE_PASSED}
+                    nonfatal_error_echo "WARNING! lsnrctl log_file status reports no service_register, service_update or establish info.."
+                    nonfatal_error_echo "         You can run bdschecksw again with -y option (see bdschecksw -h for great details)"
+                    nonfatal_error_echo "         or run \"mtactl status ${mta_sid_name}\" as GI_HOME administrator OS user."
+                fi
+            fi
+        fi
+    fi
+
+    if [ -f /proc/${mta_pid}/environ ]; then
+        checkpoint_echo "<b>MTA extproc (PID=${mta_pid}) environment variables: /proc/${mta_pid}/environ: </b>"
+        $catcmd /proc/${mta_pid}/environ
+    fi
+
+#   db_val[2]="${DB_TABLE_CVALUE_PASSED}"
+
+}   # end of check_database_extproc
+
+
+function check_bdsql_files
+{
+    db_table_result[3]=${DB_TABLE_CVALUE_PASSED}
+
+    #----------------------------------------
+    # Check Sqlpatch for errors
+    #----------------------------------------
+    checkpoint_echo "<b>Checked dba_registry_sqlpatch:</b>"
+    $catcmd $MY_ERROR_LOG_DIRECTORY/bdsql_sqlpatch_status.lst
+    tmp=
+    tmp=$($grepcmd -i error $MY_ERROR_LOG_DIRECTORY/bdsql_sqlpatch_status.lst)
+
+    if [ "$tmp" == "" ]
+    then
+        $echocmd
+    else
+        db_table_result[3]=${DB_TABLE_CVALUE_FAILED}
+        db_table_action[3]="It appears that at least one of your patches has been applied with errors!"
+        fatal_error_echo "${db_table_action[3]}"
+    fi
+
+    #----------------------------------------
+    # Check datapatch if BDSQL 3.2 and above
+    #----------------------------------------
+    if [ "$db_node_bigdata_home_32" != "" ]
+    then
+        checkpoint_echo "<b>Describe dbms_hadoop:</b>"
+        $catcmd $MY_ERROR_LOG_DIRECTORY/bdsql_desc_dbms_hadoop.lst
+
+        tmp=
+        tmp=$($grepcmd -i GET_USER_MAP $MY_ERROR_LOG_DIRECTORY/bdsql_desc_dbms_hadoop.lst)
+
+        if [ "$tmp" == "" ]
+        then
+            db_table_result[3]=${DB_TABLE_CVALUE_FAILED}
+            db_table_action[3]="It appears that you do not have the proper maintenance level or you have not applied datapatch."
+            fatal_error_echo "${db_table_action[3]}"
+        else
+            $echocmd "NOTE: GET_USER_MAP is found! (i.e. datapatch was applied)"
+            $echocmd
+        fi
+    fi
+
+    ##------------------------------------------------
+    # DB node check point 1: Key directories and files 
+    ##------------------------------------------------
+    # Check cellinit.ora first
+
+    checkpoint_echo "<b>Checked cellinit.ora and celliniteth.ora:</b>"
+
+    ##------------------------------------------------
+    # Display cellinit.ora and celliniteth if exist
+    ##------------------------------------------------
+    if [ -f $CELLINITETH ]
+    then
+        checkpoint_echo_bold "$CELLINITETH:"
+        $catcmd $CELLINITETH
+        $echocmd
+    fi
+
+    if [ -f $CELLINIT ]
+    then
+        checkpoint_echo_bold "$CELLINIT:"
+        $catcmd $CELLINIT
+        $echocmd
+    fi
+     
+    ##------------------------------------------------------------------------
+    # The celliniteth.ora or cellinit.ora on db node dictates the 
+    # communication for diskmon.
+    # The actual communication (eg, PQs into cell) is dictated by cellinit.ora 
+    # on cell nodes. So it's possible that you have celliniteth.ora on db 
+    # (for ethernet setting), and then have cellinit.ora on cell (for IB).
+    #
+    # This is the new dual context setting introduced with the hybrid feature.
+    #
+    # 1. When both cellinit.ora and celliniteth.ora exist in 
+    #    /etc/oracle/cell/network-config, the first bond* entry in the 
+    #    '/sbin/ip -o -f inet addr show' report determine IB or ETH takes precedence.
+    #
+    # 2. Once the effective cellinit is identified, check 
+    #    _skgxp_dynamic_protocol to determine tcpudb mode.
+    #
+    #    If _skgxp_dynamic_protocol == 2, the following NOTE will be displayed:
+    #
+    #    _cell_big_data_sql_software_only must be set to TRUE on Hadoop 
+    #    Data/Cell nodes.
+    #
+    # By default, InfiniBand is used.
+    #
+    # In the meantime, _cell_big_data_sql_software_only will be checked on ALL 
+    # Hadoop cell nodes.
+    #
+    # NOTE: If all things are setup correctly, we display 
+    #       "You are using TCP/UDP connection!".
+    #
+    # If anything mismatches, we display the following msg for cell nodes:
+    #
+    # NOTE: By default, InfiniBand is used.
+    #       For TCP/UDP connection, you must have _skgxp_dynamic_protocol=2 in
+    #       $CELLINIT on you DB/Compute node and
+    #       _cell_big_data_sql_software_only=true in
+    #       $HADOOP_CELLINIT on Hadoop Data/Cell nodes. 
+    ##------------------------------------------------------------------------
+
+    if [ "$ade_mode" == "" ]; then
+      # Determine the effective cellinit (i.e. cellinit.ora or celliniteth.ora)
+
+      checkpoint_echo_bold "/sbin/ip -o -f inet addr show:"
+      $ipcmd -o -f inet addr show
+      $echocmd
+
+      tmp=$($ipcmd -o -f inet addr show | $grepcmd bond | $headcmd -1)
+
+      case "$tmp" in
+        *"bondib"*)
+          my_cellinit=$CELLINIT
+          ;;
+        *"bondeth"*)
+          my_cellinit=$CELLINITETH
+          ;;
+        *)
+          my_cellinit=$CELLINIT
+          ;;
+      esac
+
+      if [ "$my_cellinit" != "" ]
+      then
+        tmp=`$catcmd $my_cellinit > ${MY_ERROR_LOG_DIRECTORY}/cellinit.dbhome`
+        checkpoint_echo_bold "Effective cellinit*.ora is $my_cellinit!"
+        ipaddress_lower=
+        subnet_mask=
+        ipaddress_lower=$($grepcmd -i ipaddress1 $my_cellinit | $grepcmd -v '#' | $cutcmd -d= -f1 | $trcmd [:upper:] [:lower:])
+        subnet_mask=$($grepcmd -i ipaddress1 $my_cellinit | $grepcmd -v '#' | $cutcmd -d= -f2 | $cutcmd -d/ -f2 | $trcmd -d '\n' | $trcmd -d '\r')
+        $rmcmd -f ${MY_ERROR_LOG_DIRECTORY}/subnet.dbhome > /dev/null
+
+        if [[ "$subnet_mask" != "" ]]; then
+            $echocmd $subnet_mask > ${MY_ERROR_LOG_DIRECTORY}/subnet.dbhome
+        fi
+        if [[ "$ipaddress_lower" == "ipaddress1"* ]]; then
+            checkpoint_echo "Subnet Mask: $subnet_mask"
+        else
+            db_table_result[3]=${DB_TABLE_CVALUE_FAILED}
+            fatal_error_echo "Subnet Mask is not found!"
+        fi
+
+        tcpudp_mode="$($grepcmd $DB_DYNAMIC_PROTOCOL $my_cellinit | $cutcmd -d= -f2 | $trcmd -d '[blank]' | $trcmd -d '\n' | $trcmd -d '\r')"
+
+        if [ "$tcpudp_mode" != "" ]; then
+            checkpoint_echo "$my_cellinit: $DB_DYNAMIC_PROTOCOL=$tcpudp_mode"
+            if [ "$tcpudp_mode" == "2" ]; then
+                $echocmd "NOTE: For TCP/UDP connection, you must have $CELL_DYNAMIC_PROTOCOL=TRUE in"
+                $echocmd "      $HADOOP_CELLINIT on Hadoop Data/Cell nodes. By default, InfiniBand is used."
+                $echocmd
+            else
+                db_table_result[3]=${DB_TABLE_CVALUE_FAILED}
+                db_table_action[3]="$DB_DYNAMIC_PROTOCOL in $my_cellinit has a bad value!"
+                fatal_error_echo "${db_table_action[3]}"
+            fi
+        fi
+
+        tmp=`$ifconfigcmd -a 2>/dev/null`
+        verbose_echo "$tmp"
+
+        case ${OS_TYPE} in
+          Linux)
+            ip_address=`$grepcmd ipaddress1 $my_cellinit | $grepcmd -v '#' | $cutcmd -d= -f2 | $cutcmd -d/ -f1 | $trcmd -d '\n' | $trcmd -d '\r'`
+            MY_CELLINIT_IP=${ip_address}
+            checkpoint_echo "<b>Cellinit IP address in $my_cellinit: $ip_address</b>"
+            ip_tmp="`$ipcmd addr show | $grepcmd $ip_address`"
+            ;;
+          SunOS)
+            ip_address=`$ifconfigcmd -a | $awkcmd 'BEGIN { count=0; } { if ( $1 ~ /inet/ ) { count++; if( count==2 ) { print $2; } } }'`
+            checkpoint_echo "<b>Host IP address: $ip_address</b>"
+            ip_tmp=`$grepcmd $ip_address $my_cellinit | $cutcmd -d= -f2 | $cutcmd -d/ -f1 | $trcmd -d '\n' | $trcmd -d '\r'`
+            MY_CELLINIT_IP=${ip_tmp}
+            checkpoint_echo "<b>Cellinit IP address in $my_cellinit: $ip_tmp</b>"
+
+            x="`$ifconfigcmd -a | $grepcmd -n $ip_address | $cutcmd -d: -f1`"
+            y=1
+            ans=$(( x - y ))
+            ip_tmp=`$ifconfigcmd -a | $sedcmd -n "${ans}p"`
+            ;;
+          *)
+            ip_tmp=""
+            ;;
+        esac
+
+        case "$ip_tmp" in
+          *"bondib"*)
+            checkpoint_echo "<b>Cellinit IP address is bonded to InfiniBand: $ip_tmp</b>"
+            ;;
+          *"bondeth"*)
+            checkpoint_echo "<b>Cellinit IP address is bonded to Ethernet: $ip_tmp</b>"
+            ;;
+          *)
+            checkpoint_echo "<b>Cellinit IP address: $ip_tmp</b>"
+            ;;
+        esac
+
+        if [ "${ip_tmp}" == "" ];  then
+            db_table_result[3]=${DB_TABLE_CVALUE_FAILED}
+            db_table_action[3]="Cellinit IP address in $my_cellinit doesn't match any of your IP address(es)!"
+            fatal_error_echo "${db_table_action[3]}"
+        fi
+      else
+        db_table_result[3]=${DB_TABLE_CVALUE_FAILED}
+        db_table_action[3]="Neither $CELLINIT nor $CELLINITETH exist!"
+        fatal_error_echo "${db_table_action[3]}"
+      fi
+    fi
+
+    if [ -d "$oracle_home/bigdatasql" ]
+    then
+        checkpoint_echo "<b>$oracle_home/bigdatasql:</b>"
+        if [ -f "${DB_NODE_BIGDATA_CONFIG}/bigdata.properties" ]
+        then
+            if [ "${bdsql_cluster_name}" != "" ]; 
+            then
+                if [ -f "$oracle_home/bigdatasql/hadoop_${bdsql_cluster_name}.env" ]; 
+                then
+#                   hadoop_env_file=$oracle_home/bigdatasql/hadoop_${bdsql_cluster_name}.env
+#                   . $hadoop_env_file 2>/dev/null
+                    if [ -f "${DB_NODE_BIGDATA_CONFIG}/bigdata-log4j.properties" ]; 
+                    then
+                        if [ -d "${DB_NODE_BIGDATA_CONFIG}/${bdsql_cluster_name}" ]; 
+                        then
+                            if [ -d "${DB_NODE_DEFAULT_DIR}" ]; 
+                            then
+                                verbose_echo "${DB_NODE_DEFAULT_DIR}."
+                            else
+                                db_table_result[3]=${DB_TABLE_CVALUE_PASSED}
+                                db_table_action[3]="${DB_NODE_DEFAULT_DIR} doesn't exist!"
+                                $echocmd "${db_table_action[3]}"
+                            fi
+                            verbose_echo "${DB_NODE_BIGDATA_CONFIG}/${bdsql_cluster_name}."
+                        else
+                            db_table_result[3]=${DB_TABLE_CVALUE_FAILED}
+                            db_table_action[3]="${DB_NODE_BIGDATA_CONFIG}/${bdsql_cluster_name} doesn't exist!"
+                            fatal_error_echo "${db_table_action[3]}"
+                        fi
+                        verbose_echo "${DB_NODE_BIGDATA_CONFIG}/bigdata-log4j.properties."
+                    else
+                        db_table_result[3]=${DB_TABLE_CVALUE_FAILED}
+                        db_table_action[3]="${DB_NODE_BIGDATA_CONFIG}/bigdata-log4j.properties doesn't exist!"
+                        fatal_error_echo "${db_table_action[3]}"
+                    fi
+                    verbose_echo "$oracle_home/bigdatasql/hadoop_${bdsql_cluster_name}.env."
+                else
+                    db_table_result[3]=${DB_TABLE_CVALUE_FAILED}
+                    db_table_action[3]="$oracle_home/bigdatasql/hadoop_${bdsql_cluster_name}.env doesn't exist!"
+                    fatal_error_echo "${db_table_action[3]}"
+                fi
+                verbose_echo "${bdsql_cluster_name}."
+            else
+                db_table_result[3]=${DB_TABLE_CVALUE_FAILED}
+                db_table_action[3]="${bdsql_cluster_name} doesn't exist!"
+                fatal_error_echo "${db_table_action[3]}"
+            fi
+            verbose_echo "${DB_NODE_BIGDATA_CONFIG}/bigdata.properties."
+        else
+            db_table_result[3]=${DB_TABLE_CVALUE_FAILED}
+            db_table_action[3]="${DB_NODE_BIGDATA_CONFIG}/bigdata.properties doesn't exist!"
+            fatal_error_echo "${db_table_action[3]}"
+        fi
+        verbose_echo "$oracle_home/bigdatasql."
+    else
+        db_table_result[3]=${DB_TABLE_CVALUE_FAILED}
+        db_table_action[3]="$oracle_home/bigdatasql doesn't exist!"
+        fatal_error_echo "${db_table_action[3]}"
+    fi
+
+    checkpoint_echo "<b>$oracle_home/rdbms/admin:</b>"
+
+    if [ -d "$oracle_home/rdbms/admin" ]; then 
+        if [ -f "$oracle_home/rdbms/admin/cathive.sql" ]; then
+            verbose_echo "$oracle_home/rdbms/admin/cathive.sql"
+        else
+            db_table_result[3]=${DB_TABLE_CVALUE_FAILED}
+            db_table_action[3]="Find out why $oracle_home/rdbms/admin/cathive.sql doesn't exist!"
+            fatal_error_echo "${db_table_action[3]}"
+        fi
+        if [ -f "$oracle_home/rdbms/admin/dbmshadp.sql" ]; then
+            verbose_echo "$oracle_home/rdbms/admin/dbmshadp.sql"
+        else
+            db_table_result[3]=${DB_TABLE_CVALUE_FAILED}
+            db_table_action[3]="Find out why $oracle_home/rdbms/admin/dbmshadp.sql doesn't exist!"
+            fatal_error_echo "${db_table_action[3]}"
+        fi
+        if [ -f $oracle_home/lib/libkubsagt*.so ]; then
+            $lscmd $oracle_home/lib/libkubsagt*.so
+        else
+            db_table_result[3]=${DB_TABLE_CVALUE_FAILED}
+            db_table_action[3]="Find out why $oracle_home/lib/libkubsagt*.so doesn't exist!"
+            fatal_error_echo "${db_table_action[3]}"
+        fi
+    else
+        db_table_result[3]=${DB_TABLE_CVALUE_FAILED}
+        db_table_action[3]="Find out why $oracle_home/rdbms/admin doesn't exist!"
+        fatal_error_echo "${db_table_action[3]}"
+    fi
+
+}   # end of check_bdsql_files
+
+
+function check_prerequisites
+{
+    # DB_NODE_RPM_PACKAGE_1, DB_NODE_RPM_PACKAGE_2 & DB_NODE_RPM_PACKAGE_3
+
+    db_table_result[6]=${DB_TABLE_CVALUE_FAILED}
+
+    jdk_tmp=$(cd $oracle_home/bigdatasql; $lscmd -d jdk* 2>/dev/null | $grepcmd -v gz | $tailcmd -1)
+    if [ "$jdk_tmp" != "" ]; then
+        checkpoint_echo "$jdk_tmp"
+    fi
+
+    hadoop_tmp=$(cd $oracle_home/bigdatasql; $lscmd -d hadoop-* 2>/dev/null | $grepcmd -v gz | $tailcmd -1)
+    if [ "$hadoop_tmp" != "" ]; then
+        checkpoint_echo "$hadoop_tmp"
+    fi
+
+    hive_tmp=$(cd $oracle_home/bigdatasql; $lscmd -d hive-* 2>/dev/null | $grepcmd -v gz | $tailcmd -1)
+    if [ "$hive_tmp" != "" ]; then
+        checkpoint_echo "$hive_tmp"
+    fi
+
+    if [ "${OS_TYPE}" == "Linux" ]; then
+    tmp=`$rpmcmd -qa | $grepcmd "${DB_NODE_RPM_PACKAGE_1}\|${DB_NODE_RPM_PACKAGE_2}\|${DB_NODE_RPM_PACKAGE_3}" 2>/dev/null`
+
+    if [ "$tmp" != "" ]; then
+        checkpoint_echo "$tmp"
+    fi
+
+    if [ "$bda_mode" == "1" ]; then
+      if [ "`$echocmd $tmp | $grepcmd -e $DB_NODE_RPM_PACKAGE_1`" != "" ]; 
+      then
+        verbose_echo "RPM package $DB_NODE_RPM_PACKAGE_1."
+        if [ "`$echocmd $tmp | $grepcmd -e $DB_NODE_RPM_PACKAGE_2`" != "" ]; 
+        then
+            verbose_echo "RPM package $DB_NODE_RPM_PACKAGE_2."
+            if [ "`$echocmd $tmp | $grepcmd -e $DB_NODE_RPM_PACKAGE_3`" != "" ]; 
+            then
+                db_table_result[6]=${DB_TABLE_CVALUE_PASSED}
+                verbose_echo "RPM package $DB_NODE_RPM_PACKAGE_3."
+            else
+                db_table_action[6]="$DB_NODE_RPM_PACKAGE_3 is not installed."
+                fatal_error_echo "${db_table_action[6]}"
+            fi
+        else
+            db_table_action[6]="$DB_NODE_RPM_PACKAGE_2 is not installed."
+            fatal_error_echo "${db_table_action[6]}"
+        fi
+      else
+        if [ "$ade_mode" == "" ]; then
+            db_table_action[6]="$DB_NODE_RPM_PACKAGE_1 is not installed."
+            fatal_error_echo "${db_table_action[6]}"
+        else
+            db_table_result[6]=${DB_TABLE_CVALUE_PASSED}
+        fi
+      fi
+    else
+        db_table_result[6]=${DB_TABLE_CVALUE_PASSED}
+    fi
+    else
+        db_table_result[6]=${DB_TABLE_CVALUE_PASSED}
+    fi
+
+}   # end of check_prerequisites
+
+
+function check_kerberos_tickets
+{
+    if [ "${pdb_container}" != "" ]; then
+      $catcmd <<- _EOF_ > $MY_ERROR_LOG_DIRECTORY/bdsql_dbnode_kerberos.sql
+set echo off
+set heading off
+set serveroutput off
+set linesize 132
+
+ALTER SESSION SET CONTAINER = ${pdb_container};
+_EOF_
+    else
+      $catcmd <<- _EOF_ > $MY_ERROR_LOG_DIRECTORY/bdsql_dbnode_kerberos.sql
+set echo off
+set heading off
+set serveroutput off
+set linesize 132
+
+_EOF_
+    fi
+
+    $catcmd <<- _EOF_ >> $MY_ERROR_LOG_DIRECTORY/bdsql_dbnode_kerberos.sql
+
+spool $MY_ERROR_LOG_DIRECTORY/bdsql_authentication_method
+--
+-- 1. Check AUTHENTICATION_METHOD
+--
+
+select SYS_CONTEXT('USERENV', 'AUTHENTICATION_METHOD') sub_vc from dual;
+
+spool off
+exit;
+_EOF_
+
+    if [ "$sqlplus_uid_passwd" != "" ]
+    then
+        sqlplus $sqlplus_uid_passwd @$MY_ERROR_LOG_DIRECTORY/bdsql_dbnode_kerberos > $MY_ERROR_LOG_DIRECTORY/bdsql_dbnode_kerberos.err
+    else
+        sqlplus system/manager @$MY_ERROR_LOG_DIRECTORY/bdsql_dbnode_kerberos > $MY_ERROR_LOG_DIRECTORY/bdsql_dbnode_kerberos.err
+    fi
+
+    db_authentication=$($catcmd ${MY_ERROR_LOG_DIRECTORY}/bdsql_authentication_method.lst | $trcmd -d '\n' | $trcmd -d '\r')
+    checkpoint_echo "<b>DB Node Authentication Method: $db_authentication</b>"
+
+    tmp1=`$klistcmd -e 2>/dev/null`
+    checkpoint_echo_bold "Kerberos Tickets:"
+    verbose_echo "$tmp1"
+
+    if [ -f "/etc/krb5.conf" ]; then
+        checkpoint_echo_bold "/etc/krb5.conf:"
+        verbose_echo "`$catcmd /etc/krb5.conf`"
+    fi
+    
+    tmp=`get_value_by_xml_name ${DB_NODE_BIGDATA_CONFIG}/${bdsql_cluster_name}/core-site.xml hadoop.security.authentication`
+    checkpoint_echo_bold "core-site.xml: hadoop.security.authentication=$tmp"
+
+    tmp=`get_value_by_xml_name ${DB_NODE_BIGDATA_CONFIG}/${bdsql_cluster_name}/core-site.xml hadoop.security.authorization`
+    checkpoint_echo_bold "core-site.xml: hadoop.security.authorization=$tmp"
+
+    case "$db_authentication" in
+      *"KERBEROS"*)
+        db_table_result[9]="$db_authentication"
+
+        if [ "$tmp1" == "" ]; then
+            db_table_action[9]="Double check that if there is indeed no Kerberos tickets in use."
+            fatal_error_echo "${db_table_action[9]}"
+        fi
+
+        ;;
+      *"OS"*)
+        db_table_result[9]="$db_authentication"
+        ;;
+      *)
+        db_table_result[9]="$DB_TABLE_CVALUE_NA"
+        ;;
+    esac
+
+}   # end of check_kerberos_tickets
+
+
+function check_tls_ssl_service
+{
+    checkpoint_echo_bold "DB/Compute Node TLS/SSL Service:"
+
+    if [ -x $nmapcmd ]; then
+        tmp=`$nmapcmd -F -sV localhost 2>/dev/null`
+
+        verbose_echo "$tmp"
+
+        if [ "`$echocmd $tmp | $grepcmd -i openssl 2>/dev/null`" == "" ]; then
+            db_table_action[10]="Double check that if there is indeed no TLS/SSL service configured on your host."
+            nonfatal_error_echo "${db_table_action[10]}"
+        fi
+    fi
+    
+    tmp=`get_value_by_xml_name ${DB_NODE_BIGDATA_CONFIG}/${bdsql_cluster_name}/core-site.xml hadoop.ssl.enabled`
+    checkpoint_echo_bold "core-site.xml: hadoop.ssl.enabled=$tmp"
+
+    case "$tmp" in
+      *"true"*)
+        db_table_result[10]=$DB_TABLE_CVALUE_ON
+        ;;
+      *"false"*)
+        db_table_result[10]=$DB_TABLE_CVALUE_OFF
+        ;;
+      *)
+        db_table_result[10]=$DB_TABLE_CVALUE_NA
+        ;;
+    esac
+
+}   # end of check_tls_ssl_service
+
+
+function check_db_ipsec
+{
+    checkpoint_echo_bold "DB/Compute Node IPSec Check:"
+
+    db_table_result[10]=$DB_TABLE_CVALUE_PASSED
+    tmp=`$catcmd /etc/ipsec.conf | sed "/^[ \t]*#/ d" | grep protostack | tr -d '[\t]'`
+    if [ "$tmp" == "protostack=netkey" ]; then
+        checkpoint_echo_bold "/etc/ipsec.conf has '$tmp' properly defined."
+    else
+        fatal_error_echo "/etc/ipsec.conf does not have 'protostack=netkey'!"
+        db_table_result[10]=$DB_TABLE_CVALUE_FAILED
+        return
+    fi
+
+    tmp=`$catcmd /etc/ipsec.conf | sed "/^[ \t]*#/ d" | grep include | awk '{print $2}'`
+    if [ "$tmp" == "/etc/ipsec.d/*.conf" ]; then
+        checkpoint_echo_bold "/etc/ipsec.conf has '$tmp' properly defined."
+    else
+        fatal_error_echo "/etc/ipsec.conf does not include '/etc/ipsec.d/*.conf'!"
+        db_table_result[10]=$DB_TABLE_CVALUE_FAILED
+        return
+    fi
+
+    $catcmd <<- _EOF_ > $MY_ERROR_LOG_DIRECTORY/check_db_ipsec_1.sh
+#!/bin/bash
+/bin/ls -1 /etc/ipsec.d/$bdsql_cluster_name*.conf | /bin/grep $HOSTNAME
+_EOF_
+
+    $catcmd <<- _EOF_ > $MY_ERROR_LOG_DIRECTORY/check_db_ipsec_2.sh
+#!/bin/bash
+/sbin/service ipsec status
+_EOF_
+
+    $catcmd <<- _EOF_ > $MY_ERROR_LOG_DIRECTORY/check_db_ipsec_3.sh
+#!/bin/bash
+tmp="\`/usr/bin/lsb_release -rs | /bin/cut -f1 -d.\`"
+
+case \$tmp in
+  5)
+    /usr/sbin/ipsec whack --status | /bin/awk '/IPsec SA established/ && /admin/ {print \$3}' | /bin/cut '-d"' -f2
+    ;;
+  *)
+    /usr/sbin/ipsec status | /bin/awk '/IPsec SA established/ && /admin/ {print \$3}' | /bin/cut '-d"' -f2
+    ;;
+esac
+_EOF_
+    $chmodcmd 755 $MY_ERROR_LOG_DIRECTORY/check_db_ipsec_*.sh
+    tmp=
+    tmp=$(run_as root $db_root_passwd $MY_ERROR_LOG_DIRECTORY/check_db_ipsec_1.sh)
+    $echocmd $tmp
+    if [ "$tmp" != "" ]; then
+        checkpoint_echo_bold "/etc/ipsec.d has '$tmp' properly defined."
+    else
+        fatal_error_echo "/etc/ipsec.d does not have a connection configuration file for '$HOSTNAME'!"
+        db_table_result[10]=$DB_TABLE_CVALUE_FAILED
+        return
+    fi
+
+    checkpoint_echo_bold "/sbin/service ipsec status"
+    run_as root $db_root_passwd $MY_ERROR_LOG_DIRECTORY/check_db_ipsec_2.sh
+    $echocmd
+
+    checkpoint_echo_bold "/usr/sbin/ipsec status"
+    run_as root $db_root_passwd $MY_ERROR_LOG_DIRECTORY/check_db_ipsec_3.sh
+    $echocmd
+
+}   # end of check_db_ipsec
+
+
+function check_cell_ipsec
+{
+    checkpoint_echo_bold "Hadoop/Cell Node IPSec Check:"
+    cell_table_result[9]=$CELL_TABLE_CVALUE_PASSED
+
+    $catcmd <<- _EOF_ > $MY_ERROR_LOG_DIRECTORY/check_${new_cell_name}_ipsec_3.sh
+#!/bin/bash
+tmp="\`/usr/bin/lsb_release -rs | /bin/cut -f1 -d.\`"
+
+case \$tmp in
+  5)
+    /usr/sbin/ipsec whack --status | /bin/awk '/IPsec SA established/ {print \$3}' | /bin/cut '-d"' -f2
+    ;;
+  *)
+    /usr/sbin/ipsec status | /bin/awk '/IPsec SA established/ {print \$3}' | /bin/cut '-d"' -f2
+    ;;
+esac
+_EOF_
+
+    $chmodcmd 755 $MY_ERROR_LOG_DIRECTORY/check_${new_cell_name}_ipsec_*.sh
+
+    tmp=
+    tmp=`remote_copy ${MY_ERROR_LOG_DIRECTORY}/check_${new_cell_name}_ipsec_3.sh root@${cell_name}:/tmp/check_${new_cell_name}_ipsec_3.sh $cell_root_passwd $identitykey`
+    checkpoint_echo_bold "remote_copy ${MY_ERROR_LOG_DIRECTORY}/check_${new_cell_name}_ipsec_3.sh root@${cell_name}:/tmp/check_${new_cell_name}_ipsec_3.sh $identitykey"
+    verbose_echo "$tmp"
+
+    command="/tmp/check_${new_cell_name}_ipsec_3.sh"
+    checkpoint_echo_bold "remote_command root $cell_name $command $identitykey"
+    checkpoint_echo "`$catcmd ${MY_ERROR_LOG_DIRECTORY}/check_${new_cell_name}_ipsec_3.sh`"
+
+    tmp=`remote_command root $cell_name $cell_root_passwd $command $identitykey`
+    checkpoint_echo "$tmp"
+    tmp2=
+    tmp2=`$echocmd "$tmp" | $sedcmd -e 's/\r/\n/g' | $grepcmd -e $HOSTNAME -e ${new_cell_name} | $awkcmd '{print $1}'`
+
+    if [ "$tmp2" == "" ]; then
+        cell_table_result[9]=$CELL_TABLE_CVALUE_FAILED
+        fatal_error_echo "IPSec active connection not found!"
+    else
+        checkpoint_echo "IPSec active connection: $tmp2"
+    fi
+
+}   # end of check_cell_ipsec
+
+
+function print_dbnode_table_json
+{
+$echocmd "\"${hostname}\":["
+
+for i in {2..9}
+do
+  $echocmd "  {"
+  $echocmd "    \"check\":\"${DB_TABLE_CNAME[$i]}\","
+  $echocmd "    \"result\":\"${db_table_result[$i]}\","
+  $echocmd "    \"action\":\"${db_table_action[$i]}\""
+  $echocmd "  },"
+done
+
+  $echocmd "  {"
+  $echocmd "    \"check\":\"${DB_TABLE_CNAME[10]}\","
+  $echocmd "    \"result\":\"${db_table_result[10]}\","
+  $echocmd "    \"action\":\"${db_table_action[10]}\""
+  $echocmd "  }"
+$echocmd "]"
+
+}   # end of print_dbnode_table_json
+
+
+function print_cellnode_table_json
+{
+echo "\"${cell_name}\":["
+
+for i in {2..8}
+do
+  $echocmd "  {"
+  $echocmd "    \"check\":\"${CELL_TABLE_CNAME[$i]}\","
+  $echocmd "    \"result\":\"${cell_table_result[$i]}\","
+  $echocmd "    \"action\":\"${cell_table_action[$i]}\""
+  $echocmd "  },"
+done
+
+  $echocmd "  {"
+  $echocmd "    \"check\":\"${CELL_TABLE_CNAME[9]}\","
+  $echocmd "    \"result\":\"${cell_table_result[9]}\","
+  $echocmd "    \"action\":\"${cell_table_action[9]}\""
+  $echocmd "  }"
+$echocmd "];"
+
+}   # end of print_cellnode_table_json
+
+
+function check_dbnode
+{
+    # Clean up $MY_ERROR_LOG_DIRECTORY/*
+    $rmcmd -f ${MY_ERROR_LOG_DIRECTORY}/* > /dev/null
+
+    $echocmd "<h3>Database/Compute Node: </h3>"
+    $echocmd "<pre>"
+
+    ##------------------------------------------------
+    # DB node check point 1: DB Node
+    ##------------------------------------------------
+    $echocmd "<h3 id="D1"><font color="blue">${DB_TABLE_CNAME[1]}</font></h3>"
+
+    # Check if BDA
+    if [ -x $bdaclicmd ]; then
+        $echocmd "<b>BDA Server Name       </b>= `$bdaclicmd getinfo server_name`"
+        $echocmd "<b>BDA Server OS Version </b>= Oracle Linux `$bdaclicmd getinfo server_os_version`"
+        $echocmd "<b>BDA Rack Name         </b>= `$bdaclicmd getinfo rack_name`"
+        $echocmd "<b>BDA Rack Serial NO.   </b>= `$bdaclicmd getinfo rack_serial_number`"
+    fi
+
+    $echocmd
+    host_ip=`$getentcmd ahosts $HOSTNAME | sed -n 's/ *STREAM.*//p' | grep -v :`
+    MY_DB_HOST_IP=${host_ip}
+    $echocmd "<b>Database Node = $hostname ($host_ip)</b>"
+
+    case ${OS_TYPE} in
+      Linux)
+        tmp="`$ipcmd addr show | $grepcmd $host_ip`"
+        ;;
+      SunOS)
+        x="`$ifconfigcmd -a | $grepcmd -n $host_ip | $cutcmd -d: -f1`"
+        y=1
+        ans=$(( x - y ))
+        tmp=`$ifconfigcmd -a | $sedcmd -n "${ans}p"`
+        ;;
+      *)
+        ;;
+    esac
+
+    case "$tmp" in
+      *"bondib"*)
+        $echocmd "<b>Host IP address $host_ip is bonded to InfiniBand</b>"
+        ;;
+      *"bondeth"*)
+        $echocmd "<b>Host IP address $host_ip is bonded to Ethernet</b>"
+        ;;
+      *"bondmgt"*)
+        $echocmd "<b>Host IP address $host_ip is bonded to a management group</b>"
+        ;;
+      *)
+        $echocmd "<b>Host IP address is $host_ip</b>"
+        ;;
+    esac
+
+    $echocmd
+    $echocmd "<b>BDSQL ORACLE_HOME     </b>= $oracle_home"
+    $echocmd "<b>BDSQL ORACLE_SID      </b>= $oracle_sid"
+    if [ "${pdb_container}" != "" ]; then
+      $echocmd "<b>BDSQL PDB CONTAINER   </b>= $pdb_container"
+    fi
+    $echocmd "<b>BDSQL HOME            </b>= $oracle_home/bigdatasql"
+    $echocmd "<b>BDSQL Cluster         </b>= ${bdsql_cluster_name}"
+    $echocmd "<b>BDSQL Default Cluster </b>= $bigdata_cluster_default"
+    $echocmd "<b>BDSQL Diskmon Trace   </b>= ${diagnostic_dest}/diag/crs/$hostname/crs/trace/diskmon.trc"
+    $echocmd "<b>BDSQL Trace Log       </b>= $oracle_home/bigdatasql/log"
+
+    if [ "$ade_mode" == "" ]; then
+        $echocmd "<b>BDSQL Extproc Init    </b>= $oracle_home/hs/admin/initbds_${db_unique_name}_${bdsql_cluster_name}.ora"
+    else
+        $echocmd "<b>BDSQL Extproc Init    </b>= $oracle_home/hs/admin/initBDSQL_${bdsql_cluster_name}.ora"
+    fi
+    $echocmd "<b>BDSQL Extproc Log     </b>= $oracle_home/hs/log"
+    $echocmd 
+    $echocmd "<b>Hadoop Env File       </b>= $hadoop_env_file"
+    $echocmd "<b>HADOOP_HOME           </b>= $HADOOP_HOME"
+    $echocmd "<b>HADOOP_CONF_DIR       </b>= $HADOOP_CONF_DIR"
+    $echocmd "<b>HADOOP_OPTS           </b>= $HADOOP_OPTS"
+    $echocmd
+    $echocmd "<b>HIVE_HOME             </b>= $HIVE_HOME"
+    $echocmd "<b>HIVE_CONF_DIR         </b>= $HIVE_CONF_DIR"
+    $echocmd
+    $echocmd "<b>JAVA_HOME             </b>= $JAVA_HOME"
+    $echocmd
+    $echocmd "<b>/etc/hosts:           </b>"
+    $catcmd /etc/hosts
+    $echocmd
+
+    if [ "${GI_HOME}" != "" ]; then
+        $echocmd
+        $echocmd "<b>CRS/GI_HOME*          </b>= ${GI_HOME}"
+#       $echocmd "<b>TNS_ADMIN             </b>= ${TNS_ADMIN}"
+        $echocmd "<b>DISKMON Process*      </b>= $($pscmd -aef | $grepcmd diskmon | $grepcmd -v grep)"
+        $echocmd
+#       $echocmd "<b>Installation Inventory for GI_HOME \"${GI_HOME}\"</b>"
+#       $echocmd
+        grid_lsinventory
+    fi
+
+
+    ##------------------------------------------------
+    # DB node check point 2: DB Node Sanity Test
+    ##------------------------------------------------
+    $echocmd "<h3 id="D2"><font color="blue">${DB_TABLE_CNAME[2]}</font></h3>"
+    db_table_result[2]=${DB_TABLE_CVALUE_PASSED}
+
+    checkpoint_echo_bold "Oracle Net Service Configuration (ORACLE_HOME):"
+
+    if [[ -z "${TNS_ADMIN}" ]]; then
+#       TNS_ADMIN is not defined!
+        $echocmd "<b>TNS_ADMIN is not defined!</b>"
+        $echocmd
+        $echocmd "<b>\$ORACLE_HOME/network/admin/sqlnet.ora:</b>"
+        $catcmd ${ORACLE_HOME}/network/admin/sqlnet.ora 2>/dev/null
+        tmpoh=$($catcmd ${ORACLE_HOME}/network/admin/sqlnet.ora 2>/dev/null | $grepcmd -i SQLNET.WALLET_OVERRIDE | $grepcmd -v '#' | $cutcmd -d= -f2 | $sedcmd 's/[[:space:]]//g' | $trcmd [:upper:] [:lower:])
+    else
+#       TNS_ADMIN is defined!
+        $echocmd "<b>TNS_ADMIN = ${TNS_ADMIN}</b>"
+        $echocmd
+        $echocmd "<b>\$TNS_ADMIN/sqlnet.ora:</b>"
+        $catcmd ${TNS_ADMIN}/sqlnet.ora 2>/dev/null
+        tmpta=$($catcmd ${TNS_ADMIN}/sqlnet.ora 2>/dev/null | $grepcmd -i SQLNET.WALLET_OVERRIDE | $grepcmd -v '#' | $cutcmd -d= -f2 | $sedcmd 's/[[:space:]]//g' | $trcmd [:upper:] [:lower:])
+    fi
+    $echocmd
+    if [[ "$tmpoh" == "true" ]]; then
+        fatal_error_echo "SQLNET.WALLET_OVERRIDE=TRUE is defined in your \$ORACLE_HOME/network/admin/sqlnet.ora"
+        db_table_result[2]=${DB_TABLE_CVALUE_FAILED}
+        echo_bold "Refer to the following Oracle Doc to help you to configure sqlnet.ora properly!"
+        echo_bold "Setting up Oracle Big Data SQL and Oracle Secure External Password Store (Doc ID 2126903.1)"
+    fi
+    if [[ "$tmpta" == "true" ]]; then
+        if [[ "${TNS_ADMIN}" == "${ORACLE_HOME}/network/admin" ]]; then
+            fatal_error_echo "SQLNET.WALLET_OVERRIDE=TRUE is defined in your \$ORACLE_HOME/network/admin/sqlnet.ora"
+            db_table_result[2]=${DB_TABLE_CVALUE_FAILED}
+        else
+            nonfatal_error_echo "SQLNET.WALLET_OVERRIDE=TRUE is defined in your \$TNS_ADMIN/network/admin/sqlnet.ora"
+        fi
+        echo_bold "Refer to the following Oracle Doc to help you to configure sqlnet.ora properly!"
+        echo_bold "Setting up Oracle Big Data SQL and Oracle Secure External Password Store (Doc ID 2126903.1)"
+    fi
+    $echocmd
+
+    checkpoint_echo_bold "Oracle Listener Status (ORACLE_HOME):"
+    if [ "${oracle_listener}" != "" ]; then
+        lsnrctl status "${oracle_listener}"
+    else
+        lsnrctl status
+    fi
+
+    #----------------------------------------------------------------
+    # Opatch Inventory
+    #----------------------------------------------------------------
+    $echocmd
+    $echocmd "<b>Installation Inventory for ORACLE_HOME \"${ORACLE_HOME}\"</b>"
+    $echocmd
+    if [ "$ade_mode" == "" ]; then
+      if [ -x $oracle_home/OPatch/opatch ]; then
+        $echocmd "`$oracle_home/OPatch/opatch lsinventory 2>/dev/null`"
+      fi
+    else
+      if [ -x $oracle_home/opatch/OPatch/opatch ]; then
+        $echocmd "You are running $BASENAME in Oarcle ADE view name \"$ADE_VIEW_NAME\"."
+        $echocmd
+        $echocmd "`$oracle_home/opatch/OPatch/opatch lsinventory 2>/dev/null`"
+      fi
+    fi
+
+    #----------------------------------------------------------------
+    # SSL_WALLET and HTTP_PROXY:
+    # If SSL_WALLET database property is set, customer must have set to 
+    # use object store. Then we could go ahead and check http_proxy 
+    # property AND actual wallet directory on DB and Cell nodes.
+    #
+    # Check objectstoresupport=<"true"> indicator in 
+    # $ORACLE_HOME/BDSJaguar*/*/database-install.env first because 
+    # it should only appears in BDS 4.0 and above.
+    #----------------------------------------------------------------
+
+    if [[ "$DB_NODE_IS_WALLET" == *"true"* ]]; then
+       $echocmd
+       checkpoint_echo_bold "Check if SSL_WALLET database property is set? (ORACLE_HOME):"
+       tmp=`grep "no rows selected" /tmp/ssl_wallet.lst`
+
+       if [[ "$tmp" == "no rows selected"* ]]
+       then
+          echo_bold "SSL_WALLET is not set!"
+       else
+          checkpoint_echo_bold "Check HTTP_PROXY database property and wallet directory:"
+          # Check $ORACLE_HOME/admin/<unique_db_name>/ssl_wallet
+          echo_bold "select property_value from database_properties where property_name='HTTP_PROXY';"
+          tmp=`$catcmd /tmp/http_proxy`
+          echo_bold $tmp
+   
+          if [ -d "${oracle_home}/admin/${unique_db_name}/ssl_wallet" ]; then
+             echo_bold "${oracle_home}/admin/${unique_db_name}/ssl_wallet is proprely set!"
+          else
+             fatal_error_echo "${oracle_home}/admin/${unique_db_name}/ssl_wallet is not found!"
+             db_table_result[2]=${DB_TABLE_CVALUE_FAILED}
+          fi
+       fi
+    fi
+
+    ##----------------------------------------------------------------
+    # DB node check point 3: Key directories, files and SQL/Datapatch
+    ##----------------------------------------------------------------
+    $echocmd "<h3 id="D3"><font color="blue">${DB_TABLE_CNAME[3]}</font></h3>"
+
+    check_sqlpatch_status
+
+    check_database_initparams
+
+    check_bdsql_files
+
+    ##-------------------------------------------------
+    # DB node check point 4: Database objects
+    ##-------------------------------------------------
+    $echocmd "<h3 id="D4"><font color="blue">${DB_TABLE_CNAME[4]}</font></h3>"
+    check_database_objects
+
+    if [ "$trace_mode" == "1" ]; then
+        turn_on_tracing
+    fi
+
+    ##-------------------------------------------------
+    # DB node check point 5: Extproc
+    ##-------------------------------------------------
+    $echocmd "<h3 id="D5"><font color="blue">${DB_TABLE_CNAME[5]}</font></h3>"
+    check_database_extproc
+
+    ##-------------------------------------------------
+    # DB node check point 6: Hadoop client
+    ##-------------------------------------------------
+    $echocmd "<h3 id="D6"><font color="blue">${DB_TABLE_CNAME[6]}</font></h3>"
+    if [ "$ade_mode" == "" ]; then
+        check_prerequisites
+    else
+        $echocmd "<b>N.A.</b>"
+        $echocmd "You are running $BASENAME in Oarcle ADE view name \"$ADE_VIEW_NAME\"."
+    fi
+
+    ##-------------------------------------------------
+    # DB node check point 7,8: Sanity test
+    ##-------------------------------------------------
+    run_dbnode_bdsql_sanity_test
+
+    ##-------------------------------------------------
+    # DB node check point 9: Kerberos tickets
+    ##-------------------------------------------------
+    $echocmd "<h3 id="D9"><font color="blue">${DB_TABLE_CNAME[9]}</font></h3>"
+    check_kerberos_tickets
+
+    ##-------------------------------------------------
+    # DB node check point 10: TLS/SSL/IPSec service
+    ##-------------------------------------------------
+    $echocmd "<h3 id="D10"><font color="blue">${DB_TABLE_CNAME[10]}</font></h3>"
+    check_tls_ssl_service
+
+    # ipsec check for extensive mode only
+    if [ "$x_mode" == "1" ]; then
+        check_db_ipsec
+    fi
+
+    $catcmd <<- _EOF_ > $MY_ERROR_LOG_DIRECTORY/bdsql_dbnode_result.txt
+${db_table_result[1]}
+${db_table_result[2]}
+${db_table_result[3]}
+${db_table_result[4]}
+${db_table_result[5]}
+${db_table_result[6]}
+${db_table_result[7]}
+${db_table_result[8]}
+${db_table_result[9]}
+${db_table_result[10]}
+_EOF_
+    $echocmd "</pre>"
+
+    $catcmd <<- _EOF_ > $MY_ERROR_LOG_DIRECTORY/bdsql_dbnode_result.json
+    $(print_dbnode_table_json)
+_EOF_
+
+}   # end of check_dbnode
+
+
+function run_cellnode_bdsql_sanity_test
+{
+    cell_name=$1
+    first_cell_name=$2
+    new_cell_name="`echo $cell_name | sed 's/\./_/g' | sed 's/-/_/g'`"
+
+    if [ "$cellsanity_mode" == "1" ]; then
+        $catcmd <<- _EOF_ > $MY_ERROR_LOG_DIRECTORY/bdsql_${new_cell_name}_sanity_test.txt
+This is a test created by $BASENAME from ${new_cell_name} on $RIGHT_NOW.
+_EOF_
+
+        $hadoopcmd fs -rm /tmp/oracle/${BASENAME}_${new_cell_name}_test.txt > $MY_ERROR_LOG_DIRECTORY/hadoop_${new_cell_name}_fs_rm.out 2>&1
+        checkpoint_echo_bold "$hadoopcmd fs -rm /tmp/oracle/${BASENAME}_${new_cell_name}_test.txt"
+        verbose_echo "$MY_ERROR_LOG_DIRECTORY/hadoop_${new_cell_name}_fs_rm.out"
+
+        $hadoopcmd fs -put $MY_ERROR_LOG_DIRECTORY/bdsql_${new_cell_name}_sanity_test.txt /tmp/oracle/${BASENAME}_${new_cell_name}_test.txt > $MY_ERROR_LOG_DIRECTORY/hadoop_${new_cell_name}_fs_put.out 2>&1
+        checkpoint_echo_bold "$hadoopcmd fs -put bdsql_${new_cell_name}_sanity_test.txt /tmp/oracle/${BASENAME}_${new_cell_name}_test.txt"
+        verbose_echo "$MY_ERROR_LOG_DIRECTORY/hadoop_${new_cell_name}_fs_put.out"
+
+        tmp=$($grepcmd failed $MY_ERROR_LOG_DIRECTORY/hadoop_${new_cell_name}_fs_put.out | $sedcmd -n '1p')
+
+        if [ "$tmp" != "" ]
+        then
+            cell_table_action[2]="$tmp"
+            fatal_error_echo "${cell_table_action[2]}"
+        else
+            $catcmd <<- _EOF_ > $MY_ERROR_LOG_DIRECTORY/setup_${new_cell_name}_1.sh
+#!/bin/bash
+hive -e "drop table if exists bds_test_${new_cell_name}_hive"
+_EOF_
+
+            $catcmd <<- _EOF_ > $MY_ERROR_LOG_DIRECTORY/setup_${new_cell_name}_2.sh
+#!/bin/bash
+hive -e "create table bds_test_${new_cell_name}_hive(line string)"
+_EOF_
+
+            $catcmd <<- _EOF_ > $MY_ERROR_LOG_DIRECTORY/setup_${new_cell_name}_3.sh
+#!/bin/bash
+hive -e "load data inpath '/tmp/oracle/${BASENAME}_${new_cell_name}_test.txt' overwrite into table bds_test_${new_cell_name}_hive"
+_EOF_
+    
+            $chmodcmd 755 $MY_ERROR_LOG_DIRECTORY/setup_${new_cell_name}_*.sh
+
+            if [ "$pdb_container" != "" ]
+            then
+              $catcmd <<- _EOF_ > $MY_ERROR_LOG_DIRECTORY/bdsql_${new_cell_name}_sanity_test0.sql
+ALTER SESSION SET CONTAINER = ${pdb_container};
+DROP TABLE bds_test_${new_cell_name}_db;
+exit;
+_EOF_
+            else
+              $catcmd <<- _EOF_ > $MY_ERROR_LOG_DIRECTORY/bdsql_${new_cell_name}_sanity_test0.sql
+DROP TABLE bds_test_${new_cell_name}_db;
+exit;
+_EOF_
+            fi
+
+            if [ "$pdb_container" != "" ]
+            then
+              $catcmd <<- _EOF_ > $MY_ERROR_LOG_DIRECTORY/bdsql_${new_cell_name}_sanity_test.sql
+set linesize 132
+set serveroutput on
+
+ALTER SESSION SET CONTAINER = ${pdb_container};
+_EOF_
+        else
+              $catcmd <<- _EOF_ > $MY_ERROR_LOG_DIRECTORY/bdsql_${new_cell_name}_sanity_test.sql
+set linesize 132
+set serveroutput on
+
+_EOF_
+            fi
+
+            $catcmd <<- _EOF_ >> $MY_ERROR_LOG_DIRECTORY/bdsql_${new_cell_name}_sanity_test.sql
+DECLARE
+   DDLtxt VARCHAR2(4000);
+BEGIN
+   dbms_hadoop.create_extddl_for_hive(
+     CLUSTER_ID=>'${bdsql_cluster_name}',
+     DB_NAME=>'default',
+     HIVE_TABLE_NAME=>'bds_test_${new_cell_name}_hive',
+     HIVE_PARTITION=>FALSE,
+     TABLE_NAME=>'bds_test_${new_cell_name}_db',
+     PERFORM_DDL=>TRUE,
+     TEXT_OF_DDL=>DDLtxt
+   );
+   dbms_output.put_line(DDLtxt);
+END;
+/
+exit;
+_EOF_
+
+            if [ "$pdb_container" != "" ]
+            then
+              $catcmd <<- _EOF_ > $MY_ERROR_LOG_DIRECTORY/bdsql_${new_cell_name}_sanity_test1.sql
+set linesize 132
+ALTER SESSION SET CONTAINER = ${pdb_container};
+SELECT * FROM bds_test_${new_cell_name}_db;
+exit;
+_EOF_
+            else
+              $catcmd <<- _EOF_ > $MY_ERROR_LOG_DIRECTORY/bdsql_${new_cell_name}_sanity_test1.sql
+set linesize 132
+SELECT * FROM bds_test_${new_cell_name}_db;
+exit;
+_EOF_
+            fi
+        fi
+
+        tmp=`remote_copy ${MY_ERROR_LOG_DIRECTORY}/setup_${new_cell_name}_1.sh $username@${cell_name}:setup_${new_cell_name}_1.sh $password $identitykey`
+        verbose_echo "$tmp"
+
+        tmp=`remote_copy ${MY_ERROR_LOG_DIRECTORY}/setup_${new_cell_name}_2.sh $username@${cell_name}:setup_${new_cell_name}_2.sh $password $identitykey`
+        verbose_echo "$tmp"
+    
+        tmp=`remote_copy ${MY_ERROR_LOG_DIRECTORY}/setup_${new_cell_name}_3.sh $username@${cell_name}:setup_${new_cell_name}_3.sh $password $identitykey`
+        verbose_echo "$tmp"
+
+        command="./setup_${new_cell_name}_1.sh"
+        checkpoint_echo_bold "remote_command $username $cell_name $command $identitykey"
+        tmp=`remote_command $username $cell_name $password $command $identitykey`
+        checkpoint_echo "`$catcmd ${MY_ERROR_LOG_DIRECTORY}/setup_${new_cell_name}_1.sh`"
+        verbose_echo "$tmp"
+
+        command="./setup_${new_cell_name}_2.sh"
+        checkpoint_echo_bold "remote_command $username $cell_name $command $identitykey"
+        tmp=`remote_command $username $cell_name $password $command $identitykey`
+        checkpoint_echo "`$catcmd ${MY_ERROR_LOG_DIRECTORY}/setup_${new_cell_name}_2.sh`"
+        verbose_echo "$tmp"
+
+        command="./setup_${new_cell_name}_3.sh"
+        checkpoint_echo_bold "remote_command $username $cell_name $command $identitykey"
+        tmp=`remote_command $username $cell_name $password $command $identitykey`
+        checkpoint_echo "`$catcmd ${MY_ERROR_LOG_DIRECTORY}/setup_${new_cell_name}_3.sh`"
+        verbose_echo "$tmp"
+    fi
+
+    my_timestamp="`/bin/date +%Y%m%d%H%M`"
+
+    $catcmd <<- _EOF_ > $MY_ERROR_LOG_DIRECTORY/setup_${new_cell_name}_kill.sh
+#!/bin/bash
+pid="\`/bin/ps -aef | /bin/grep bdsqloflsrv | /bin/grep -v grep | /bin/awk '{print \$2}'\`"
+echo "/bin/kill -12 \$pid" > /tmp/setup_${new_cell_name}_kill.log
+/bin/kill -12 \$pid
+_EOF_
+    $chmodcmd 755 $MY_ERROR_LOG_DIRECTORY/setup_${new_cell_name}_*.sh
+    tmp=`remote_copy ${MY_ERROR_LOG_DIRECTORY}/setup_${new_cell_name}_kill.sh $username@${cell_name}:setup_${new_cell_name}_kill.sh $password $identitykey`
+    verbose_echo "$tmp"
+
+    $catcmd <<- _EOF_ > $MY_ERROR_LOG_DIRECTORY/setup_${new_cell_name}_tar.sh
+#!/bin/bash
+cd \$ADR_BASE
+/bin/find . -cmin -10 -type f | /bin/grep trc | /bin/tar -czf /tmp/bdsql_${new_cell_name}_sanity_adr_${my_timestamp}.tar.gz -T - >> /tmp/setup_${new_cell_name}_tar.log
+cd /opt/oracle/bd_cell/log/deploy
+/bin/find . -cmin -10 -type f | /bin/grep trc | /bin/tar -czf /tmp/bdsql_${new_cell_name}_sanity_test_${my_timestamp}.tar.gz -T - >> /tmp/setup_${new_cell_name}_tar.log
+_EOF_
+    $chmodcmd 755 $MY_ERROR_LOG_DIRECTORY/setup_${new_cell_name}_*.sh
+    tmp=`remote_copy ${MY_ERROR_LOG_DIRECTORY}/setup_${new_cell_name}_tar.sh $username@${cell_name}:setup_${new_cell_name}_tar.sh $password $identitykey`
+    verbose_echo "$tmp"
+
+    if [ "$cellsanity_mode" == "1" ]; then
+    if [ "$sqlplus_uid_passwd" != "" ]
+    then
+        sqlplus $sqlplus_uid_passwd @$MY_ERROR_LOG_DIRECTORY/bdsql_${new_cell_name}_sanity_test0.sql > $MY_ERROR_LOG_DIRECTORY/bdsql_${new_cell_name}_sanity_test0.err
+        sqlplus $sqlplus_uid_passwd @$MY_ERROR_LOG_DIRECTORY/bdsql_${new_cell_name}_sanity_test.sql > $MY_ERROR_LOG_DIRECTORY/bdsql_${new_cell_name}_sanity_test.err
+    else
+        sqlplus system/manager @$MY_ERROR_LOG_DIRECTORY/bdsql_${new_cell_name}_sanity_test0 > $MY_ERROR_LOG_DIRECTORY/bdsql_${new_cell_name}_sanity_test0.err
+        sqlplus system/manager @$MY_ERROR_LOG_DIRECTORY/bdsql_${new_cell_name}_sanity_test > $MY_ERROR_LOG_DIRECTORY/bdsql_${new_cell_name}_sanity_test.err
+    fi
+
+    checkpoint_echo_bold "sqlplus $sqlplus_uid_passwd @$MY_ERROR_LOG_DIRECTORY/bdsql_${new_cell_name}_sanity_test0"
+    verbose_echo "$catcmd $MY_ERROR_LOG_DIRECTORY/bdsql_${new_cell_name}_sanity_test0.sql"
+    $echocmd "`$catcmd $MY_ERROR_LOG_DIRECTORY/bdsql_${new_cell_name}_sanity_test0.sql`"
+
+    tmp=`$catcmd $MY_ERROR_LOG_DIRECTORY/bdsql_${new_cell_name}_sanity_test0.err`
+    verbose_echo "$tmp"
+
+    checkpoint_echo_bold "sqlplus $sqlplus_uid_passwd @$MY_ERROR_LOG_DIRECTORY/bdsql_${new_cell_name}_sanity_test"
+    verbose_echo "$catcmd $MY_ERROR_LOG_DIRECTORY/bdsql_${new_cell_name}_sanity_test.sql"
+    $echocmd "`$catcmd $MY_ERROR_LOG_DIRECTORY/bdsql_${new_cell_name}_sanity_test.sql`"
+
+    tmp=`$catcmd $MY_ERROR_LOG_DIRECTORY/bdsql_${new_cell_name}_sanity_test.err`
+    verbose_echo "$tmp"
+
+    command="./setup_${new_cell_name}_3.sh"
+    checkpoint_echo_bold "remote_command $username $cell_name $command $identitykey"
+    tmp=`remote_command $username $cell_name $password $command $identitykey`
+    checkpoint_echo "`$catcmd ${MY_ERROR_LOG_DIRECTORY}/setup_${new_cell_name}_3.sh`"
+    verbose_echo "$tmp"
+
+    $sleepcmd 5
+
+    if [ "$sqlplus_uid_passwd" != "" ]
+    then
+        sqlplus $sqlplus_uid_passwd @$MY_ERROR_LOG_DIRECTORY/bdsql_${new_cell_name}_sanity_test1.sql > $MY_ERROR_LOG_DIRECTORY/bdsql_${new_cell_name}_sanity_test1.err
+    else
+        sqlplus system/manager @$MY_ERROR_LOG_DIRECTORY/bdsql_${new_cell_name}_sanity_test1 > $MY_ERROR_LOG_DIRECTORY/bdsql_${new_cell_name}_sanity_test1.err
+    fi
+
+    checkpoint_echo_bold "sqlplus $sqlplus_uid_passwd @$MY_ERROR_LOG_DIRECTORY/bdsql_${new_cell_name}_sanity_test1"
+    verbose_echo "$catcmd $MY_ERROR_LOG_DIRECTORY/bdsql_${new_cell_name}_sanity_test1.sql"
+    $echocmd "`$catcmd $MY_ERROR_LOG_DIRECTORY/bdsql_${new_cell_name}_sanity_test1.sql`"
+
+    tmp=`$catcmd $MY_ERROR_LOG_DIRECTORY/bdsql_${new_cell_name}_sanity_test1.err`
+    verbose_echo "$tmp"
+
+    tmp=`$grepcmd " from ${new_cell_name}" $MY_ERROR_LOG_DIRECTORY/bdsql_${new_cell_name}_sanity_test1.err`
+    checkpoint_echo_bold "Input:  `$catcmd $MY_ERROR_LOG_DIRECTORY/bdsql_${new_cell_name}_sanity_test.txt`"
+    checkpoint_echo_bold "Output: $tmp"
+    if [ "$tmp" != "`$catcmd $MY_ERROR_LOG_DIRECTORY/bdsql_${new_cell_name}_sanity_test.txt`" ]; then
+        cell_table_result[2]=$CELL_TABLE_CVALUE_FAILED
+        fatal_error_echo "Sanity test failed! (See $MY_ERROR_LOG_DIRECTORY/bdsql_${new_cell_name}_sanity_test*.* for great details)"
+    fi
+    fi
+
+    if [ "$cellsanity_mode" == "1" ]; then
+    if [[ $tmp == "`$catcmd $MY_ERROR_LOG_DIRECTORY/bdsql_${new_cell_name}_sanity_test.txt`" ]]; 
+    then
+        declare ${cell_name}_retry_err_count_before=`$grepcmd "${CELL_XT_OFFLOAD_RETRIES}" $MY_ERROR_LOG_DIRECTORY/bdsql_statistics.err | $awkcmd '{print $7}'`
+        if [ "$sqlplus_uid_passwd" != "" ]
+        then
+            sqlplus $sqlplus_uid_passwd @$MY_ERROR_LOG_DIRECTORY/bdsql_statistics > $MY_ERROR_LOG_DIRECTORY/bdsql_statistics.err
+        else
+            sqlplus system/manager @$MY_ERROR_LOG_DIRECTORY/bdsql_statistics > $MY_ERROR_LOG_DIRECTORY/bdsql_statistics.err
+        fi
+ 
+        $echocmd
+        checkpoint_echo "<b>Statistics:</b>"
+        $echocmd "`$catcmd bdsql_statistics.lst`"
+
+        declare ${cell_name}_retry_err_count_after=`$grepcmd "${CELL_XT_OFFLOAD_RETRIES}" $MY_ERROR_LOG_DIRECTORY/bdsql_statistics.err | $awkcmd '{print $7}'`
+        $echocmd
+        checkpoint_echo_bold "Offload retry counts: ${cell_name}_retry_err_count_before (before) --> ${cell_name}_retry_err_count_after (after)"
+
+#       if [ ${cell_name}_retry_err_count_before -ne ${cell_name}_retry_err_count_after ]; then
+#       if [ ${!${cell_name}_retry_err_count_before} -ne ${!${cell_name}_retry_err_count_after} ]; then
+#       if [ $(tmpvar1=${cell_name}_retry_err_count_before && echo ${!tmpvar1}) -ne $(tmpvar2=${cell_name}_retry_err_count_afte && echo ${!tmpvar2}) ]; then
+#           nonfatal_error_echo "Although the sanity test passed, offload retry is observed and it may be involving fallback."
+#       fi
+#       $rmcmd -f $MY_ERROR_LOG_DIRECTORY/bdsql_${new_cell_name}_sanity_test.* $MY_ERROR_LOG_DIRECTORY/bdsql_${new_cell_name}_sanity_test1.*
+    else 
+        $echocmd
+    fi
+    fi
+
+#       if [ "$cell_name" == "$first_cell_name" ]; then
+#           cell_table_result[2]=$CELL_TABLE_CVALUE_FAILED
+#       fi
+#       fatal_error_echo "Sanity test failed! (See $MY_ERROR_LOG_DIRECTORY/bdsql_${new_cell_name}_sanity_test*.* for great details)"
+
+    db_table_result[8]="`$catcmd $MY_ERROR_LOG_DIRECTORY/.db_node_sanity`"
+
+    if [ "${db_table_result[8]}" != "${DB_TABLE_CVALUE_PASSED}" ]; then
+        cell_table_result[2]=$CELL_TABLE_CVALUE_FAILED
+        # Run kill -12 <pid_of_bdsqloflsrv> to trigger user-defined signal for additional tracing
+        command="./setup_${new_cell_name}_kill.sh"
+        checkpoint_echo_bold "remote_command $username $cell_name $command $identitykey"
+        tmp=`remote_command $username $cell_name $password $command $identitykey`
+        verbose_echo "$tmp"
+        $sleepcmd 10
+        command="./setup_${new_cell_name}_tar.sh"
+        checkpoint_echo_bold "remote_command $username $cell_name $command $identitykey"
+        tmp=`remote_command $username $cell_name $password $command $identitykey`
+        verbose_echo "$tmp"
+
+#       command="cd \$ADR_BASE; $findcmd . -cmin -10 -type f | $grepcmd trc | $tarcmd -czf /tmp/bdsql_${new_cell_name}_sanity_adr_${my_timestamp}.tar.gz -T -"
+#       checkpoint_echo_bold "remote_command $username $cell_name $command $identitykey"
+#       tmp=`remote_command $username $cell_name $password $command $identitykey`
+#       verbose_echo "$tmp"
+        tmp=`remote_copy $username@${cell_name}:/tmp/bdsql_${new_cell_name}_sanity_adr_${my_timestamp}.tar.gz $MY_LOG_DIRECTORY $password $identitykey`
+        verbose_echo "$tmp"
+
+#       command="cd /opt/oracle/bd_cell/log/deploy; $findcmd . -cmin -10 -type f | $grepcmd trc | $tarcmd -czf /tmp/bdsql_${new_cell_name}_sanity_test_${my_timestamp}.tar.gz -T -"
+#       checkpoint_echo_bold "remote_command $username $cell_name $command $identitykey"
+#       tmp=`remote_command $username $cell_name $password $command $identitykey`
+#       verbose_echo "$tmp"
+        tmp=`remote_copy $username@${cell_name}:/tmp/bdsql_${new_cell_name}_sanity_test_${my_timestamp}.tar.gz $MY_LOG_DIRECTORY $password $identitykey`
+        verbose_echo "$tmp"
+
+        cell_table_action[2]="Check $MY_LOG_DIRECTORY/bdsql_${new_cell_name}_sanity_*_${my_timestamp}.tar.gz for great details"
+        fatal_error_echo "Sanity test failed! (Send $MY_LOG_DIRECTORY/bdsql_${new_cell_name}_sanity_*_${my_timestamp}.tar.gz back to Oracle for further analysis)"
+    fi
+
+}   # end of run_cellnode_bdsql_sanity_test
+
+
+function check_hadoop_cellnode_part1
+{
+    $echocmd > ${report_fullpath_basename}_CBODY.html
+    $echocmd "<h3>Hadoop Data/Cell Node:</h3>" >> ${report_fullpath_basename}_CBODY.html
+    $echocmd "<pre>" >> ${report_fullpath_basename}_CBODY.html
+
+    if [ "$ade_mode" == "" ]; then
+        $echocmd "<b>BDSQL Cluster            </b>= ${bdsql_cluster_name}" >> ${report_fullpath_basename}_CBODY.html
+        $echocmd "<b>Hadoop BDS HOME          </b>= /opt/oracle/bigdatasql" >> ${report_fullpath_basename}_CBODY.html
+        $echocmd "<b>Hadoop BDS Prop.         </b>= /opt/oracle/bigdatasql/bdcell-12.1/bigdata.properties" >> ${report_fullpath_basename}_CBODY.html
+        $echocmd "<b>Hadoop BDS Log4J Prop.   </b>= /opt/oracle/bigdatasql/bdcell-12.1/bigdata-log4j.properties" >> ${report_fullpath_basename}_CBODY.html
+        $echocmd "<b>Hadoop BDS Log4J Log     </b>= /opt/oracle/bigdatasql/bdcell-12.1/log" >> ${report_fullpath_basename}_CBODY.html
+        $echocmd "<b>Hadoop BDS Offload Trace </b>= /var/log/oracle/diag/bdsql/cell/SYS_*/trace" >> ${report_fullpath_basename}_CBODY.html
+        $echocmd >> ${report_fullpath_basename}_CBODY.html
+    fi
+
+    if [ "$cells" == "" ]; then
+        # Check bigdata.hosts in bigdata.properties
+        cells="`$grepcmd bigdata.hosts ${DB_NODE_BIGDATA_CONFIG}/bigdata.properties| $cutcmd -d= -f2 | $sedcmd 's/,/ /g'`"
+
+        if [ "$ade_mode" == "" ]; then
+            if [ "$cells" == "" ]; then
+              if [ -f "${DB_NODE_BIGDATA_CONFIG}/${bdsql_cluster_name}/topology.map" ]; then
+                while IFS='' read -r line || [[ -n "$line" ]];
+                do
+                    if [[ $line == *"node name"* ]]; then
+                        name=`$echocmd $line | $cutcmd -d\" -f2 | $cutcmd -d. -f1`
+                        cells="$cells $name"
+                        read -r line
+                    fi
+                done < "${DB_NODE_BIGDATA_CONFIG}/${bdsql_cluster_name}/topology.map"
+                checkpoint_echo_bold "Cells are derived from ${DB_NODE_BIGDATA_CONFIG}/${bdsql_cluster_name}/topology.map: $cells" >> ${report_fullpath_basename}_CBODY.html
+            else
+                checkpoint_echo_bold "Cells are derived from ${DB_NODE_BIGDATA_CONFIG}/bigdata.properties: $cells" >> ${report_fullpath_basename}_CBODY.html
+              fi
+            fi
+        else
+            $echocmd "<b>BDSQL Cluster            </b>= ${bdsql_cluster_name}" >> ${report_fullpath_basename}_CBODY.html
+            $echocmd  >> ${report_fullpath_basename}_CBODY.html
+            $echocmd "You are running $BASENAME in Oarcle ADE view name \"$ADE_VIEW_NAME\"." >> ${report_fullpath_basename}_CBODY.html
+            $echocmd "Hadoop cluster cell nodes cannot be derived from ${DB_NODE_BIGDATA_CONFIG} in ADE view." >> ${report_fullpath_basename}_CBODY.html
+            $echocmd "You need to specify your Hadoop cluster cell nodes with the -c option." >> ${report_fullpath_basename}_CBODY.html
+            $echocmd  >> ${report_fullpath_basename}_CBODY.html
+            $echocmd "e.g." >> ${report_fullpath_basename}_CBODY.html
+            $echocmd "$BASENAME -d /app/oracle/product/12.1.0/dbhome_1 -s orcl -q sys -c \"hadoopc01 hadoopc02 hadoopc03\" -u oracle -v" >> ${report_fullpath_basename}_CBODY.html
+        fi
+    else
+        checkpoint_echo_bold "Cells are derived from command line input: $cells" >> ${report_fullpath_basename}_CBODY.html
+        cells=`$echocmd $cells | sed 's/,/ /g'`
+    fi
+    $echocmd "</pre>" >> ${report_fullpath_basename}_CBODY.html
+
+    if [ "$cells" != "" ]; then
+        $rmcmd -f $MY_ERROR_LOG_DIRECTORY/bdsql_cluster_result.json > /dev/null
+
+        $catcmd <<- _EOF2_ > $MY_ERROR_LOG_DIRECTORY/bdsql_cluster_result.json
+"${bdsql_cluster_name}":[
+_EOF2_
+    fi
+    
+    my_cells=
+    for cell_name in $cells
+    do
+        #-------------------------------------------------
+        # Convert FQDN to short name if not an ip address
+        #-------------------------------------------------
+        ip=`echo $cell_name | sed 's/[0-9]*//g'`
+    
+        if [ "$ip" != "..." ]; then
+          cell_name=`echo $cell_name | $cutcmd -d. -f1`
+        fi
+        my_cells="$my_cells $cell_name"
+    done
+
+    MY_CELLS=$my_cells
+
+} # end of check_hadoop_cellnode_part1 
+
+
+function check_hadoop_cellnode_part2
+{ 
+    cell_name=$1
+    first_cell_name=$2
+
+    $echocmd "<h4 id="C1"$cell_name>Hadoop Cell Node $cell_name:</h4>"
+    $echocmd "<pre>"
+
+    # Check if BDA
+    if [ "$bda_mode" == "1" ]; then
+        tmp=`remote_command $username $cell_name $password "$bdaclicmd getinfo cluster_name" $identitykey`
+        $echocmd "<b>BDA Cluster Name      </b>= $tmp"
+        tmp=`remote_command $username $cell_name $password "$bdaclicmd getinfo cluster_type" $identitykey`
+        $echocmd "<b>BDA Cluster Type      </b>= $tmp"
+        tmp=`remote_command $username $cell_name $password "$bdaclicmd getinfo cluster_version" $identitykey`
+        $echocmd "<b>BDA Cluster Version   </b>= $tmp"
+    fi
+    $echocmd
+
+    $echocmd "<h3 id="C2"$cell_name><font color="blue">${CELL_TABLE_CNAME[2]}</font></h3>"
+    cell_table_result[2]=$CELL_TABLE_CVALUE_PASSED
+
+    #----------------------------------------------------------------
+    # SSL_WALLET and HTTP_PROXY:
+    # If SSL_WALLET database property is set, customer must have set to 
+    # use object store. Then we could go ahead and check http_proxy 
+    # property AND actual wallet directory on DB and Cell nodes.
+    #
+    # Check SSL_WALLET only if objectstoresupport=<"true"> indicator in 
+    # $ORACLE_HOME/BDSJaguar*/*/database-install.env is set.
+    # It should only appears in BDS 4.0 and above.
+    #----------------------------------------------------------------
+
+    if [[ "$DB_NODE_IS_WALLET" == *"true"* ]]; then
+       $echocmd
+       checkpoint_echo_bold "Check if SSL_WALLET database property is set?:"
+       tmp=`grep "no rows selected" /tmp/ssl_wallet.lst`
+
+       if [[ "$tmp" == "no rows selected"* ]]
+       then
+          echo_bold "SSL_WALLET is not set!"
+       else
+          # Check $OSSCONF/wallet on the Cell node
+          checkpoint_echo_bold "Check wallet directory on the Cell node:"
+
+          tmp=`remote_command $username $cell_name $password "$lscmd $OSSCONF/wallet" $identitykey > ${MY_ERROR_LOG_DIRECTORY}/lswallet.${cell_name}`
+          tmp=`$catcmd ${MY_ERROR_LOG_DIRECTORY}/.${cell_name}`
+
+          if [[ "$tmp" == *"cannot access"* ]]
+          then
+              fatal_error_echo "\$OSSCONF/wallet is not found!"
+              cell_table_result[2]=$CELL_TABLE_CVALUE_FAILED
+          else
+              echo_bold "\$OSSCONF/wallet is proprely set!"
+          fi
+       fi
+       $echocmd
+    fi
+
+    #-------------------------------------------------------------------------------
+    # Ping -s 3200 -I <ip-in-celliinit.ora-on-cell> <ip-in-cellinit(eth).ora-on-db> 
+    # Ping would time out in 5 seconds
+    #-------------------------------------------------------------------------------
+    MY_CELLINIT_IP=`$grepcmd ipaddress1 ${MY_ERROR_LOG_DIRECTORY}/cellinit.dbhome | $grepcmd -v '#' | $cutcmd -d= -f2 | $cutcmd -d/ -f1`
+
+    $echocmd "<b>Pinging (small packet) Hadoop cell node [${cell_name}] from db node [${MY_CELLINIT_IP}].</b>"
+    checkpoint_echo "Ping: $pingcmd -s 3200 -I ${MY_CELLINIT_IP} ${cell_name}"
+    $timeoutcmd 5s $pingcmd -s 3200 -I ${MY_CELLINIT_IP} ${cell_name} > ${MY_ERROR_LOG_DIRECTORY}/ping_${cell_name}.log 2>${MY_ERROR_LOG_DIRECTORY}/ping_3200_${cell_name}.err
+    line_cnt=$($catcmd ${MY_ERROR_LOG_DIRECTORY}/ping_${cell_name}.log | $wccmd -l)
+
+    if [ $line_cnt -gt 0 ] ; then
+        $catcmd ${MY_ERROR_LOG_DIRECTORY}/ping_${cell_name}.log
+        #--------------------------------------------------------------------------------
+        # Ping -s 16000 -I <ip-in-celliinit.ora-on-cell> <ip-in-cellinit(eth).ora-on-db> 
+        #--------------------------------------------------------------------------------
+        $echocmd
+        $echocmd "<b>Pinging (large packet) Hadoop cell node [${cell_name}] from db node [${MY_CELLINIT_IP}].</b>"
+        checkpoint_echo "Ping: $pingcmd -s 16000 -I ${MY_CELLINIT_IP} ${cell_name}"
+        $timeoutcmd 5s $pingcmd -s 16000 -I ${MY_CELLINIT_IP} ${cell_name} > ${MY_ERROR_LOG_DIRECTORY}/ping_${cell_name}.log 2>${MY_ERROR_LOG_DIRECTORY}/ping_16000_${cell_name}.err
+        line_cnt=$($catcmd ${MY_ERROR_LOG_DIRECTORY}/ping_${cell_name}.log | $wccmd -l)
+
+        if [ $line_cnt -gt 0 ] ; then
+            $catcmd ${MY_ERROR_LOG_DIRECTORY}/ping_${cell_name}.log
+        else
+            cell_table_result[2]=$CELL_TABLE_CVALUE_FAILED
+            fatal_error_echo "Error! Failed to ping (large packet) Hadoop cell node [${cell_name}] from db node [${MY_CELLINIT_IP}]."
+        fi
+    else
+        cell_table_result[2]=$CELL_TABLE_CVALUE_FAILED
+        fatal_error_echo "Error! Failed to ping (small packet) Hadoop cell node [${cell_name}] from db node [${MY_CELLINIT_IP}]."
+    fi
+
+    tmp=`remote_command $username $cell_name $password "$catcmd /opt/oracle/bd_cell/cellsrv/deploy/config/cell_disk_config.xml" $identitykey > ${MY_ERROR_LOG_DIRECTORY}/cell_disk_config.xml.${cell_name}`
+
+    checkpoint_echo "$HADOOP_CELLINIT: "
+    $echocmd "<b>Hadoop Cell Init File </b>= $HADOOP_CELLINIT"
+    tmp=`remote_command $username $cell_name $password "$catcmd $HADOOP_CELLINIT" $identitykey > ${MY_ERROR_LOG_DIRECTORY}/cellinit.${cell_name}`
+    $catcmd ${MY_ERROR_LOG_DIRECTORY}/cellinit.${cell_name}
+
+    ipaddress_lower=
+    ipaddress_cell=
+    subnet_mask=
+    db_subnet=$($catcmd ${MY_ERROR_LOG_DIRECTORY}/subnet.dbhome)
+    ipaddress_lower=$($grepcmd -i ipaddress1 ${MY_ERROR_LOG_DIRECTORY}/cellinit.${cell_name} | $grepcmd -v '#' | $cutcmd -d= -f1 | $trcmd [:upper:] [:lower:])
+    ipaddress_cell=$($grepcmd -i ipaddress1 ${MY_ERROR_LOG_DIRECTORY}/cellinit.${cell_name} | $grepcmd -v '#' | $cutcmd -d= -f2 | $cutcmd -d/ -f1)
+    subnet_mask=$($grepcmd -i ipaddress1 ${MY_ERROR_LOG_DIRECTORY}/cellinit.${cell_name} | $grepcmd -v '#' | $cutcmd -d= -f2 | $cutcmd -d/ -f2 | $trcmd -d '\n' | $trcmd -d '\r')
+
+    if [[ "$ipaddress_lower" == "ipaddress1"* ]]; then
+        checkpoint_echo "Cell Subnet Mask: $subnet_mask"
+
+#       $echocmd "Debug: db_subnet = \"$db_subnet\""
+#       $echocmd "Debug: subnet_mask = \"$subnet_mask\""
+
+        if [[ "$subnet_mask" != "$db_subnet" ]]; then
+            cell_table_result[2]=$CELL_TABLE_CVALUE_FAILED
+            fatal_error_echo "The cell node subnet mask is different from the db node subnet mask!"
+        fi
+    else
+        cell_table_result[2]=$CELL_TABLE_CVALUE_FAILED
+        fatal_error_echo "Cell Subnet Mask is not found!"
+    fi
+
+    # Check cell node ip address against db node /etc/hosts
+    pad_ipaddress_cell=$ipaddress_cell
+    pad_ipaddress_cell+=" "
+    tmp=`$grepcmd "${pad_ipaddress_cell}" /etc/hosts | awk '{print $1}'`
+
+    if [[ "$tmp" == "$ipaddress_cell" ]]; then
+        checkpoint_echo "Cell node IP address \"$tmp\" is defined in /etc/hosts."
+    else
+        cell_table_result[2]=$CELL_TABLE_CVALUE_FAILED
+        fatal_error_echo "Cell node IP address \"$ipaddress_lower\" is not defined in /etc/hosts on DB node!"
+    fi
+
+    bds_software_only="$($catcmd ${MY_ERROR_LOG_DIRECTORY}/cellinit.${cell_name} | $grepcmd $CELL_DYNAMIC_PROTOCOL | $cutcmd -d= -f2 | $trcmd -d '[blank]' | $trcmd [:upper:] [:lower:])"
+
+    if [ "$bds_software_only" != "" ]; then
+        checkpoint_echo "$HADOOP_CELLINIT: $CELL_DYNAMIC_PROTOCOL=$bds_software_only"
+
+        case "$bds_software_only" in
+          *"true"*)
+            my_tcpudp_mode="$($grepcmd $DB_DYNAMIC_PROTOCOL ${MY_ERROR_LOG_DIRECTORY}/cellinit.dbhome | $cutcmd -d= -f2 | $trcmd -d '[blank]')"
+            if [ "$my_tcpudp_mode" == "2" ]; then
+              checkpoint_echo "You are using TCP/UDP connection!"
+            else
+              $echocmd "NOTE: By default, InfiniBand is used."
+              $echocmd "      For TCP/UDP connection, you must have $DB_DYNAMIC_PROTOCOL=2 in"
+              $echocmd "      $CELLINIT on you DB/Compute node and $CELL_DYNAMIC_PROTOCOL=true in"
+              $echocmd "      $HADOOP_CELLINIT on Hadoop Data/Cell nodes."
+              $echocmd
+              cell_table_action[2]="For TCP/UDP connection, you must have $DB_DYNAMIC_PROTOCOL=2 in $CELLINIT on you DB/Compute node and $CELL_DYNAMIC_PROTOCOL=true in $HADOOP_CELLINIT on Hadoop Data/Cell nodes."
+              fatal_error_echo "${cell_table_action[2]}"
+            fi
+            ;;
+          *"false"*)
+            if [ "$my_tcpudp_mode" == "2" ]; then
+              $echocmd "NOTE: By default, InfiniBand is used."
+              $echocmd "      For TCP/UDP connection, you must have $DB_DYNAMIC_PROTOCOL=2 in"
+              $echocmd "      $CELLINIT on you DB/Compute node and $CELL_DYNAMIC_PROTOCOL=true in"
+              $echocmd "      $HADOOP_CELLINIT on Hadoop Data/Cell nodes."
+              $echocmd
+              cell_table_action[2]="For TCP/UDP connection, you must have $DB_DYNAMIC_PROTOCOL=2 in $CELLINIT on you DB/Compute node and $CELL_DYNAMIC_PROTOCOL=true in $HADOOP_CELLINIT on Hadoop Data/Cell nodes."
+              fatal_error_echo "${cell_table_action[2]}"
+            fi
+            ;;
+          *)
+            if [ "$my_tcpudp_mode" == "2" ]; then
+              $echocmd "NOTE: By default, InfiniBand is used."
+              $echocmd "      For TCP/UDP connection, you must have $DB_DYNAMIC_PROTOCOL=2 in"
+              $echocmd "      $CELLINIT on you DB/Compute node and $CELL_DYNAMIC_PROTOCOL=true in"
+              $echocmd "      $HADOOP_CELLINIT on Hadoop Data/Cell nodes."
+              $echocmd
+              cell_table_action[2]="For TCP/UDP connection, you must have $DB_DYNAMIC_PROTOCOL=2 in $CELLINIT on you DB/Compute node and $CELL_DYNAMIC_PROTOCOL=true in $HADOOP_CELLINIT on Hadoop Data/Cell nodes."
+              fatal_error_echo "${cell_table_action[2]}"
+            fi
+            ;;
+        esac
+    fi
+
+    # CELL_AUTHENTICATION:
+    # Check _cell_big_data_sql_enable_authentication in /opt/oracle/bd_cell/cellsrv/deploy/config/cellinit.ora
+    #
+    # If _cell_big_data_sql_enable_authentication=TRUE, 
+    #    the guid/key value pair in /opt/oracle/bd_cell/cellsrv/deploy/config/cell_disk_config.xml on cell node 
+    #    must match $OH/admin/<dbname>/pfile/bdsql_cellkey.ora of db node
+    #
+    bds_enable_authentication="$($catcmd ${MY_ERROR_LOG_DIRECTORY}/cellinit.${cell_name} | $grepcmd $CELL_AUTHENTICATION | $cutcmd -d= -f2 | $trcmd -d '[blank]' | $trcmd [:upper:] [:lower:])"
+
+    if [ "$bds_enable_authentication" != "" ]; then
+        checkpoint_echo "$HADOOP_CELLINIT: $CELL_AUTHENTICATION=$bds_enable_authentication"
+        $echocmd "NOTE: If _cell_big_data_sql_enable_authentication=TRUE,"
+        $echocmd "      the guid/key value pair in /opt/oracle/bd_cell/cellsrv/deploy/config/cell_disk_config.xml on cell node"
+        $echocmd "      must match the guid/key in ${oracle_home}/admin/${db_unique_name}/pfile/bdsql_cellkey.ora on database node."
+        $echocmd
+
+        case "$bds_enable_authentication" in
+          *"true"*)
+            my_db_guid="`$grepcmd -i guid $ORACLE_HOME/admin/${db_unique_name}/pfile/bdsql_cellkey.ora | $cutcmd -d= -f2 | $trcmd -d '\n' | $trcmd -d '\r'`"
+            my_db_key="`$grepcmd -i key $ORACLE_HOME/admin/${db_unique_name}/pfile/bdsql_cellkey.ora | $cutcmd -d= -f2 | $trcmd -d '\n' | $trcmd -d '\r'`"
+            checkpoint_echo_bold "${oracle_home}/admin/${db_unique_name}/pfile/bdsql_cellkey.ora:"
+            $echocmd "GUID = $my_db_guid"
+            $echocmd
+
+            checkpoint_echo_bold "${MY_ERROR_LOG_DIRECTORY}/cell_disk_config.xml.${cell_name}:"
+            x="`$grepcmd -n $my_db_guid ${MY_ERROR_LOG_DIRECTORY}/cell_disk_config.xml.${cell_name} | $grepcmd oracle.ossmgmt.ms.core.MSClient | $cutcmd -d: -f1`"
+            y=1
+            ans=$(( x + y ))
+            my_cell_key="`sed -n ${ans}p ${MY_ERROR_LOG_DIRECTORY}/cell_disk_config.xml.${cell_name} | sed 's/<\/Attribute>//g' | awk '{print $3}' | $cutcmd -d'"' -f2 | $trcmd -d '\n' | $trcmd -d '\r'`"
+            $echocmd "GUID = $my_db_guid"
+
+#---------------------------------------------------------------          
+#           Temporarily commented out for now.
+#---------------------------------------------------------------          
+#           if [ "${my_cell_key}" == "${my_db_key}" ]; then
+#             checkpoint_echo_bold "GUID KEYS ARE IDENTICAL!"
+#           else
+#             checkpoint_echo_bold "GUID KEYS ARE DIFFERENT!"
+#             fatal_error_echo "GUID KEYS ARE DIFFERENT!"
+#           fi
+            ;;
+        esac
+    fi
+
+    tmp=`remote_command $username $cell_name $password "$ifconfigcmd -a 2>/dev/null" $identitykey`
+    verbose_echo "<b>Output of ifconfig    </b>= $tmp"
+    $echocmd 
+    $echocmd "<b>Hadoop BDS Cell Trace </b>= /var/log/oracle/diag/bdsql/cell/$cell_name/trace"
+
+#   $echocmd "<h3 id="C2"$cell_name><font color="blue">${CELL_TABLE_CNAME[2]}</font></h3>"
+
+#   if [ "${cell_name}" == "${first_cell_name}" ]; then
+      run_cellnode_bdsql_sanity_test ${cell_name} ${first_cell_name}
+#   fi
+
+    $echocmd "<h3 id="C3"$cell_name><font color="blue">${CELL_TABLE_CNAME[3]}</font></h3>"
+    id_tmp=`remote_command $username $cell_name $password "id -ng oracle" $identitykey`
+    checkpoint_echo "$id_tmp"
+
+    if [[ $id_tmp == *"oinstall"* ]]; 
+      then
+        cell_table_result[3]=$CELL_TABLE_CVALUE_PASSED
+      else
+        cell_table_result[3]=$CELL_TABLE_CVALUE_FAILED
+        cell_table_action[3]="Make sure that Oracle installation owner (oracle) belongs to Oracle inventory group (oinstall)."
+        fatal_error_echo "${cell_table_action[3]}"
+    fi
+
+    $echocmd "<h3 id="C6"$cell_name><font color="blue">${CELL_TABLE_CNAME[6]}</font></h3>"
+    tmp=`remote_command $username $cell_name $password "bdscli -e list bdsql" $identitykey`
+    checkpoint_echo "$tmp"
+
+    if [[ $tmp == *"online"* ]]; 
+      then
+        cell_table_result[6]=$CELL_TABLE_CVALUE_PASSED
+      else
+        cell_table_result[6]=$CELL_TABLE_CVALUE_FAILED
+        cell_table_action[6]="Run bdscli with an appropriate sub-command to bring up Oracle Big Data SQL service."
+        fatal_error_echo "${cell_table_action[6]}"
+    fi
+
+    tmp=`remote_command $username $cell_name $password "$pscmd -aef | $grepcmd bds | $grepcmd -v grep" $identitykey`
+    checkpoint_echo "$tmp"
+    ans=$($echocmd $tmp | $grepcmd bdsqloflsrv)
+
+    if [ "$ans" == "" ]; then
+       cell_table_result[6]=$CELL_TABLE_CVALUE_FAILED
+       fatal_error_echo "Error! bdsqloflsrv is not up and running."
+    fi
+
+    $echocmd "<h3 id="C4"$cell_name><font color="blue">${CELL_TABLE_CNAME[4]}</font></h3>"
+    tmp=`remote_command $username $cell_name $password "bdscli -e list quarantine" $identitykey`
+    checkpoint_echo "$tmp"
+
+    case "$tmp" in
+      *"command not found"*)
+        cell_table_result[4]=$CELL_TABLE_CVALUE_FAILED
+        cell_table_action[4]="Make sure that you have access to bdscli."
+        fatal_error_echo "${cell_table_action[4]}"
+        ;;
+      *"Permission denied"*)
+        cell_table_result[4]=$CELL_TABLE_CVALUE_FAILED
+        cell_table_action[4]="Make sure that you have permission to run bdscli."
+        fatal_error_echo "${cell_table_action[4]}"
+        ;;
+      "")
+        cell_table_result[4]=$CELL_TABLE_CVALUE_FAILED
+        cell_table_action[4]="Double check that if there is indeed no quarantine."
+        fatal_error_echo "${cell_table_action[4]}"
+        ;;
+      *)
+        cell_table_result[4]=$CELL_TABLE_CVALUE_PASSED
+        ;;
+    esac
+
+    $echocmd "<h3 id="C5"$cell_name><font color="blue">${CELL_TABLE_CNAME[5]}</font></h3>"
+    tmp=`remote_command $username $cell_name $password "bdscli -e list alerthistory | $tailcmd -10" $identitykey`
+    checkpoint_echo "$tmp"
+
+    case "$tmp" in
+      *"_1"*)
+        cell_table_result[5]=$CELL_TABLE_CVALUE_PASSED
+        ;;
+      *)
+        cell_table_result[5]=$CELL_TABLE_CVALUE_NA
+        cell_table_action[5]="Double check that if there is indeed no alter history."
+        fatal_error_echo "${cell_table_action[5]}"
+        ;;
+    esac
+
+    $echocmd "<h3 id="C7"$cell_name><font color="blue">${CELL_TABLE_CNAME[7]}</font></h3>"
+    jce_tmp=`remote_command $username $cell_name $password "$lscmd -l /usr/java/default/jre/lib/security/*.jar" $identitykey`
+    checkpoint_echo "$jce_tmp"
+
+    case "$jce_tmp" in
+      *"_policy.jar"*)
+        cell_table_result[7]=$CELL_TABLE_CVALUE_PASSED
+        ;;
+      *)
+        cell_table_result[7]=$CELL_TABLE_CVALUE_NA
+        cell_table_action[7]="Double check your Big Data SQL installation log and make sure that JCE is properly installed."
+        fatal_error_echo "${cell_table_action[7]}"
+        ;;
+    esac
+    verbose_echo " If you are using CentOS or Red Hat Enterprise Linux 5.5 or later, which use AES-256 encryption by default for tickets, you must install the Java Cryptography Extension (JCE) Unlimited Strength Jurisdiction Policy File on all cluster and Hadoop user machines. For JCE Policy File installation instructions, see the README.txt file included in the jce_policy-x.zip file.
+
+Alternatively, you can configure Kerberos to not use AES-256 by removing aes256-cts:normal from the supported_enctypes field of the kdc.conf or krb5.conf file. Note that after changing the kdc.conf file, you'll need to restart both the KDC and the kadmin server for those changes to take affect. You may also need to recreate or change the password of the relevant principals, including potentially the Ticket Granting Ticket principal (krbtgt/REALM@REALM). If AES-256 is still used after all of those steps, it's because the aes256-cts:normal setting existed when the Kerberos database was created. To fix this, create a new Kerberos database and then restart both the KDC and the kadmin server."
+
+    jce_tmp=`remote_command $username $cell_name $password "$lscmd -l ${JAVA_HOME}/jre/lib/security/*.jar" $identitykey`
+    checkpoint_echo "$jce_tmp"
+
+    $echocmd "<h3 id="C8"$cell_name><font color="blue">${CELL_TABLE_CNAME[8]}</font></h3>"
+    if [ "$username" == "root" ]; then
+        tmp=`remote_command $username $cell_name $password "/usr/bin/sudo -u oracle $klistcmd -e" $identitykey`
+    else
+        tmp=`remote_command $username $cell_name $password "$klistcmd -e" $identitykey`
+    fi
+    checkpoint_echo "$tmp"
+
+    case "$tmp" in
+      *"No credentials cache found"*)
+        fatal_error_echo "No credentials cache found!"
+        cell_table_action[8]="Double check that if there is indeed no Kerberos tickets in use."
+        fatal_error_echo "${cell_table_action[8]}"
+        ;;
+      *"No route to host"*)
+        fatal_error_echo "Failed to connect to host!"
+        cell_table_action[8]="Double check that this Hadoop cluster node is accessible."
+        fatal_error_echo "${cell_table_action[8]}"
+        ;;
+      *)
+        ;;
+    esac
+
+    tmp=`remote_copy $username@${cell_name}:/opt/oracle/bigdatasql/bdcell-hadoopconf/core-site.xml ${MY_ERROR_LOG_DIRECTORY}/${cell_name}_core-site.xml $password $identitykey`
+
+    tmp=`get_value_by_xml_name $MY_ERROR_LOG_DIRECTORY/${cell_name}_core-site.xml hadoop.security.authentication`
+    checkpoint_echo_bold "core-site.xml: hadoop.security.authentication=$tmp"
+
+    tmp=`get_value_by_xml_name $MY_ERROR_LOG_DIRECTORY/${cell_name}_core-site.xml hadoop.security.authorization`
+    checkpoint_echo_bold "core-site.xml: hadoop.security.authorization=$tmp"
+
+    case "$tmp" in
+      *"true"*)
+        cell_table_result[8]=$CELL_TABLE_CVALUE_ON
+        ;;
+      *"false"*)
+        cell_table_result[8]=$CELL_TABLE_CVALUE_OFF
+        ;;
+      *)
+        if ["${db_table_result[9]}" == "${DB_TABLE_CVALUE_ON}" ]; then
+            cell_table_result[8]=${CELL_TABLE_CVALUE_FAILED}
+        else
+            cell_table_result[8]=${CELL_TABLE_CVALUE_NA}
+        fi
+        ;;
+    esac
+
+    tmp=`remote_command $username $cell_name $password "$catcmd /var/kerberos/krb5kdc/kdc.conf" $identitykey`
+    checkpoint_echo "$tmp"
+
+    tmp=`remote_command $username $cell_name $password "$catcmd /etc/krb5.conf" $identitykey`
+    checkpoint_echo "$tmp"
+
+    tmp=`remote_command $username $cell_name $password "$tailcmd -10 /var/log/krb5kdc.log" $identitykey`
+    checkpoint_echo "$tmp"
+
+    $echocmd "<h3 id="C9"$cell_name><font color="blue">${CELL_TABLE_CNAME[9]}</font></h3>"
+    tmp=`remote_command $username $cell_name $password "$nmapcmd -F -sV localhost 2>/dev/null" $identitykey`
+    checkpoint_echo "$tmp"
+
+    if [ "`$echocmd $tmp | $grepcmd -i openssl 2>/dev/null`" == "" ]; then
+        nonfatal_error_echo "No TLS/SSL service found!"
+        cell_table_action[9]="Double check that if there is indeed no TLS/SSL service configured on your host."
+        nonfatal_error_echo "${cell_table_action[9]}"
+    fi
+
+    tmp=`get_value_by_xml_name $MY_ERROR_LOG_DIRECTORY/${cell_name}_core-site.xml hadoop.ssl.enabled`
+    checkpoint_echo_bold "core-site.xml: hadoop.ssl.enabled=$tmp"
+
+    case "$tmp" in
+      *"true"*)
+        cell_table_result[9]=$CELL_TABLE_CVALUE_ON
+        ;;
+      *"false"*)
+        cell_table_result[9]=$CELL_TABLE_CVALUE_OFF
+        ;;
+      *)
+        cell_table_result[9]=$CELL_TABLE_CVALUE_NA
+        ;;
+    esac
+
+    if [ "$trace_mode" == "1" ]; then
+        turn_off_tracing
+    fi
+
+    if [ "$x_mode" == "1" ]; then
+        check_cell_ipsec ${cell_name}
+    fi
+
+    $catcmd <<- _EOF_ > $MY_ERROR_LOG_DIRECTORY/bdsql_${cell_name}_result.txt
+${cell_table_result[1]}
+${cell_table_result[2]}
+${cell_table_result[3]}
+${cell_table_result[4]}
+${cell_table_result[5]}
+${cell_table_result[6]}
+${cell_table_result[7]}
+${cell_table_result[8]}
+${cell_table_result[9]}
+_EOF_
+
+    print_hadoop_cellnode_table $cell_name > ${report_fullpath_basename}_CTABLE_${cell_name}.html
+
+    $catcmd <<- _EOF_ >> $MY_ERROR_LOG_DIRECTORY/bdsql_cluster_result.json
+    $(print_cellnode_table_json)
+_EOF_
+
+    $echocmd "</pre>"
+
+} # end of check_hadoop_cellnode_part2
+
+
+#function check_hadoop_cellnode
+#{
+#    $catcmd <<- _EOF_ > ${report_fullpath_basename}_CBODY_${1}.html 
+#    $(check_hadoop_cellnode_part2) ${1}
+#_EOF_
+#
+#}
+
+
+function check_hadoop_cellnodes_in_parallel
+{
+    check_hadoop_cellnode_part1
+
+#   $echocmd "Debug: MY_CELLS = $MY_CELLS"
+
+    first_cell_name=`$echocmd $MY_CELLS | $awkcmd '{print $1}'`
+    pid_list=
+    for my_cell_name in $MY_CELLS
+    do
+        $echocmd "Checking Hadoop cell node [$my_cell_name] in parallel..."
+
+#       $echocmd "Debug: nohup check_hadoop_cellnode_part2 ${my_cell_name} ${first_cell_name} > ${report_fullpath_basename}_CBODY_${my_cell_name}.html"
+
+        nohup `check_hadoop_cellnode_part2 ${my_cell_name} ${first_cell_name} > ${report_fullpath_basename}_CBODY_${my_cell_name}.html` 2>${MY_ERROR_LOG_DIRECTORY}/check_cellnode_${my_cell_name}.err &
+        pid_list="$pid_list $!"
+    done
+
+    spinning_cursor2 $pid_list
+
+    if [ "$MY_CELLS" != "" ]; then
+        $catcmd <<- _EOF_ >> $MY_ERROR_LOG_DIRECTORY/bdsql_cluster_result.json
+]
+_EOF_
+    fi
+
+}   # end of check_hadoop_cellnodes_in_parallel
+
+
+function check_hs_cores
+{
+    hs_core=
+    for i in ${oracle_home}/rdbms/log/hs_core_*
+    do
+      if [ -d $i ]; then
+        hs_core=$i
+        end_time=$(/usr/bin/stat -c "%Z" $i)
+    
+        if [[ ${start_time} < ${end_time} ]]; then
+          #--------------------------
+          # New hs_core_* is found!
+          #--------------------------
+          db_table_result[$1]=${DB_TABLE_CVALUE_FAILED}
+          fatal_error_echo "A new HS core file is found at $i"
+          fatal_error_echo "If error persists, contact Oracle Worldwide Customer support."
+          cat $i/hs_core_trace_*.trc | sed -e '/Binary Stack Dump/,$d'
+        fi
+      fi
+    done
+}
+
+
+function prompt_for_user_input
+{
+    unset PASSWORD
+    unset CHARCOUNT
+
+    stty -echo
+
+    CHARCOUNT=0
+    while IFS= read -p "$PROMPT" -r -s -n 1 CHAR
+    do
+        # Enter - accept password
+        if [[ $CHAR == $'\0' ]] ; then
+            break
+        fi
+        # Backspace
+        if [[ $CHAR == $'\177' ]] || [[ $CHAR == $'\b' ]] ; then
+            if [ $CHARCOUNT -gt 0 ] ; then
+                CHARCOUNT=$((CHARCOUNT-1))
+                PROMPT=$'\b \b'
+                PASSWORD="${PASSWORD%?}"
+            else
+                PROMPT=''
+            fi
+        else
+            CHARCOUNT=$((CHARCOUNT+1))
+            PROMPT='*'
+            PASSWORD+="$CHAR"
+        fi
+    done
+
+    stty echo
+    echo $PASSWORD
+}
+
+
+function check_bigdata_config
+{
+    if [ -d "${oracle_home}/bigdatasql/bigdata_config" ]; then
+        db_node_bigdata_home_31="$oracle_home/bigdatasql"
+    else
+        if [ -d "${oracle_home}/bigdatasql/databases/${db_unique_name}/bigdata_config" ]; then
+            db_node_bigdata_home_32="$oracle_home/bigdatasql/databases/${db_unique_name}"
+        fi
+    fi
+
+    if [ "$db_node_bigdata_home_31" != "" ] && [ "$db_node_bigdata_home_32" != "" ]
+    then # dup config
+        DB_NODE_BIGDATA_CONFIG=
+        $echocmd "Warning! Duplicate bigdata_config."
+        $echocmd "1. ${db_node_bigdata_home_31}/bigdata_config"
+        $echocmd "2. ${db_node_bigdata_home_32}/bigdata_config"
+    elif [ "$db_node_bigdata_home_32" != "" ]
+    then
+        DB_NODE_BIGDATA_CONFIG="${db_node_bigdata_home_32}/bigdata_config"
+        if [ -d ${db_node_bigdata_home_32}/default_dir_${db_unique_name} ]; then
+            DB_NODE_DEFAULT_DIR="${db_node_bigdata_home_32}/default_dir_${db_unique_name}"
+        elif [ -d ${db_node_bigdata_home_32}/default_dir ]; then
+            DB_NODE_DEFAULT_DIR="${db_node_bigdata_home_32}/default_dir"
+        fi
+    elif [ "$db_node_bigdata_home_31" != "" ]
+    then
+        DB_NODE_BIGDATA_CONFIG="${db_node_bigdata_home_31}/bigdata_config"
+        DB_NODE_DEFAULT_DIR="${db_node_bigdata_home_31}/default_dir"
+        if [ -d ${db_node_bigdata_home_31}/default_dir_${db_unique_name} ]; then
+            DB_NODE_DEFAULT_DIR="${db_node_bigdata_home_31}/default_dir_${db_unique_name}"
+        elif [ -d ${db_node_bigdata_home_31}/default_dir ]; then
+            DB_NODE_DEFAULT_DIR="${db_node_bigdata_home_31}/default_dir"
+        fi
+    else
+        DB_NODE_BIGDATA_CONFIG=
+        $echocmd "Warning! bigdata_config is not found."
+    fi
+}
+
+
+function run_as
+{
+    os_user=$1
+    os_passwd=$2
+    os_command=$3
+
+    echo $os_passwd | /usr/bin/sudo -S -E -u $os_user $os_command 2>/dev/null
+}
+
+
+check_the_dbnode()
+{
+    $catcmd <<- _EOF_ > ${report_fullpath_basename}_DBBODY.html
+    $(check_dbnode)
+_EOF_
+}
+
+
+print_report_body()
+{
+    $echocmd
+    $echocmd "Checking Database/Compute node [$hostname]..."
+    nohup `check_the_dbnode` 2>${MY_ERROR_LOG_DIRECTORY}/check_the_dbnode.err &
+    spinning_cursor
+    $echocmd
+
+    $catcmd <<- _EOF_ > ${report_fullpath_basename}_DBTABLE.html
+    $(print_dbnode_table)
+_EOF_
+
+    check_hadoop_cellnodes_in_parallel
+
+}   # end of print_report_body
+
+
+print_report_head()
+{
+    $catcmd <<- _EOF_ > ${report_fullpath_basename}_HEAD.html
+<html>
+    <head>
+    <title>$TITLE</title>
+    </head>
+    <body>
+        <h1>$TITLE</h1>
+        <p>$TIME_STAMP</p>
+_EOF_
+
+}   # end of print_report_head
+
+
+print_report_tail()
+{
+    $catcmd <<- _EOF_ > ${report_fullpath_basename}_TAIL.html
+    </body>
+</html>
+_EOF_
+
+}   # end of print_report_tail
+
+
+generate_report()
+{
+    $catcmd ${report_fullpath_basename}_HEAD.html > ${html_filename}
+    $rmcmd -f ${report_fullpath_basename}_HEAD.html > /dev/null
+    $catcmd ${report_fullpath_basename}_DBTABLE.html >> ${html_filename}
+    $rmcmd -f ${report_fullpath_basename}_DBTABLE.html > /dev/null
+
+    for my_cell in ${MY_CELLS}
+    do
+        $catcmd ${report_fullpath_basename}_CTABLE_${my_cell}.html >> ${html_filename}
+#       $rmcmd -f ${report_fullpath_basename}_CTABLE_${my_cell}.html 
+    done
+
+    $catcmd ${report_fullpath_basename}_DBBODY.html >> ${html_filename}
+    $rmcmd -f ${report_fullpath_basename}_DBBODY.html > /dev/null
+
+    $catcmd ${report_fullpath_basename}_CBODY.html >> ${html_filename}
+    $rmcmd -f ${report_fullpath_basename}_CBODY.html > /dev/null
+
+    for my_cell in ${MY_CELLS}
+    do
+        $catcmd ${report_fullpath_basename}_CBODY_${my_cell}.html >> ${html_filename}
+        $rmcmd -f ${report_fullpath_basename}_CBODY_${my_cell}.html > /dev/null
+    done
+
+    $catcmd ${report_fullpath_basename}_TAIL.html >> ${html_filename}
+    $rmcmd -f ${report_fullpath_basename}_TAIL.html > /dev/null
+
+    $catcmd $MY_ERROR_LOG_DIRECTORY/bdsql_dbnode_result.json > $json_filename
+    $rmcmd -f $MY_ERROR_LOG_DIRECTORY/bdsql_dbnode_result.json > /dev/null
+
+    if [ -f ${MY_ERROR_LOG_DIRECTORY}/bdsql_cluster_result.json ]; then
+        $catcmd $MY_ERROR_LOG_DIRECTORY/bdsql_cluster_result.json >> $json_filename
+        $rmcmd -f $MY_ERROR_LOG_DIRECTORY/bdsql_cluster_result.json > /dev/null
+    fi
+
+}   # end of generate_report
+
+
+bds_check_sw()
+{
+    print_report_head
+
+    print_report_body
+
+    print_report_tail
+
+    generate_report
+
+}   # end of bds_check_sw
+
+
+usage()
+{
+    $echocmd
+    $echocmd "Usage: $BASENAME [OPTION]..."
+    $echocmd $BDSCHECKSW_BANNER
+    $echocmd 
+    $echocmd "  -h, --help                 display this help and exit"
+    $echocmd "  -d, --dbhome=ORACLE_HOME   DB node ORACLE_HOME (mandatory if \$ORACLE_HOME is not set)"
+    $echocmd "  -s, --sid=ORACLE_SID       DB node ORACLE_SID (mandatory if \$ORACLE_SID is not set)"
+    $echocmd "  -l, --listener=LISTENER    DB node LISTENER name or address (mandatory if a non-default listener is used)"
+    $echocmd "  -p, --pdb=PDB_CONTAINER    DB node PDB container name (mandatory if PDB is used)"
+    $echocmd "  -g, --gihome=GI_HOME       DB node GI_HOME (mandatory if \$GI_HOME is not set)"
+    $echocmd "  -y, --giuser               DB node GI_HOME administrator name"
+    $echocmd "  -q, --sqlplus              DB node Oracle username (mandatory)"
+    $echocmd "  -c, --cell                 Hadoop cluster cell nodes (mandatory for Hortonworks)"
+    $echocmd "  -u, --uname                Hadoop cluster node username to run remote commands (mandatory)"
+    $echocmd "  -k, --key                  Secure Shell (SSH) identity key file"
+    $echocmd "  -r, --cluster              Hadoop cluster name"
+    $echocmd "  -f, --file=FILE            redirect output to FILE"
+    $echocmd "  -i, --interactive          enter command line arguments interactively"
+    $echocmd "  -a, --diagnostic           GI_HOME diagnostic directory (if it's different from ORACLE_HOME's diagnostic_dest parameter)"
+    $echocmd "  -t, --trace                turn on extproc and log4j tracing during test execution"
+    $echocmd "  -x, --extensive            extensive mode (root privilege is required)"
+    $echocmd "  -e, --cellsanity           run sanity tests on all cell nodes"
+    $echocmd "  -v, --verbose              verbose mode (recommended for great details in the report)"
+    $echocmd 
+    $echocmd "Exit status:"
+    $echocmd " 0  if OK,"
+    $echocmd " 1  if minor proglems (e.g., no response in interactive mode,),"
+    $echocmd " 2  if serious trouble (e.g., invalid command-line argument)."
+    $echocmd 
+}   # end of usage
+
+
+##=============================================================================
+#  Main Program
+#
+#  The bdschecksw main program starts from here. 
+#
+#  1. Assign default values to global variables
+#  2. Check if BDA and if ADE ?
+#  3. Process command line options
+#  4. Process command line options interactively if necessary
+#  5. Conduct config sanity checks for the pre-requisites of bdschecksw
+#  6. Call the main routine bds_check_sw
+#
+#      bds_check_sw
+#          print_report_head
+#          print_report_body
+#          print_report_tail
+#          generate_report
+#
+#  For the main routine bds_check_sw, what it does are:
+#  1. print_report_head - pre-process and save the report header
+#  2. print_report_body - pre-process and save the report body
+#  3. print_report_tail - pre-process and save the report tail
+#  4. generate_report   - process and consolidate the entire report 
+#
+#  The core sub-routine is print_report_body:
+#
+#          print_report_body
+#              check_the_dbnode
+#                  check_dbnode
+#                      check_sqlpatch_status
+#                      check_database_initparams
+#                      check_bdsql_files
+#                      check_database_objects
+#                      check_database_extproc
+#                      check_prerequisites
+#                      run_dbnode_bdsql_sanity_test
+#                      check_kerberos_tickets
+#                      check_tls_ssl_service
+#              check_hadoop_cellnodes_in_parallel
+#                  check_hadoop_cellnode_part1 ... once
+#                  check_hadoop_cellnode_part2 ... in a loop
+#                      run_cellnode_bdsql_sanity_test
+#
+##=============================================================================
+
+
+##----------------------------------------------
+#  1. Assign default values to global variables
+##----------------------------------------------
+oracle_home=$ORACLE_HOME
+oracle_sid=$ORACLE_SID
+gi_home=$GI_HOME
+gi_user=
+gi_passwd=
+oracle_listener=
+pdb_container=
+crs_home=
+html_filename=~/${BASENAME}_${RIGHT_NOW2}.html
+html_filename_link=~/${BASENAME}.html
+text_filename=~/${BASENAME}_${RIGHT_NOW2}.txt
+text_filename_link=~/${BASENAME}.txt
+interactive=
+x_mode=
+db_root_passwd=
+cell_root_passwd=
+trace_mode=
+cellsanity_mode=
+verbose_mode=
+bda_mode=
+ade_mode=
+tcpudp_mode=
+bds_software_only=
+bds_enable_authentication=
+username=
+password=
+identitykey=
+cells=
+sqlplus_uid=
+sqlplus_passwd=
+sqlplus_uid_passwd=
+db_node_bigdata_home_31=
+db_node_bigdata_home_32=
+bigdata_cluster_default=
+cluster_name=
+bdsql_cluster_name=
+hostname=`$hostnamecmd|$sedcmd "s/\..*//"`
+retry_err_count_before=
+retry_err_count_after=
+smart_scan_bytes_before=
+smart_scan_bytes_after=
+db_table_result=('N.A' 'N.A.' 'N.A.' 'N.A.' 'N.A.' 'N.A.' 'N.A.' 'N.A.' 'N.A.' 'N.A.' 'N.A.')
+cell_table_result=('N.A.' 'N.A.' 'N.A.' 'N.A.' 'N.A.' 'N.A.' 'N.A.' 'N.A.' 'N.A.' 'N.A.')
+db_table_action=('N.A.' 'N.A.' 'N.A.' 'N.A.' 'N.A.' 'N.A.' 'N.A.' 'N.A.' 'N.A.' 'N.A.' 'N.A.')
+cell_table_action=('N.A.' 'N.A.' 'N.A.' 'N.A.' 'N.A.' 'N.A.' 'N.A.' 'N.A.' 'N.A.' 'N.A.')
+start_time=$(/bin/date +%s)
+end_time=
+hs_core=
+db_unique_name=
+db_name=
+instance_name=
+diagnostic=
+diagnostic_dest=
+
+
+#
+# NOTE: In theory, there should be only one bigdata_config but in case that 
+#       users installed BDS 3.2 without de-install BDS 3.1, we need to 
+#       accomodate this scenario. The real bigdata_config in use is the 
+#       ORACLE_BIGDATA_CONFIG in all_directories table.
+#       It's critical to identify bigdata_config before we can derive the 
+#       bigdata.cluster.default from bigdata_config/bigdata.properties.
+#
+
+
+##----------------------------------------------
+#  2. Check if BDA and if ADE ?
+##----------------------------------------------
+# Check if BDA
+if [ -x $bdaclicmd ]; then
+    bda_mode=1
+fi
+
+# Check if ADE (additional customization might be needed if ade_mode == 1)
+if [ "$ADE_VIEW_NAME" != "" ]; then
+    ade_mode=1
+    if [ ! -e $oracle_home/bigdatasql ]; then
+        $lncmd -s $T_WORK $oracle_home/bigdatasql > /dev/null
+    fi
+    if [ ! -d $T_WORK/log ]; then
+        mkdir $T_WORK/log
+    fi
+    if [ ! -d $T_WORK/default_dir ]; then
+        mkdir $T_WORK/default_dir
+    fi
+fi
+
+
+##---------------------------------
+#  3. Process command line options
+##---------------------------------
+while [[ $# -gt 0 ]]
+do
+  key="$1"
+
+  case $key in
+    -d|--dbhome)
+      oracle_home="$2"
+      shift # past argument
+      ;;
+    -s|--sid)
+      oracle_sid="$2"
+      shift # past argument
+      ;;
+    -l|--listener)
+      oracle_listener="$2"
+      shift # past argument
+      ;;
+    -p|--pdb)
+      pdb_container="$2"
+      shift # past argument
+      ;;
+    -u|--username)
+      username="$2"
+      shift # past argument
+      ;;
+    -g|--gihome)
+      gi_home="$2"
+      shift # past argument
+      ;;
+    -x|--extensive)
+      x_mode=1
+      shift # past argument
+      ;;
+    -y|--giuser)
+      gi_user="$2"
+      shift # past argument
+      ;;
+    -k|--key)
+      identitykey="$2"
+      shift # past argument
+      ;;
+    -q|--sqlplus)
+      sqlplus_uid="$2"
+      shift # past argument
+      ;;
+    -r|--cluster)
+      cluster_name="$2"
+      shift # past argument
+      ;;
+    -c|--cell)
+      cells="$2"
+      shift # past argument
+      ;;
+    -a|--diagnostic)
+      diagnostic="$2"
+      shift # past argument
+      ;;
+    -i|--interactive)
+      interactive=1
+      $echocmd "interactive=$interactive"
+      ;;
+    -t|--trace)
+      trace_mode=1
+      ;;
+    -e|--cellsanity)
+      cellsanity_mode=1
+      ;;
+    -v|--verbose)
+      verbose_mode=1
+      ;;
+    -h|--help)
+      usage
+      exit
+      ;;
+    *) # unknown option
+      usage
+      exit 2
+      ;;
+  esac
+  shift # past argument or value
+done
+
+
+if [[ $oracle_home == "" ]];
+then
+    interactive=1
+else
+    if [[ $oracle_sid == "" ]];
+    then
+        interactive=1
+    else
+        if [[ $username == "" ]];
+        then
+            interactive=1
+        else
+            if [[ $sqlplus_uid == "" ]];
+            then
+                interactive=1
+            else
+                if [[ $pdb_container == "" ]];
+                then
+                    interactive=1
+                else
+                    if [[ ${oracle_listener} == "" ]];
+                    then
+                        interactive=1
+                    fi
+                fi
+            fi
+        fi
+    fi
+fi
+
+if [ "$password" == "" ]; then
+    if [[ $identitykey == "" ]];
+    then
+        interactive=1
+    fi
+fi
+
+##------------------------------------------------------------
+#  4. Process command line options interactively if necessary
+##------------------------------------------------------------
+while [[ "$interactive" == "1" ]]
+do
+    response=
+
+    if [ ! -d "$oracle_home" ]; then 
+        $echocmd
+        $echocmd "Error! Invalid ORACLE_HOME=\"$oracle_home\""
+        $echocmd
+        oracle_home=
+
+        $echocmd -n "Enter DB Node ORACLE_HOME > "
+        read response
+        if [ -n "$response" ]; then
+            oracle_home=$response
+        fi
+        if [ ! -d "$oracle_home" ]; then 
+            oracle_home=
+            continue;
+        fi
+    else
+        interactive=
+    fi
+
+    if [ "$oracle_sid" == "" ]; then 
+        $echocmd -n "Enter DB Node ORACLE_SID > "
+        read response
+        if [ -n "$response" ]; then
+            oracle_sid=$response
+        fi
+        if [ "$oracle_sid" == "" ]; then 
+            $echocmd
+            $echocmd "Error! Invalid ORACLE_SID=\"$oracle_sid\""
+            $echocmd
+            interactive=1
+            continue;
+        else
+            interactive=
+        fi
+    else
+        interactive=
+    fi
+
+    if [ "${sqlplus_uid}" == "" ]; then 
+        $echocmd -n "Enter DB Node SQLPlus user name> "
+        read response
+        if [ -n "$response" ]; then
+            sqlplus_uid=$response
+            interactive=
+        fi
+        if [ "${sqlplus_uid}" == "" ]; then 
+            $echocmd
+            $echocmd "Error! Invalid SQLPlus user name=\"${sqlplus_uid}\""
+            $echocmd
+            interactive=1
+            continue;
+        else
+            interactive=
+        fi
+    else
+        interactive=
+    fi
+
+    if [ "$username" == "" ]; then 
+        $echocmd -n "Enter Hadoop Node username > "
+        read response
+        if [ -n "$response" ]; then
+            username=$response
+        fi
+        if [ "$username" == "" ]; then 
+            echo
+            echo "Error! Invalid username=\"$username\""
+            echo
+            interactive=1
+            continue;
+        else
+            interactive=
+        fi
+    else
+        interactive=
+    fi
+
+    if [ "$GI_HOME" != "" ] && [ "$gi_user" == "" ]
+    then
+        $echocmd -n "Enter GI_HOME administrator name (or hit <Enter> to skip) > "
+        read response
+        if [ -n "$response" ]; then
+            gi_user=$response
+        fi
+        interactive=
+    fi
+
+    if [ "$pdb_container" == "" ]; then 
+        $echocmd
+        $echocmd -n "Enter PDB container name (or hit <Enter> to skip) > "
+        read response
+        if [ -n "$response" ]; then
+            pdb_container=$response
+        fi
+        interactive=
+    fi
+
+    if [ "${oracle_listener}" == "" ]; then 
+        $echocmd -n "Enter Oracle listener name (or hit <Enter> to accept the default) > "
+        read response
+        if [ -n "$response" ]; then
+            oracle_listener=$response
+        else
+            oracle_listener="LISTENER"
+        fi
+        interactive=
+    fi
+    oracle_listener=`$echocmd ${oracle_listener} | $sedcmd "s/\"//g"`
+
+    if [ -f $html_filename ]; then
+        $echocmd -n "Output file exists. Overwrite? (y/n) > "
+        read response
+        if [ "$response" != "y" ]; then
+            $echocmd "Exiting program."
+            exit 1
+        fi
+        interactive=
+    fi
+done # while loop
+
+
+# Prompt users for root passwords if extensive mode
+if [ "$x_mode" == "1" ]; then
+    unset db_root_passwd
+    $echocmd
+    $echocmd -n "Enter sudo password for DB node OS user '`$whoamicmd`': "
+    db_root_passwd=$(prompt_for_user_input)
+    $echocmd
+
+    tmp="$(run_as root $db_root_passwd $whoamicmd)"
+
+    if [ "$tmp" != "root" ]; then
+        exit 1
+    else
+        $echocmd "sudo password has been verified!"
+    fi
+
+    $echocmd -n "Enter root password for Hadoop cluster node OS user '$username': "
+    cell_root_passwd=$(prompt_for_user_input)
+    $echocmd
+fi
+
+#----------------------
+# Before block comment
+#----------------------
+if [ ]; then
+if [ "$x_mode" == "1" ] || [ "$gi_user" != "" ]; then
+    unset cell_root_passwd
+    $echocmd
+    $echocmd -n "Enter password for Cell node OS user \"root\": "
+    cell_root_passwd=$(prompt_for_user_input)
+    $echocmd
+fi
+fi
+#----------------------
+# After block comment
+#----------------------
+
+
+# Prompt users for sqlplus password
+echo
+unset sqlplus_passwd;
+echo -n "Enter password for DB node SQLPlus user \"${sqlplus_uid}\": "
+sqlplus_passwd=$(prompt_for_user_input)
+echo
+
+if [ "$sqlplus_uid" == "sys" ] || [ "$sqlplus_uid" == "system" ]; then
+    sqlplus_uid_passwd="${sqlplus_uid}/${sqlplus_passwd} as sysdba"
+else
+    sqlplus_uid_passwd=${sqlplus_uid}/${sqlplus_passwd}
+fi
+
+# Verify sqlplus password. The bdschecksw simply exit if password is wrong.
+sqlplus -s -L /NOLOG <<EOF
+whenever sqlerror exit 1
+whenever oserror exit 1
+CONNECT $sqlplus_uid_passwd
+exit
+EOF
+
+if [ $? -ne 0 ];
+then
+    echo "Failed to connect to Oracle!"
+    exit 1
+else
+    echo -n "The password is successfully authenticated!"
+    echo
+    echo
+fi
+
+
+# Once sqlplus password is verified, we can run queries against the DB node.
+#
+
+$rmcmd -f /tmp/db_unique_name.lst > /dev/null
+$rmcmd -f /tmp/db_name.lst > /dev/null
+$rmcmd -f /tmp/instance_name.lst > /dev/null
+$rmcmd -f /tmp/diagnostic_dest.lst > /dev/null
+
+sqlplus -s -L /NOLOG <<EOF >/dev/null
+set heading off
+set echo off
+set serveroutput off
+CONNECT $sqlplus_uid_passwd
+spool /tmp/db_unique_name
+show parameter db_unique_name
+spool off
+spool /tmp/db_name
+show parameter db_name
+spool off
+spool /tmp/instance_name
+show parameter instance_name
+spool off
+spool /tmp/diagnostic_dest
+show parameter diagnostic_dest
+spool off
+spool /tmp/ssl_wallet
+select property_value from database_properties where property_name='SSL_WALLET';
+spool off
+spool /tmp/http_proxy
+select property_value from database_properties where property_name='HTTP_PROXY';
+spool off
+exit
+EOF
+
+db_unique_name="`$grepcmd db_unique_name /tmp/db_unique_name.lst | $awkcmd '{print $3}'`"
+db_name="`$grepcmd db_name /tmp/db_name.lst | $awkcmd '{print $3}'`"
+instance_name="`$grepcmd instance_name /tmp/instance_name.lst | $awkcmd '{print $3}'`"
+
+if [ -d "$diagnostic" ] 
+then
+    # Use user-defined diagnostic_dest
+#   $echocmd "Debug: diagnostic_dest = $diagnostic"
+    diagnostic_dest="$diagnostic"
+else
+    # By default, use db home's diagnostic_dest parameter
+    # diagnostic_dest="`$grepcmd diagnostic_dest /tmp/diagnostic_dest.lst | $awkcmd '{print $3}'`"
+    diagnostic_dest="`$catcmd /tmp/diagnostic_dest.lst | $sedcmd -e '1d' | $headcmd -2 | $sedcmd "s/^[ \t]*//" | $sedcmd 'N;s/\n//;' | $awkcmd '{print $3$4}'`"
+
+fi
+
+if [[ "$db_unique_name" == "" ]] || [[ "$db_name" == "" ]] || [[ "$instance_name" == "" ]] ; then
+    echo DB_UNIQUE_NAME=$db_unique_name
+    echo DB_NAME=$db_name
+    echo INSTANCE_NAME=$instance_name
+    echo "Error! DB_UNIQUE_NAME or DB_NAME or INSTANCE_NAME is NULL!"
+    exit 1
+fi
+
+check_bigdata_config
+bigdata_cluster_default="`$grepcmd bigdata.cluster.default ${DB_NODE_BIGDATA_CONFIG}/bigdata.properties| $cutcmd -d= -f2 | $trcmd -d '\n' | $trcmd -d '\r'`"
+
+if [ -f $oracle_home/bigdatasql/hadoop_${cluster_name}.env ]
+then
+    bdsql_cluster_name="$cluster_name"
+else
+    bdsql_cluster_name="$bigdata_cluster_default"
+fi
+
+
+# Prompt users for remote login password for cell nodes
+unset password;
+echo -n "Enter password for Hadoop cluster node OS user \"${username}\": "
+password=$(prompt_for_user_input)
+echo
+
+if [ "$password" == "" ]; then
+    password="<NULL>"
+fi
+
+if [ "$cells" == "" ]; then
+  if [ -f "${DB_NODE_BIGDATA_CONFIG}/${bdsql_cluster_name}/bigdata.hosts" ]; then
+    cells=`cat ${DB_NODE_BIGDATA_CONFIG}/${bdsql_cluster_name}/bigdata.hosts | $grepcmd bigdata.hosts | $cutcmd -f2 -d= | $sedcmd "s/,/ /g"`
+  elif [ -f "${DB_NODE_BIGDATA_CONFIG}/${bdsql_cluster_name}/topology.map" ]; then
+    while IFS='' read -r line || [[ -n "$line" ]];
+    do
+        if [[ $line == *"node name"* ]]; then
+            name=`$echocmd $line | $cutcmd -d\" -f2 | $cutcmd -d. -f1`
+            cells="$cells $name"
+            read -r line
+        fi
+    done < "${DB_NODE_BIGDATA_CONFIG}/${bdsql_cluster_name}/topology.map"
+  fi
+fi
+
+for cn in `$echocmd $cells`
+do
+   tmp=`remote_command $username $cn $password "/bin/uname -n" $identitykey`
+   if [[ "$tmp" != *"Permission denied"* ]]
+   then
+      echo -n "The password for $username@$cn is successfully authenticated!"
+      echo
+   else
+      echo -n "Error! Authentication failed for $username@$cn."
+      echo
+      exit 1
+   fi
+done
+
+
+if [ "$ade_mode" == "1" ]; then
+    crs_home=
+else
+    if [ -f /etc/oracle/olr.loc ]; then
+        crs_home="`$grepcmd crs_home /etc/oracle/olr.loc | $cutcmd -d= -f2 | $trcmd -d '\n' | $trcmd -d '\r' 2>/dev/null`"
+    else
+        crs_home=
+    fi
+fi
+
+
+# Prompt users for gi_passwd if gi_user is specified
+if [ "$x_mode" != "1" ] && [ "$gi_user" != "" ]; then
+    unset gi_passwd;
+    $echocmd
+    echo -n "Enter password for GI_HOME administrator OS user \"${gi_user}\": "
+    gi_passwd=$(prompt_for_user_input)
+    echo
+    if [ "$gi_passwd" == "" ]; then
+        gi_passwd="<NULL>"
+    fi
+
+   tmp=`remote_command $gi_user $hostname $gi_passwd "/bin/uname -n" $identitykey`
+   if [[ "$tmp" != *"Permission denied"* ]]
+   then
+      echo -n "The password for $gi_user@$hostname is successfully authenticated!"
+      echo
+   else
+      echo -n "Error! Authentication failed for $gi_user@$hostname."
+      echo
+      exit 1
+   fi
+fi
+
+
+##---------------------------------------------------------------------
+#  5. Conduct config sanity checks for the pre-requisites of bdschecksw
+##---------------------------------------------------------------------
+if [ -d "$oracle_home" ] 
+then
+    if [ -d "$oracle_home/bigdatasql" ] 
+    then
+        export ORACLE_HOME=$oracle_home
+        export ORACLE_SID=$oracle_sid
+        export PATH=$oracle_home/bin:$PATH
+        export LD_LIBRARY_PATH=$oracle_home/lib:${LD_LIBRARY_PATH}
+
+        if [ -d "$gi_home" ]; then 
+          export GI_HOME=$gi_home
+#         export TNS_ADMIN=$gi_home/network/admin
+        else
+          if [ -d "$crs_home" ]; then 
+            export GI_HOME=$crs_home
+#           export TNS_ADMIN=$crs_home/network/admin
+          fi
+        fi
+    else
+        $echocmd
+        $echocmd "Error! \"$oracle_home/bigdatasql\" doesn't exist."
+        usage
+        exit 2
+    fi
+else
+    $echocmd
+    $echocmd "Error! Invalid ORACLE_HOME=\"$oracle_home\""
+    usage
+    exit 2
+fi
+
+if [ "$ade_mode" == "" ]; then
+    mta_init_file_pathname=`$lscmd $oracle_home/hs/admin/init*_${db_unique_name}_${bdsql_cluster_name}.ora`
+else
+    mta_init_file_pathname=`$lscmd $oracle_home/hs/admin/initBDSQL_${bdsql_cluster_name}.ora`
+fi
+
+hadoop_env_file=$oracle_home/bigdatasql/hadoop_${bdsql_cluster_name}.env
+
+if [ ! -f ${hadoop_env_file} ]; then
+    $echocmd
+    $echocmd "Error! \"${hadoop_env_file}\" doesn't exist."
+    usage
+    exit 2
+fi
+
+if [ "$ade_mode" == "1" ]; then
+    if [ ! -e $T_WORK/hadoop_${bdsql_cluster_name}.env ]; then
+        $lncmd -s $T_WORK/hadoop_env.sh $T_WORK/hadoop_${bdsql_cluster_name}.env > /dev/null
+    fi
+    if [ ! -e $oracle_home/bin/mtactl ]; then
+        $lncmd -s $oracle_home/rdbms/bin/mtactl $oracle_home/bin/mtactl > /dev/null
+    fi
+fi
+mtactlcmd=${oracle_home}/bin/mtactl
+
+if [ -d "$oracle_home/bigdatasql/log" ] 
+then
+    MY_LOG_DIRECTORY=$oracle_home/bigdatasql/log
+else
+    MY_LOG_DIRECTORY="~"
+fi
+
+if [ ! -d "${MY_LOG_DIRECTORY}/.${BASENAME}" ]; then
+    mkdir "${MY_LOG_DIRECTORY}/.${BASENAME}"
+fi
+MY_ERROR_LOG_DIRECTORY=${MY_LOG_DIRECTORY}/.${BASENAME}
+
+# Verify cell node remote login password. The bdschecksw simply exit if password is wrong.
+. ${hadoop_env_file} > /dev/null 2>&1
+
+hadoopcmd=${HADOOP_HOME}/bin/hadoop
+
+$hadoopcmd fs -ls / > $MY_ERROR_LOG_DIRECTORY/hadoop_fs_ls.out 2>&1 &
+$sleepcmd 3
+
+tmp=$($grepcmd failed $MY_ERROR_LOG_DIRECTORY/hadoop_fs_ls.out | $sedcmd -n '1p')
+if [ "$tmp" != "" ]; then
+    $echocmd
+    $echocmd "Fatal Hadoop Error! Check ${MY_ERROR_LOG_DIRECTORY}/hadoop_fs_ls.out for great details."
+    $echocmd
+#   exit 2
+fi
+
+
+MY_CELLS=
+MY_DB_HOST_IP=
+MY_CELLINIT_IP=
+
+report_fullpath_basename=${MY_LOG_DIRECTORY}/${BASENAME}
+
+html_filename="${report_fullpath_basename}_${RIGHT_NOW2}.html"
+html_filename_link="${report_fullpath_basename}.html"
+text_filename="${report_fullpath_basename}_${RIGHT_NOW2}.txt"
+text_filename_link="${report_fullpath_basename}.txt"
+json_filename="${report_fullpath_basename}_${RIGHT_NOW2}.json"
+json_filename_link="${report_fullpath_basename}.json"
+
+$echocmd 
+$echocmd $BDSCHECKSW_BANNER
+$echocmd 
+$echocmd "output html file = file://${html_filename}"
+
+# Port specific changes
+case ${OS_TYPE} in
+  Linux)
+    if [ -x /usr/bin/links ]; then
+      $echocmd "output text file = file://${text_filename}"
+    fi
+    ;;
+  SunOS)
+      ifconfigcmd='/usr/sbin/ifconfig'
+    ;;
+  *)
+    ;;
+esac
+
+$echocmd "output json file = file://${json_filename}"
+
+
+##---------------------------------------
+#  6. Call the main routine bds_check_sw
+##---------------------------------------
+
+if [ "$html_filename" == "" ]; 
+then
+    bds_check_sw
+else
+    bds_check_sw
+
+    $rmcmd -f $html_filename_link > /dev/null
+    $lncmd -s $html_filename $html_filename_link
+
+    $rmcmd -f $json_filename_link > /dev/null
+    $lncmd -s $json_filename $json_filename_link
+
+    case ${OS_TYPE} in
+      Linux)
+        if [ -x /usr/bin/links ]; then
+          $rmcmd -f $text_filename_link > /dev/null
+          /usr/bin/links -dump $html_filename > $text_filename 
+          $lncmd -s $text_filename $text_filename_link 
+        fi
+        ;;
+      SunOS)
+        ;;
+      *)
+        ;;
+    esac
+fi
+
+

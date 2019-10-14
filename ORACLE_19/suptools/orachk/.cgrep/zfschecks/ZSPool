@@ -1,0 +1,396 @@
+printf("==========START_OF_REPORT_chkZSPool.aksh==========\n");
+var founderrors = false;
+
+function bytesToSize(bytes) {
+    var sizes = ['Bytes', 'KB', 'MB', 'GB', 'TB'];
+    if (bytes == 0) return 'n/a';
+    var i = parseInt(Math.floor(Math.log(bytes) / Math.log(1024)));
+    return (bytes / Math.pow(1024, i)).toFixed(1) + ' ' + sizes[i];
+};
+
+function getChassisNumber(){
+	chassis = new Array();	
+	for (i=0; i<appl.hardware.chassis.length; i++){	
+		chassis[appl.hardware.chassis[i]["name"]] = appl.hardware.chassis[i]["chassis"];	
+	}
+	return chassis;
+}
+
+function chkPoolErrors() {
+	// Get to a known context
+	run("cd /");
+
+	//We need a list of pools
+	run('status storage');
+	pools=list();
+	for (var i = 0; i < pools.length; i++) {
+		run('select ' + pools[i]);
+		var poolState = getOrNA("state");
+		if(poolState != "online") {
+			founderrors = true;
+            printreport("WARNING: ");
+		}
+		printreport("Pool '" + pools[i] + "' is " + poolState + "\n");
+		run('cd ..');
+	}
+}
+
+// Display pool status - this differs from chkPoolErrors() in that it
+// prints a more detailed report
+function pool_status(){
+	var poolDetailsLong = '';
+	output = pools = pool_info = new Array();	 
+	
+	retrieve_chassis();
+	chassis = getChassisNumber();		
+	p_s = s = a_s = "";	
+	
+	try {
+		// get product name
+		run('cd /');								
+		run('configuration version');
+		product = get("product");
+		
+		// if this an old product, we need to get the pools with different commands
+		if (product.lastIndexOf("10")>=0){
+			run("cd /");
+			pool_list =  run('configuration storage list').split('\n\n')[1]; // get pool list
+			//print("Pools: " + pool_list);
+			output = pool_list.replace("pool =","      ").split('\n');				
+			output.shift(); // remove this first line:  "POOL  OWNER  DATA PROFILE  LOG PROFILE   STATUS"
+			output.sort(); // sort the pools by name			
+		}
+		else{
+			run("cd /");
+			run('configuration storage');
+			pool_list = run("list pools").split('\n\n')[1]; // get pool list
+			//print("Pools: " + pool_list);
+			output = pool_list.replace("->","  ").split('\n');
+			output.shift(); // remove this first line:  "POOL  OWNER  DATA PROFILE  LOG PROFILE   STATUS"
+			output.sort(); // sort the pools by name
+			output.shift(); // remove the first line which will be a new line (empty line)
+		}
+		poolDetailsLong = "*\tDetailed Info:\n";
+		
+		//print(p_s);
+		//all_checks += p_s;
+		
+		
+		// Get raw command outputs and aksh output and save them in an array:						
+		for (i = 0; i < output.length; i++){							
+			item = output[i].replace(/^\s+|\s+$/gm,'').replace(/\s+/g, " ").split(' ');			
+			pool = item[0];				
+							
+			pools[pool] = new Array();			
+			pools[pool]['name'] = item[0];
+			pools[pool]['owner'] = item[1];
+			pools[pool]['data_profile'] = item[2].replace(/\s+/g, "");
+			pools[pool]['log_profile'] = item[3];
+			pools[pool]['status'] = item[4];
+
+			pools[pool]['vdev_disks'] = [];
+			
+			if (pools[pool]['data_profile'].replace(/\s+/g, "") != "-") {
+			    var poolStatus = nas.poolStatus(pool);
+				pools[pool]["status"] = poolStatus.np_state;				
+				pools[pool]['errors'] = poolStatus.np_errors;								
+				pools[pool]["spare_space"] = poolStatus.np_space.nps_spare;				
+				pools[pool]["reserved_space"] = poolStatus.np_space.nps_reserved;
+				pools[pool]["data_space"] = poolStatus.np_space.nps_data;				
+				pools[pool]["parity_space"] = poolStatus.np_space.nps_parity;
+				pools[pool]["raw_size"] = poolStatus.np_raw_size;
+				pools[pool]["raw_used"] = poolStatus.np_raw_used;
+		        pools[pool]["data_disks"] = poolStatus.np_disks.npd_data;
+				pools[pool]["log_disks"] = poolStatus.np_disks.npd_log;				
+				pools[pool]["spare_disks"] = poolStatus.np_disks.npd_spare;
+				pools[pool]["spare_disks_list"] = "";
+				if (pools[pool]["spare_disks"] >0){
+					nr_spares = poolStatus.np_spare.length;
+					for (j=0; j< nr_spares; j++){
+						location = poolStatus.np_spare[j].np_label;
+						state = poolStatus.np_spare[j].np_state;
+						sn = poolStatus.np_spare[j].np_chassis;						
+						pools[pool]["spare_disks_list"] += "\n\t\t" + location + " - " + state + " ("+chassis[sn]+")"
+					}					
+				 }	
+				
+				pools[pool]["cache_disks"] = poolStatus.np_disks.npd_cache;
+				pools[pool]["cache_disks_list"] = "";
+				if (pools[pool]["cache_disks"] >0){
+					nr_spares = poolStatus.np_cache.length;
+					for (j=0; j< nr_spares; j++){
+						location = poolStatus.np_cache[j].np_label;
+						state = poolStatus.np_cache[j].np_state;
+						sn = poolStatus.np_cache[j].np_chassis;
+						
+						pools[pool]["cache_disks_list"] += "\n\t\t" + location + " - " + state + " ("+chassis[sn]+")"
+					}
+				}
+				
+				pools[pool]["total_disks"] = (pools[pool]["cache_disks"]) + (pools[pool]["log_disks"]) + (pools[pool]["spare_disks"]) + (pools[pool]["data_disks"]);					
+
+				// Get VDEVs for the pool
+				
+				// If this is a stripe
+				if (pools[pool]['data_profile'] == "stripe"){
+					vdevs = poolStatus.np_vdev.length;
+					for (j=0; j<vdevs; j++){
+						trio = "";
+						
+						disk = poolStatus.np_vdev[j].np_label;
+						sn = poolStatus.np_vdev[j].np_chassis;
+						state = poolStatus.np_vdev[j].np_state;
+						
+						if (disk.length == 8){								
+							disk = disk.replace(/D\s/, "D 0");
+						}
+						if (state=="healthy"){
+							state = "ok";
+						}
+						else {
+						    founderrors = true;
+						}
+						trio = disk + " - "+ state + " (" + chassis[sn] + ")" ;
+						pools[pool]['vdev_disks'].push(trio);
+					}
+				}
+				else {
+					vdevs = poolStatus.np_vdev.length;
+					for (j=0; j<vdevs; j++){
+						type = poolStatus.np_vdev[j].np_type;						
+						if (type == "mirror" || type == "raidz"){
+							pair = "[";						
+							children = poolStatus.np_vdev[j].np_children.length;
+							status = poolStatus.np_vdev[j].np_state;
+							
+							// Go thourh all the children of the vdev
+							for (k=0; k<children; k++){
+								sn = state = disk = trio = "";
+								
+								// Get disk location, status and chassis location						
+								state = poolStatus.np_vdev[j].np_children[k].np_state;						
+								// Is this vdev healthy?
+								if (state == "healthy"){	
+									disk = poolStatus.np_vdev[j].np_children[k].np_label;
+
+									if (disk.length == 8){								
+										disk = disk.replace(/D\s/, "D 0");
+									}
+									sn = poolStatus.np_vdev[j].np_children[k].np_chassis;
+									state = "ok";	
+									trio += disk + " - " +state+ " (" + chassis[sn] + ")";
+								}
+								else if (state == "degraded"){
+								    founderrors = true;
+									degraded_pair = new Array();
+									degraded_children = poolStatus.np_vdev[j].np_children[k].np_children.length;
+									
+									for (l=0; l<degraded_children; l++) {									
+										disk = poolStatus.np_vdev[j].np_children[k].np_children[l].np_label;
+										
+										if (disk.length == 8){
+											disk = disk.replace(/D\s/, "D 0");
+										}
+										sn = poolStatus.np_vdev[j].np_children[k].np_children[l].np_chassis;
+										disk_state = poolStatus.np_vdev[j].np_children[k].np_children[l].np_state;
+										
+										if (disk_state == "healthy"){
+											degraded_pair.push(disk  + "(spare) (" + chassis[sn] + ") - OK");
+										}
+										else {
+											degraded_pair.push(disk + " (" + chassis[sn] + ")" + " - " + disk_state);
+										}								
+									}
+									trio = "[";
+									for(d=0; d<degraded_pair.length-1; d++){
+										trio += degraded_pair[d] + "\n\t     ";
+									}
+									trio += degraded_pair[degraded_pair.length-1] + "]";							
+								}
+																					
+								if (pair=="["){
+									pair += trio;
+								}
+								else {
+									pair += " -- " + trio;
+								}
+							}					
+							
+							pair += " ]";
+							pair += " - " + status;
+							pools[pool]['vdev_disks'].push(pair);
+						}
+						else {
+							trio = "";
+						
+							disk = poolStatus.np_vdev[j].np_label;
+							sn = poolStatus.np_vdev[j].np_chassis;
+							state = poolStatus.np_vdev[j].np_state;
+							
+							dump(poolStatus.np_vdev[j]);
+							if (disk.length == 8){								
+								disk = disk.replace(/D\s/, "D 0");
+							}
+							if (state=="healthy"){
+								state = "ok";
+							}
+							else {
+							    founderrors = true;
+							}
+							trio = "[" + disk + " (" + chassis[sn] + ") - " + state + "]";
+							pools[pool]['vdev_disks'].push(trio);
+						}						
+					}					
+				}
+				pools[pool]['vdev_disks'].sort();											
+			}
+			else {
+				pools[pool]["spare_space"] = "-";
+				pools[pool]["reserved_space"] = "-";
+				pools[pool]["data_space"] = "-";
+				pools[pool]["parity_space"] = "-";
+			}			
+						
+			if (isNaN(pools[pool]["spare_space"])){
+			    if(parseInt(item[5]) > 0) {
+			        founderrors = true;
+			    }
+			
+				s += 	"\n\tPool name:          " + item[0] + 					
+						"\n\tRaw Size:           " + "-" + 
+						"\n\tRaw Used:           " + "-" + 
+						"\n\tSpare Space:        " + "-" +
+						"\n\tReserved space:     " + "-" +
+						"\n\tData Profile:       " + item[2] + 
+						"\n\tLog Profile:        " + item[3] + 						
+						"\n\tErrors:             " + item[5] +	
+						"\n\t----------" +	
+						"\n\tTo get more information about this pool, run this script on the other cluster node" +	
+						"\n\t----------" +	
+						"\n\n";					
+			}
+			else {
+				vdevs =  "";
+				for (j=0; j<pools[pool]['vdev_disks'].length; j++){
+					vdevs += "\n\t   "+pools[pool]['vdev_disks'][j];
+				}
+				
+			    if(parseInt(pools[pool]["errors"]) > 0) {
+			        founderrors = true;
+			    }	
+				s += 	"\n\tPool name:          " + item[0] + " ("+pools[pool]["status"].toUpperCase()+")" +
+            			"\n\tRaw Size:           " + bytesToSize(pools[pool]["raw_size"]) + 
+						"\n\tRaw Used:           " + bytesToSize(pools[pool]["raw_used"]) + 	
+						"\n\tSize with parity:   " + bytesToSize(pools[pool]["parity_space"]) + "  (" + bytesToSize(pools[pool]["data_space"])+ " w/o parity)"  + 																		
+						/*"\n\tSpare Space:        " + bytesToSize(pools[pool]["spare_space"]) + */
+						"\n\tReserved space:     " + bytesToSize(pools[pool]["reserved_space"]) +
+						"\n\tTotal Disks:        " + pools[pool]["total_disks"] +
+						"\n\t   Data Disks:         " + pools[pool]["data_disks"] +																	
+						"\n\t   Log Disks:          " + pools[pool]["log_disks"] + 
+						"\n\t   Cache Disks:        " + pools[pool]["cache_disks"] + pools[pool]["cache_disks_list"] +						
+						"\n\t   Spare Disks:        " + pools[pool]["spare_disks"] + pools[pool]["spare_disks_list"] + 
+						"\n\tData Profile:       " + item[2] + 
+						"\n\tLog Profile:        " + item[3] + 								
+						"\n\tErrors:             " +  pools[pool]["errors"] +	
+						"\n\tVdevs:              " + vdevs +	
+						"\n\t----------" +	
+						"\n\n";									
+			}		
+			a_s += "Pool: " + item[0] + ", owner: " + item[1] + ", data profile: " + item[2] + ", log profile:" + item[3] + ", status: " + item[4] + ", errors: " + pools[pool]["errors"];					
+		}
+						
+		/* Now examine the system pool*/		
+		pools["system"] = new Array();
+	
+		var systemPoolStatus = nas.poolStatus('system');
+
+		// Get vdev pairs for the pool
+		pools["system"]["sys_vdevs"] =  [];
+		vdevs = systemPoolStatus.np_vdev.length;
+		
+		for (i=0; i<vdevs; i++){
+			pair = "[";
+			children = systemPoolStatus.np_vdev[i].np_children.length;
+			for (j=0; j<children; j++){
+				
+				pools["system"]["sn"] = systemPoolStatus.np_vdev[i].np_children[j].np_chassis;
+				pools["system"]["disk"] = systemPoolStatus.np_vdev[i].np_children[j].np_label;
+				pools["system"]["state"] = systemPoolStatus.np_vdev[i].np_children[j].np_state;
+				if (pools["system"]["state"]=="healthy"){
+					pools["system"]["state"] = "ok";
+				}
+				else {
+				    founderrors = true;
+				}
+				
+				if (pair=="["){
+					pair += pools["system"]["disk"] + " - "+ state +" (" + chassis[pools["system"]["sn"]] + ")";
+				}
+				else {
+					pair += " -- " + pools["system"]["disk"] + " - "+ state + " (" + chassis[pools["system"]["sn"]] + ")";
+				}
+			}
+			pair += "]"
+			pair += " - " + systemPoolStatus.np_vdev[i].np_state;
+			pools["system"]["sys_vdevs"].push(pair);
+		}
+		
+		vdevs =  "";
+		for (i=0; i<pools["system"]["sys_vdevs"].length; i++){
+			vdevs += "\n\t   "+pools["system"]["sys_vdevs"][i];
+		}
+		
+		pools["system"]["data_disks"] = systemPoolStatus.np_disks.npd_data;
+		pools["system"]["log_disks"] = systemPoolStatus.np_disks.npd_log;
+		pools["system"]["spare_disks"] = systemPoolStatus.np_disks.npd_spare;
+		pools["system"]["cache_disks"] = systemPoolStatus.np_disks.npd_cache;			
+				
+		pools["system"]["total_disks"] = (pools["system"]["cache_disks"] + pools["system"]["log_disks"] + pools["system"]["spare_disks"] + pools["system"]["data_disks"]);	
+		
+		var systemPoolErrors = systemPoolStatus.np_errors;
+		if(systemPoolErrors > 0) {
+		    founderrors = true;
+		}		
+		
+		s += 	"\n\tPool name:          " +"system" + 	" ("+systemPoolStatus.np_state.toUpperCase()+")" +				
+				"\n\tRaw Size:           " + bytesToSize(systemPoolStatus.np_raw_size) +
+				"\n\tRaw Used:           " + bytesToSize(systemPoolStatus.np_raw_used) +
+				/*"\n\tSpare Space:        " + bytesToSize(systemPoolStatus.np_space.nps_spare) +*/
+				"\n\tSize with parity:   " + bytesToSize(systemPoolStatus.np_space.nps_parity) +  "  (" +
+	bytesToSize(systemPoolStatus.np_space.nps_data)+ " w/o parity)"  +
+				"\n\tReserved space:     " + bytesToSize(systemPoolStatus.np_space.nps_reserved) +				
+				"\n\tTotal Disks:        " + pools["system"]["total_disks"] + 
+				"\n\t   Data Disks:         " + pools["system"]["data_disks"] +																	
+				"\n\t   Cache Disks:        " + pools["system"]["cache_disks"] +
+				"\n\t   Log Disks:          " + pools["system"]["log_disks"] +
+				"\n\t   Spare Disks:        " + pools["system"]["spare_disks"] +									
+				"\n\tErrors:             " + systemPoolErrors +	
+				"\n\tVdevs:              " + vdevs +
+				"\n\t----------" +	
+				"\n\n";	
+				
+		poolDetailsLong += s; 
+		// Add pools to appl.hardware
+		//appl.hardware.pools = pools;
+	}
+	catch(e) {
+		poolDetailsLong = "*\tPool Details Error:\n"+
+						  "\t"+e.message+"\n";	    
+	}
+	finally{
+		poolTable.details.push(poolDetailsLong);
+	}
+}
+
+//var poolTable = new printTable({name:"Pool Details", headNames:[]});
+//appl.hardware 	= new Array();	
+getHostname();
+chkPoolErrors();
+//pool_status();
+//printReportTable(poolTable);
+
+printf("==========END_OF_REPORT_chkZSPool.aksh==========\n");
+printf("==========START_OF_AUDIT_CHECK_chkZSPool.aksh==========\n");
+printf("pool_status = %d\n", founderrors);
+printf("==========END_OF_AUDIT_CHECK_chkZSPool.aksh==========\n");			
+

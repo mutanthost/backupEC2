@@ -1,0 +1,18 @@
+<commands>
+<command name="alert">
+<file_type>Alert Log - DB</file_type>
+</command>
+<command name="crsalert">
+<file_type>CRS Alert Log</file_type>
+</command>
+<command name="asmalert">
+<file_type>Alert Log - ASM</file_type>
+</command>
+<command name="sysmsg">
+<file_type>System Messages Log</file_type>
+</command>
+<command name="lms">
+<file_type></file_type>
+</command>
+</commands>
+

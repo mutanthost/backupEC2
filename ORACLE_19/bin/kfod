@@ -1,0 +1,22 @@
+#!/bin/sh
+#
+# $Header: opsm/utl/kfod.sbs 
+#
+# kfod
+#
+# Copyright (c) 2000, 2014, Oracle and/or its affiliates. All rights reserved.
+#
+#    NAME
+#      kfod - KFOD utility
+#
+#    DESCRIPTION
+#      This is a script which is a wrapper on top of kfod.bin
+#      This script is only shipped to the DATABASE home
+#
+#    MODIFIED   (MM/DD/YY)
+#        samjo   05/21/14 - Creation
+OHOME=/u01/app/oracle/product/19.0.0/dbhome_1
+ORACLE_HOME=${OHOME}
+export ORACLE_HOME
+
+exec $OHOME/bin/kfod.bin "$@"

@@ -1,0 +1,315 @@
+<?xml version="1.0"?>
+
+<!--  $Header: tfa/src/v2/ext/tfaext.xml /main/32 2018/08/30 04:13:08 llakkana Exp $ -->
+
+<!-- 
+ Copyright (c) 2014, 2018, Oracle and/or its affiliates. All rights reserved.
+
+   NAME
+     tfaext.xml - <one-line expansion of the name>
+
+   DESCRIPTION
+     <short description of component this file declares/defines>
+
+   NOTES
+     <other useful comments, qualifications, etc.>
+
+   MODIFIED   (MM/DD/YY)
+   bibsahoo    05/31/18 - Removing events and search from tfa external tools
+                          and fix bug 27908189
+   recornej    05/28/18 - Adding dbcheck tool
+   bibsahoo    03/21/18 - Adding Ext Tool tfactl search
+   gadiga      12/14/17 - update osw version
+   bburton     11/02/17 - Remove sqlt
+   bibsahoo    09/06/17 - FIX BUG 26710106
+   bburton     05/25/17 - Summary not on Windows for now
+   bburton     05/09/17 - Menu on Windows
+   manuegar    04/21/17 - manuegar_srdcwin_shared.
+   bburton     03/17/17 - Need RDA if there
+   llakkana    02/01/17 - Remove srdc tool as it is supported as tfactl
+                          diagcollect -srdc
+   bburton     11/01/16 - put back dbperf
+   cpujar      09/07/16 - add tooltype information
+   manuegar    07/14/16 - Bug 24285101 - HPI_122_TFA:TFACTL DBPERF GET HELP
+                          INFO OF "TFACTL SRDC" .
+   bibsahoo    07/12/16 - DBGlevel Support For Windows
+   arupadhy    07/07/16 - Added platform and alias support
+   gadiga      02/05/16 - remove da
+   bburton     01/25/16 - add dbperf
+   llakkana    01/06/16 - Add srdc
+   llakkana    09/06/15 - add needinventory proerty
+   gadiga      08/04/15 - add triage
+   gadiga      02/10/15 - comments
+   manuegar    01/09/15 - CRS log profiles
+   gadiga      01/08/15 - rename tools, add ls
+   gadiga      10/31/14 - suptools metadata
+   gadiga      10/31/14 - Creation
+
+-->
+<!-- 
+platforms = ALL/UNIX/WINDOWS/LINUX
+-->
+
+<tools>
+
+<tool name="oratop" version="14.1.2" buildid="20170509" platforms="UNIX-LINUX"  aliases="otop-top">
+<summary>OraTop - A Database Monitoring Tool</summary>
+<desc>OraTop - A Database Monitoring Tool
+</desc>
+<runas>db</runas>
+<daemon>false</daemon>
+<command>%TFA_HOME%/ext/oratop/oratop.RDBMS_%DBVERSION_SHORT%_%ORATOP_PLATFORM%</command>
+<default-flags>-bn1</default-flags>
+<clusterwide>false</clusterwide>
+<needinventory>false</needinventory>
+<tooltype>Development Tools</tooltype>
+</tool>
+
+<tool name="alertsummary" version="12.2.1.1.0" buildid="20170509" platforms="UNIX-LINUX">
+<desc>Summarize database alert log.</desc>
+<runas>db</runas>
+<runas>crs</runas>
+<daemon>false</daemon>
+<clusterwide>true</clusterwide>
+<needinventory>true</needinventory>
+<tooltype>TFA Utilities</tooltype>
+</tool>
+
+<tool name="triage" version="12.2.1.1.0" buildid="20170509" platforms="UNIX-LINUX">
+<desc>Summarize OSW or Exawatcher data.</desc>
+<runas>db</runas>
+<runas>crs</runas>
+<daemon>false</daemon>
+<clusterwide>true</clusterwide>
+<needinventory>true</needinventory>
+<tooltype>TFA Utilities</tooltype>
+</tool>
+
+
+<tool name="summary" version="12.2.1.1.0" buildid="20170509" platforms="ALL">
+<desc>Display system summary</desc>
+<runas>db</runas>
+<runas>crs</runas>
+<daemon>false</daemon>
+<clusterwide>true</clusterwide>
+<needinventory>true</needinventory>
+<tooltype>TFA Utilities</tooltype>
+</tool>
+
+<tool name="history" version="12.2.1.1.0" buildid="20170509" platforms="ALL">
+<desc>Command history in TFA shell.</desc>
+<runas>db</runas>
+<runas>crs</runas>
+<daemon>false</daemon>
+<clusterwide>false</clusterwide>
+<needinventory>false</needinventory>
+<tooltype>TFA Utilities</tooltype>
+</tool>
+
+<tool name="param" version="12.2.1.1.0" buildid="20170509" platforms="ALL">
+<desc>Show parameter value.</desc>
+<runas>db</runas>
+<runas>crs</runas>
+<daemon>false</daemon>
+<clusterwide>true</clusterwide>
+<needinventory>true</needinventory>
+<tooltype>TFA Utilities</tooltype>
+</tool>
+
+<tool name="vi" version="12.2.1.1.0" buildid="20170509" platforms="ALL" aliases="notepad">
+<desc>Open file in a editor.</desc>
+<runas>db</runas>
+<runas>crs</runas>
+<daemon>false</daemon>
+<clusterwide>false</clusterwide>
+<needinventory>true</needinventory>
+<tooltype>TFA Utilities</tooltype>
+</tool>
+
+<tool name="ls" version="12.2.1.1.0" buildid="20170509" platforms="ALL" aliases="dir">
+<desc>List files in TFA database.</desc>
+<runas>db</runas>
+<runas>crs</runas>
+<daemon>false</daemon>
+<clusterwide>true</clusterwide>
+<needinventory>true</needinventory>
+<tooltype>TFA Utilities</tooltype>
+</tool>
+
+<tool name="ps" version="12.2.1.1.0" buildid="20170509" platforms="ALL" aliases="tasklist">
+<desc>Execute unix ps command.</desc>
+<runas>db</runas>
+<runas>crs</runas>
+<daemon>false</daemon>
+<clusterwide>true</clusterwide>
+<needinventory>false</needinventory>
+<tooltype>TFA Utilities</tooltype>
+</tool>
+
+<tool name="pstack" version="12.2.1.1.0" buildid="20170509" platforms="UNIX-LINUX">
+<desc>Stack trace from a running process.</desc>
+<runas>db</runas>
+<runas>crs</runas>
+<daemon>false</daemon>
+<clusterwide>true</clusterwide>
+<needinventory>false</needinventory>
+<tooltype>TFA Utilities</tooltype>
+</tool>
+
+<tool name="grep" version="12.2.1.1.0" buildid="20170509" platforms="ALL" aliases="findstr">
+<desc>Run unix grep utility.</desc>
+<runas>db</runas>
+<runas>crs</runas>
+<daemon>false</daemon>
+<clusterwide>true</clusterwide>
+<needinventory>true</needinventory>
+<tooltype>TFA Utilities</tooltype>
+</tool>
+
+<tool name="tail" version="12.2.1.1.0" buildid="20170509" platforms="UNIX-LINUX">
+<desc>Tail trace files.</desc>
+<runas>db</runas>
+<runas>crs</runas>
+<daemon>false</daemon>
+<clusterwide>true</clusterwide>
+<needinventory>true</needinventory>
+<tooltype>TFA Utilities</tooltype>
+</tool>
+
+<tool name="orachk" version="12.2.0.1.3" buildid="20170331" platforms="UNIX-LINUX">
+<desc>Run orachk - Best practice checker tool.</desc>
+<runas>db</runas>
+<runas>crs</runas>
+<daemon>false</daemon>
+<clusterwide>false</clusterwide>
+<needinventory>false</needinventory>
+<tooltype>Development Tools</tooltype>
+</tool>
+
+<tool name="exachk" version="12.2.0.1.3" buildid="20170331" platforms="UNIX-LINUX">
+<desc>Run exachk - Best practice checker tool for engineered systems.</desc>
+<runas>db</runas>
+<runas>crs</runas>
+<daemon>false</daemon>
+<clusterwide>false</clusterwide>
+<needinventory>false</needinventory>
+<tooltype>Development Tools</tooltype>
+</tool>
+
+<tool name="oswbb" version="8.1.2" buildid="20171214" platforms="UNIX-LINUX">
+<desc>OSWatcher</desc>
+<runas>root</runas>
+<daemon>true</daemon>
+<clusterwide>false</clusterwide>
+<needinventory>false</needinventory>
+<tooltype>Support Tools Bundle</tooltype>
+</tool>
+
+<tool name="dbcsmon" version="1.0.0" buildid="20170418" platforms="UNIX-LINUX">
+<desc>DBCS Monitor and Diag Collector</desc>
+<runas>root</runas>
+<daemon>true</daemon>
+<clusterwide>false</clusterwide>
+<needinventory>false</needinventory>
+<tooltype>TFA Utilities</tooltype>
+</tool>
+
+<tool name="darda" version="2.10.0.R6036" buildid="20151207" platforms="ALL">
+<desc>RDA</desc>
+<daemon>false</daemon>
+<clusterwide>false</clusterwide>
+<needinventory>false</needinventory>
+<tooltype>Support Tools Bundle</tooltype>
+</tool>
+
+
+<tool name="prw" version="12.1.13.11.4" buildid="20170509" platforms="UNIX-LINUX">
+<desc>Procwatcher</desc>
+<daemon>true</daemon>
+<clusterwide>false</clusterwide>
+<needinventory>false</needinventory>
+<tooltype>Support Tools Bundle</tooltype>
+</tool>
+
+<tool name="calog" version="12.2.0.1.0" buildid="20160222" platforms="ALL">
+<desc>Clusterware Activity Log</desc>
+<daemon>false</daemon>
+<clusterwide>false</clusterwide>
+<needinventory>true</needinventory>
+<tooltype>TFA Utilities</tooltype>
+</tool>
+
+<tool name="dbglevel" version="12.2.1.1.0" buildid="20170509" platforms="ALL">
+<desc>Set CRS log/trace levels using profiles</desc>
+<runas>root</runas>
+<daemon>false</daemon>
+<clusterwide>false</clusterwide>
+<needinventory>false</needinventory>
+<tooltype>TFA Utilities</tooltype>
+</tool>
+
+<tool name="menu" version="12.2.1.1.0" buildid="20170509" platforms="ALL">
+<desc>Menu Driver for TFA</desc>
+<daemon>false</daemon>
+<clusterwide>false</clusterwide>
+<needinventory>false</needinventory>
+<tooltype>TFA Utilities</tooltype>
+</tool>
+
+<tool name="oswtop" version="12.2.1.1.0" buildid="20170509" platforms="UNIX-LINUX">
+<desc>Run TNT oswtop analysis</desc>
+<runas>root</runas>
+<daemon>false</daemon>
+<clusterwide>true</clusterwide>
+<needinventory>true</needinventory>
+<tooltype>TFA Utilities</tooltype>
+</tool>
+
+<tool name="oswslabinfo" version="12.2.0.1.0" buildid="20150107" platforms="UNIX-LINUX">
+<desc>Run TNT oswslabinfo analysis</desc>
+<runas>root</runas>
+<daemon>false</daemon>
+<clusterwide>true</clusterwide>
+<needinventory>true</needinventory>
+</tool>
+
+<tool name="managelogs" version="12.2.1.1.0" buildid="20170509" platforms="ALL">
+<desc>Manages logs for Clusterware and RDBMS</desc>
+<runas>db</runas>
+<runas>crs</runas>
+<daemon>false</daemon>
+<clusterwide>true</clusterwide>
+<needinventory>false</needinventory>
+<tooltype>TFA Utilities</tooltype>
+</tool>
+
+<tool name="dbperf" version="12.2.1.1.0" buildid="20170509" platforms="ALL">
+<desc>DB Performance</desc>
+<runas>db</runas>
+<runas>crs</runas>
+<daemon>false</daemon>
+<clusterwide>false</clusterwide>
+<needinventory>true</needinventory>
+<tooltype>TFA Utilities</tooltype>
+</tool>
+
+<tool name="dbcheck" version="18.3.0.0.0" buildid="20180528" platforms="UNIX-LINUX">
+<desc>DB Check</desc>
+<runas>root</runas>
+<daemon>false</daemon>
+<clusterwide>true</clusterwide>
+<needinventory>false</needinventory>
+<tooltype>TFA Utilities</tooltype>
+</tool>
+<tool name="cnsmon" version="18.3.0" buildid="20180806" platforms="ALL">
+<desc>Cloud notification service</desc>
+<runas>root</runas>
+<daemon>false</daemon>
+<clusterwide>false</clusterwide>
+<needinventory>true</needinventory>
+<frequency>5m</frequency>
+<runscope>MASTER</runscope>
+<tooltype>Notification service</tooltype>
+</tool>
+
+</tools>

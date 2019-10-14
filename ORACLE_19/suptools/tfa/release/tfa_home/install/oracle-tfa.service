@@ -1,0 +1,14 @@
+# Copyright (c) 2014, 2017, Oracle and/or its affiliates. All rights reserved.
+#
+# Oracle TFA startup
+#
+[Unit]
+Description=Oracle Trace File Analyzer
+After=syslog.target network.target remote-fs.target
+[Service]
+ExecStart=/etc/init.d/init.tfa run >/dev/null 2>&1 </dev/null
+Type=simple
+Restart=always
+
+[Install]
+WantedBy=multi-user.target graphical.target

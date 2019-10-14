@@ -1,0 +1,64 @@
+<?xml version="1.0"?>
+
+<!--  $Header: tfa/src/v2/tfa_home/resources/srdc_emrestartoms.xml /main/1 2018/05/28 15:06:26 bburton Exp $ -->
+
+<!-- 
+ Copyright (c) 2016, 2018, Oracle and/or its affiliates. All rights reserved.
+
+   NAME
+     srdc_emrestartoms.xml - <one-line expansion of the name>
+
+   DESCRIPTION
+     <short description of component this file declares/defines>
+
+   NOTES
+     <other useful comments, qualifications, etc.>
+
+   MODIFIED   (MM/DD/YY)
+   manuegar   09/28/17 - Creation
+
+-->
+<collections>
+<collection id="emrestartoms">
+        <description>EM SRDC - Re-start OMS.</description>
+        <user_inputs>
+            <user_input cmdline="" default="" showprompt="1" setenv="NO" validate="YN" prompt="By executing this SRDC, OMS will be bounced (this step is recommended in order to start with a new set of fresh OMS log files).">USERINPUT-EMCONTINUE</user_input>
+        </user_inputs>
+        <onevents>
+                <event>
+                </event>
+        </onevents>
+        <duration>12h</duration>
+        <clusterwide>no</clusterwide>
+        <filter_files>
+                <types>
+                </types>
+                <filter_file_patterns>
+                    <filter_file_pattern>alert_.*\.log</filter_file_pattern>
+                    <filter_file_pattern>trc</filter_file_pattern>
+                    <filter_file_pattern>log</filter_file_pattern>
+                    <filter_file_pattern>archive\/osw</filter_file_pattern>
+                    <filter_file_pattern>ExaWatcher\/archive</filter_file_pattern>
+                </filter_file_patterns>
+        </filter_files>
+        <components>
+            <component>OS</component>
+        </components>
+        <commands>
+            <script type="OS" name="os_bounceOMS" timeout="500" validfor="OMS" platform="allux" version="">
+            export ORACLE_HOME=%EMOMSOHOME%
+            export PATH=$ORACLE_HOME/bin:$PATH
+            emctl stop oms
+            emctl start oms
+            </script>
+            <script type="OS" name="os_bounceOMSWin" timeout="500" validfor="OMS" platform="MSWin32" version="">
+            set ORACLE_HOME=%EMOMSOHOME%
+            set PATH=%ORACLE_HOME%\bin;%PATH%
+            emctl stop oms
+            emctl start oms
+            </script>
+        </commands>
+        <runtime_flags>
+        </runtime_flags>
+</collection>
+</collections>

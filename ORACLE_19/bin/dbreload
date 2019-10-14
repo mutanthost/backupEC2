@@ -1,0 +1,235 @@
+#!/bin/sh
+#
+# $Header: rdbms/admin/dbreload /main/1 2018/02/09 08:25:06 frealvar Exp $
+#
+# dbreload
+#
+# Copyright (c) 2016, 2018, Oracle and/or its affiliates. All rights reserved.
+#
+#    NAME
+#      dbreload -  Database Downgrade wrapper script
+#
+#    DESCRIPTION
+#      Shell script program that allows to execute catrelod.sql in catcon.pl
+#      the only parameter accepted is the inclussion list with -c
+#
+#    NOTES
+#      To execute it: ./dbreload
+#
+#    MODIFIED   (MM/DD/YY)
+#    frealvar    07/29/16 - Creation for bug 24320609
+
+# Gathering information from environment
+
+ACTUAL_DIR=`pwd`            # Getting actual directory
+BIN_DIR="bin"               # bin to use in a regex check.
+OH=`printenv ORACLE_HOME`   # storing value of ORACLE_HOME if exists.
+OS=`printenv ORACLE_SID`    # storing value of ORACLE_SID if exists.
+OH_NOT_SET="Please set Oracle Home before script is run."
+OS_NOT_SET="Please set Oracle SID before script is run."
+NOMGTE_PDB="Please make sure that all the containers are open in migrate mode."
+INV_ARG="Invalid argument found."
+INV_INC_LIST="CDB\$ROOT is not allowed within the inclussion list."
+DWN_DEST="/cfgtoollogs/reload" # Destination of reload logs
+DEFAULT_OH="ORACLE_HOME not defined, using oratab's default."
+CDB=-1
+PDBLIST=-1
+NPDBS=0
+NVAL=0                     # Value of -n
+
+#
+# If ORACLE_HOME is not empty, we will use it as our OH
+# else if, we try to get the OH by using dbhome
+# else , no OH was found, thus exiting with error.
+#
+if [[ -z $OS ]]                               #without ORACLE_SID we can't continue
+then
+   echo ${OS_NOT_SET}
+   exit 1
+fi
+
+if [[ ! -z $OH ]]
+then
+   ORACLE_HOME=${OH}
+elif  [[ "${ACTUAL_DIR}" =~ ${BIN_DIR} ]]
+then
+      export ORACLE_HOME=`./dbhome`           #storing the value of orahome if returns any value
+      export PATH=$ORACLE_HOME/bin:$PATH
+      echo ${DEFAULT_OH}
+else
+  echo ${OH_NOT_SET}
+  exit 1
+fi
+
+#
+# In case of inclussion list, we need to ensure cdb$root is not
+# being used and that the parameters have the following form -c "pdb1 pdbx"
+# for unplug&plug scenarios
+#
+if [[ $# != 0 ]] # are there parameters?
+then
+   #yes, thus we expect 2, -c, a string
+   if [[ "$1" != "-c" || "$2" == "" ]]
+   then
+      echo ${INV_ARG}
+      exit 1
+   fi
+   #the second must be a list of pdbs space separated
+   #where cdb$root is not allowed
+   if [[ "${2,,}" =~ "cdb\$root" ]]
+   then
+      echo ${INV_INC_LIST}
+      exit 1
+   fi
+   PDBLIST=$2
+fi
+
+#
+# the logs will be send to
+# 1-orabasehome as first choice
+# 2-orabase as second option
+# 3-oracle_home if non of the above worked out
+#
+# file exists?
+if [[ -f $ORACLE_HOME/bin/orabasehome ]]
+then
+   # first choice
+   TMPPATH=$($ORACLE_HOME/bin/orabasehome)
+else
+   # file exists?
+   if [[ -f $ORACLE_HOME/bin/orabase ]]
+   then
+      # second choice
+      TMPPATH=$($ORACLE_HOME/bin/orabase)
+   else
+      # last option, using temp directory
+      TMPPATH=$(mktemp -d)
+   fi
+fi
+DWN_DEST="$TMPPATH$DWN_DEST"
+
+#
+# To continue with the same approach, lets use cfgtoollogs
+#
+if [[ ! -d $DWN_DEST ]]
+then
+   mkdir $DWN_DEST
+fi
+
+#
+# Gathering information from database
+#
+echo "SET PAGESIZE 0 FEEDBACK OFF VERIFY OFF HEADING OFF ECHO OFF SERVEROUTPUT ON" > $DWN_DEST/f.sql
+echo "DECLARE"                                                                    >> $DWN_DEST/f.sql
+echo "   CDB VARCHAR2(30);"                                                       >> $DWN_DEST/f.sql
+echo "BEGIN"                                                                      >> $DWN_DEST/f.sql
+echo "   BEGIN"                                                                   >> $DWN_DEST/f.sql
+echo "      EXECUTE IMMEDIATE 'SELECT CDB FROM V\$DATABASE' INTO CDB;"            >> $DWN_DEST/f.sql
+echo "   EXCEPTION WHEN OTHERS THEN"                                              >> $DWN_DEST/f.sql
+echo "      IF SQLCODE IN ( -904 ) THEN"                                          >> $DWN_DEST/f.sql
+echo "         CDB:='NO';"                                                        >> $DWN_DEST/f.sql
+echo "      END IF;"                                                              >> $DWN_DEST/f.sql
+echo "   END;"                                                                    >> $DWN_DEST/f.sql
+echo "   DBMS_OUTPUT.PUT_LINE(CDB);"                                              >> $DWN_DEST/f.sql
+echo "END;"                                                                       >> $DWN_DEST/f.sql
+echo "/"                                                                          >> $DWN_DEST/f.sql
+echo "EXIT;"                                                                      >> $DWN_DEST/f.sql
+CDB=$(sqlplus -silent / as sysdba @$DWN_DEST/f.sql)
+rm $DWN_DEST/f.sql
+
+#
+# Calculate number of pdbs and the -n
+# if this is a cdb and it will be downgraded the whole cdb
+#    get the number of container in migrate mode (no need to worries about
+#    containers in wrong state, they are catched up later)
+# if this is a cdb and we have an inclussion list
+#    count how many containers will be downgraded
+# get the cpu_count/2 value, if it is 0, 1 will be used
+# once we have NPDBS and cpu_count/2 calculate the value of -n
+# there are two cases
+# #pdbs <= cpu_count / 2, then set -n to #pdbs
+# #pdbs > cpu_count / 2, then set -n cpu_count/2
+# 
+if [[ $CDB == "YES" ]]
+then
+   if [[ $PDBLIST == "-1" ]]
+   then
+      echo "SET PAGESIZE 0 FEEDBACK OFF VERIFY OFF HEADING OFF ECHO OFF "           > $DWN_DEST/f.sql
+      echo "SELECT COUNT(*) FROM V\$CONTAINERS WHERE UPPER(OPEN_MODE)='MIGRATE'; " >> $DWN_DEST/f.sql
+      echo "EXIT;"                                                                 >> $DWN_DEST/f.sql
+      NPDBS=$(sqlplus -silent / as sysdba @$DWN_DEST/f.sql)
+      rm $DWN_DEST/f.sql
+   else
+      for db in $PDBLIST
+      do
+         NPDBS=$(($NPDBS+1));
+      done
+   fi
+   # Gathering information to calculate the n param
+   echo "SET PAGESIZE 0 FEEDBACK OFF VERIFY OFF HEADING OFF ECHO OFF "     > $DWN_DEST/f.sql
+   echo "SELECT (CASE WHEN (VALUE/2) = 0 THEN 1 ELSE (VALUE/2) END)  "    >> $DWN_DEST/f.sql
+   echo "FROM V\$PARAMETER WHERE UPPER(NAME)='CPU_COUNT'; "               >> $DWN_DEST/f.sql
+   echo "EXIT;"                                                           >> $DWN_DEST/f.sql
+   CPUCOUNT_DIV_2=$(sqlplus -silent / as sysdba @$DWN_DEST/f.sql)
+   rm $DWN_DEST/f.sql
+   # two cases
+   # NPDBS <= CPUCOUNT_DIV_2, -n NPDBS
+   if (( $NPDBS<=$CPUCOUNT_DIV_2 ))
+   then
+      NVAL=$NPDBS
+   fi
+   # NPDBS > CPUCOUNT_DIV_2, -n CPUCOUNT_DIV_2
+   if (( $NPDBS>$CPUCOUNT_DIV_2 ))
+   then
+      NVAL=$CPUCOUNT_DIV_2
+   fi
+fi
+
+#
+# If the database is cdb we will verify that all the containers
+# are in migrate mode, otherwise, error out
+#
+if [[ $CDB == "YES" && $PDBLIST == "-1" ]]
+then
+   echo "SET PAGESIZE 0 FEEDBACK OFF VERIFY OFF HEADING OFF ECHO OFF "             > $DWN_DEST/f.sql
+   echo "SELECT COUNT(*) AS NM FROM V\$CONTAINERS WHERE OPEN_MODE <> 'MIGRATE'; " >> $DWN_DEST/f.sql
+   echo "EXIT;"                                                                   >> $DWN_DEST/f.sql
+   PDBSNM=$(sqlplus -silent / as sysdba @$DWN_DEST/f.sql)
+   rm $DWN_DEST/f.sql
+
+   # check containers not in migrate mode
+   if [[ "$PDBSNM" -ne "0" ]]
+   then
+      echo ${NOMGTE_PDB}
+      exit 1
+   fi
+fi
+
+#
+# issue the downgrade command according to the scenario
+#
+if [[ $CDB == "NO" ]]
+then
+   echo "Reloading noncdb"
+   echo "SPOOL $DWN_DEST/catrelod.log"
+   echo "SPOOL $DWN_DEST/catrelod.log" > $DWN_DEST/f.sql
+   echo "SET PAGESIZE 0 LINESIZE 180" >> $DWN_DEST/f.sql
+   echo "@?/rdbms/admin/catrelod.sql" >> $DWN_DEST/f.sql
+   echo "SPOOL OFF"                   >> $DWN_DEST/f.sql
+   echo "EXIT;"                       >> $DWN_DEST/f.sql
+   RUN=$(sqlplus / as sysdba @$DWN_DEST/f.sql)
+   rm $DWN_DEST/f.sql
+else
+   echo "Reloading containers"
+   #unplug&plug downgrade?
+   if [[ "$PDBLIST" == "-1" ]]
+   then
+      #no, run on everything
+      $ORACLE_HOME/perl/bin/perl -I$ORACLE_HOME/perl/lib $ORACLE_HOME/rdbms/admin/catcon.pl -d $ORACLE_HOME/rdbms/admin -b catrelod -l $DWN_DEST -n $NVAL catrelod.sql
+   else
+      #yes, run on inclusion
+      $ORACLE_HOME/perl/bin/perl -I$ORACLE_HOME/perl/lib $ORACLE_HOME/rdbms/admin/catcon.pl -d $ORACLE_HOME/rdbms/admin -b catrelod -l $DWN_DEST -n $NVAL -c "'$PDBLIST'" catrelod.sql
+   fi
+fi
+
+exit $?

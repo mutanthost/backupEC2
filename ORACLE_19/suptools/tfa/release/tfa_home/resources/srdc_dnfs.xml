@@ -1,0 +1,114 @@
+<?xml version="1.0"?>
+
+<!--  $Header: tfa/src/v2/tfa_home/resources/srdc_dnfs.xml /main/2 2018/08/15 16:55:53 bburton Exp $ -->
+
+<!-- 
+ Copyright (c) 2018, Oracle and/or its affiliates. All rights reserved.
+
+   NAME
+     srdc_dnfs.xml 
+
+   DESCRIPTION
+     SRDC AUTOMATION: ENHANCE ASM/DBFS/DNFS/ACFS COLLECTIONS
+
+   MODIFIED   (MM/DD/YY)
+   xiaodowu    06/28/18 - ewqrq/.
+   xiaodowu    06/28/18 - Implement Enh 28262528 - ADD CHMOS COMPONENT TO
+                          DBFS/DNFS COLLECTIONS
+   xiaodowu    03/28/18 - Enh 26183060 - SRDC AUTOMATION: ENHANCE
+                          ASM/DBFS/DNFS/ACFS COLLECTIONS
+   xiaodowu    03/28/18 - Creation
+
+-->
+<collections>
+<collection id="dnfs">
+    <description>SRDC for DNFS.</description>
+    <user_inputs>
+	        <user_input cmdline="" default="" showprompt="1" setenv="NO" validate="" prompt="Enter the value for the DNFS Database">USERINPUT-DATABASE_NAME</user_input>
+    </user_inputs>
+    <onevents>
+        <event>
+        </event>
+    </onevents>
+    <duration>12h</duration>
+    <clusterwide>yes</clusterwide>
+    <filter_files>
+        <types>
+        </types>
+        <filter_file_patterns>
+            <filter_file_pattern>alert_.*\.log</filter_file_pattern>
+            <filter_file_pattern>trc</filter_file_pattern>
+            <filter_file_pattern>log</filter_file_pattern>
+            <filter_file_pattern>archive\/osw</filter_file_pattern>
+            <filter_file_pattern>ExaWatcher\/archive</filter_file_pattern>
+        </filter_file_patterns>
+    </filter_files>
+    <components>
+         <component>DATABASE</component>
+      <component>CRS</component>
+	  <component>ASM</component>  
+      <component>OS</component>
+      <component>CHMOS</component>
+    </components>
+    <commands>
+	<script type="DB" name="sql_sys_dnfs.sql" timeout="300" validfor="" platform="" version="">
+<![CDATA[
+            conn / as sysdba
+			define SRDCNAME='DNFS_INFORMATION'
+	SET MARKUP HTML ON PREFORMAT ON
+	set TERMOUT off FEEDBACK off VERIFY off TRIMSPOOL on HEADING off
+	COLUMN SRDCSPOOLNAME NOPRINT NEW_VALUE SRDCSPOOLNAME
+	select 'SRDC_'||upper('&&SRDCNAME')||'_'||upper(instance_name)||'_'||
+        to_char(sysdate,'YYYYMMDD_HH24MISS') SRDCSPOOLNAME from v$instance;
+	set TERMOUT on MARKUP html preformat on
+	SET ECHO ON
+	SET PAGESIZE 200
+	ALTER SESSION SET NLS_DATE_FORMAT='DD-MON-YYYY HH24:MI:SS';
+	set HEADING on MARKUP html preformat off
+	set sqlprompt "#"
+	spool &&SRDCSPOOLNAME..htm
+/*------------------------------------------------------------------------------------------------------------------*/
+/*                                     ORACLE DNFS COLLECTION                                      */
+/*------------------------------------------------------------------------------------------------------------------*/
+
+/*------------------------------------------------------------------------------------------------------------------*/
+/*CONTENT*/
+/*------------------------------------------------------------------------------------------------------------------*/
+/*Section 1: DNFS STATS */
+/*Section 2: DATAFILE/TEMPFILE */
+/*Section 3: LOGFILE */
+/*------------------------------------------------------------------------------------------------------------------*/
+select 'THIS DNFS REPORT WAS GENERATED AT: ==)> ' , sysdate " "  from dual;
+select * from v$version;
+/*------------------------------------------------------------------------------------------------------------------*/
+/* SECTION 1 : DNFS STATS*/
+/*------------------------------------------------------------------------------------------------------------------*/
+select * from v$dnfs_servers;
+select * from v$dnfs_files;
+select * from v$dnfs_channels;
+select * from v$dnfs_stats;
+
+/*------------------------------------------------------------------------------------------------------------------*/
+/* SECTION 2 : DATAFILE/TEMPFILE*/
+/*------------------------------------------------------------------------------------------------------------------*/
+select * from v$datafile;
+select * from dba_data_files;
+select * from DBA_TEMP_FILES;
+
+/*------------------------------------------------------------------------------------------------------------------*/
+/* SECTION 3 : LOGFILE*/
+/*------------------------------------------------------------------------------------------------------------------*/
+select * from v$logfile;
+select * from v$log;
+				SPOOL OFF
+				set sqlprompt "SQL>"
+                set mark html off;
+                exit;
+]]>
+            </script>
+        </commands>
+        <runtime_flags>
+        </runtime_flags>
+</collection>
+</collections>
+

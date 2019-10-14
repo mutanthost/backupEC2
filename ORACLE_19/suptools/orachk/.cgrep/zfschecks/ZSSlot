@@ -1,0 +1,77 @@
+printf("==========START_OF_REPORT_chkZSSlot.aksh==========\n");
+var founderrors = false;
+
+function slot_check(chassis_o, chassis_index){
+    faulted_ioms = "";
+
+    // Initialize chassis components				
+	chassis_o.ioms = new Array();				
+
+    /* Find faulted IOMs */
+	run('select slot');
+	output = run('list').split('\n');
+
+	for (var j = 1; (j < output.length) && (output[j].lastIndexOf("slot-")>=0); j++)  { // go through all the IOMs;
+		line = output[j].replace(/\s+/g, " ");
+		items = line.split(' ');					
+		
+		pos = items[0];
+		status = items[3];					
+		
+		//print("select "+ pos + "\n");
+		run("select "+ pos);										
+		iom = {"label": get("label"), "present": get("present"), "faulted": get("faulted"), "status": status};
+		
+		if(iom["faulted"].toString() == "true") {
+    		founderrors = true;
+		}
+		
+		if ((iom["faulted"].toString() == "true") || (iom["present"].toString() =="false") || (output[j].lastIndexOf("ok")<0)){	
+			faulted = iom.label + " - " + status;  //takes IOM location and status																	
+			faulted_ioms = faulted_ioms + "      " + faulted + ";\n";											
+		}
+		else {
+			try{ 
+				iom.pn = get("part")
+			}
+			catch(err){
+				iom.pn = "n/a";
+			}
+			finally{
+				try{
+					iom.rev = get("revision");
+				}
+				catch(err) {
+					iom.rev = "-";
+				}
+				finally{
+					try{
+						iom.model = get("model");
+						if (iom.label.lastIndexOf("PCIe")>=0){
+							appl.com_issues.pci_model.push(iom.model);
+						}
+					}
+					catch(err) {
+						iom.model = "-";
+					}
+				}
+			}											
+		}
+		
+		run("cd ..");
+		chassis_o.ioms.push(iom);
+	}
+   	
+	return faulted_ioms;
+}		
+							
+var hardwareTable = new printTable({name:"Slot Check", headNames:["Name", "Status", "Details"]});
+appl.hardware 	= new Array();	
+failed_hw_components(slot_check);
+printReportTable(hardwareTable);
+							
+
+printf("==========END_OF_REPORT_chkZSSlot.aksh==========\n");
+printf("==========START_OF_AUDIT_CHECK_chkZSSlot.aksh==========\n");
+printf("slot_status = %d\n", founderrors);
+printf("==========END_OF_AUDIT_CHECK_chkZSSlot.aksh==========\n");			

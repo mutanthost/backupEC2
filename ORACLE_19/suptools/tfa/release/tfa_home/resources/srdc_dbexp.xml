@@ -1,0 +1,108 @@
+<?xml version="1.0"?>
+
+<!--  $Header: tfa/src/v2/tfa_home/resources/srdc_dbexp.xml /main/2 2018/08/15 16:55:52 bburton Exp $ -->
+
+<!-- 
+ Copyright (c) 2018, Oracle and/or its affiliates. All rights reserved.
+
+   NAME
+     srdc_dbexp.xml
+
+   DESCRIPTION
+     Implement for SRDC - How to Collect Information for Troubleshooting Export (EXP) Related ProblemsDoc ID: 1927207.1
+
+   NOTES
+     None 
+
+   MODIFIED   (MM/DD/YY)
+   xiaodowu    08/02/18 - Resolve Bug 28439844 - ADD PARENTHESIS FOR VALIDATE REGEX TYPE IN ALL XML FILES
+   xiaodowu    07/26/18 - Enable ONERROR verify on ORA600 and ORA7445
+   xiaodowu    05/16/18 - Replace runawr with awr_reports
+   xiaodowu    05/10/18 - Improve the prompts and use corresponding SQL scripts
+   xiaodowu    01/18/18 - Implement for SRDC - How to Collect Information for
+                          Troubleshooting Export (EXP) Related ProblemsDoc ID:
+                          1927207.1
+   xiaodowu    01/18/18 - Creation
+
+-->
+<collections>
+	<collection id="dbexp">
+		<description>SRDC - How to Collect Information for Troubleshooting Export (EXP) Related Problems</description>
+		<srdc_docs>Doc ID 1927207.1: SRDC - How to Collect Information for Troubleshooting Export (EXP) Related Problems.</srdc_docs>
+		<alias>dpexp</alias>
+		<onevents>
+			<event>
+				<infile>
+					<onerror>ORA-07445</onerror>
+					<onerror>ORA-00600</onerror>
+					<name_patterns>
+						<pattern>alert_.*\.log</pattern>
+					</name_patterns>
+				</infile>
+			</event>
+		</onevents>
+		<user_inputs>
+			<user_input cmdline="" default="" showprompt="1" setenv="NO" validate="" prompt="Enter the Database Name">USERINPUT-DATABASE_NAME</user_input>
+			<user_input cmdline="" default="" showprompt="1" setenv="REPLACE" validate="" prompt="Please enter the command line: ">USERINPUT-COMMAND_LINE</user_input>
+        <user_input cmdline="" default="" showprompt="1" setenv="" validate="(y|Y|n|N)" prompt="Do you use a parameter file in the above command? [Y|N]">USERINPUT-PARFLAG</user_input>
+			<user_input cmdline="" default="" showprompt="1" setenv="REPLACE" validate="file" depinput="PARFLAG" deppattern="y|Y" prompt="Enter the full path of the parameter file ">USERINPUT-PAR_FILE</user_input>
+			<user_input cmdline="" default="" showprompt="1" setenv="REPLACE" validate="file" prompt="Please give the full path of the log file? ">USERINPUT-LOG_FILE</user_input>
+			<user_input cmdline="" default="Y" showprompt="1" setenv="NO" validate="(Y|y|N|n)" prompt="">USERINPUT-ONERROR_VERIFY</user_input>
+     <user_input cmdline="" default="N" showprompt="1" setenv="" validate="(y|Y|n|N)" prompt="Is an ORA-nnnnn raised? [Y|N] ">USERINPUT-ORAERROR</user_input>
+     <user_input cmdline="" default="N" showprompt="1" setenv="" validate="(y|Y|n|N)" depinput="ORAERROR" deppattern="y|Y" prompt="Was a system event trace for the ORA-nnnnn configured? LBREAKIf not configured yet, please consider turning on such event tracing by issuing: LBREAK connect / as sysdba; LBREAK alter system set events '(ORA-error code) trace name errorstack level 10'; LBREAKand LBREAK alter system set max_dump_file_size = unlimited;LBREAKthen reproduce the export issue and come back to rerun this collection. LBREAKPress Enter key to continue. ">USERINPUT-EVENTTRACING</user_input>
+     <user_input cmdline="" default="N" showprompt="1" setenv="" validate="(y|Y|n|N)" prompt="Are you encountering hanging issues or performance problems during the export? [Y|N] ">USERINPUT-PERFORMANCEFLAG</user_input>
+			<user_input cmdline="" default="" showprompt="1" setenv="NO" validate="" prompt="Do you have an AWR license? &#40;Refer to Doc 1490798.1 for more information &#41;">USERINPUT-LICENSE</user_input>
+			<user_input cmdline="" default="" showprompt="1" setenv="NO" validate="" prompt="AWR duration">USERINPUT-AWR_DURATION</user_input>
+			<user_input cmdline="" default="" showprompt="1" setenv="NO" validate="" depinput="PERFORMANCEFLAG" deppattern="y|Y" prompt="Enter start time when the performance was bad">USERINPUT-EVENT_START_TIME</user_input>
+			<user_input cmdline="" default="" showprompt="1" setenv="NO" validate="" depinput="PERFORMANCEFLAG" deppattern="y|Y" prompt="Enter stop time when the performance was bad">USERINPUT-EVENT_END_TIME</user_input>
+     <user_input cmdline="" default="N" showprompt="1" setenv="" validate="(y|Y|n|N)" depinput="PERFORMANCEFLAG" deppattern="y|Y" prompt="Is the performance issue encountered for a particular object? [Y|N] ">USERINPUT-OBJECTFLAG</user_input>
+			<user_input cmdline="" default="N" showprompt="1" setenv="REPLACE" validate="" depinput="OBJECTFLAG" deppattern="y|Y" prompt="Enter the object name: ">USERINPUT-OBJECTNAME</user_input>
+			<user_input cmdline="" default="N" showprompt="1" setenv="REPLACE" validate="" depinput="OBJECTFLAG" deppattern="y|Y" prompt="Enter the object type: ">USERINPUT-OBJECTTYPE</user_input>
+			<user_input cmdline="" default="N" showprompt="1" setenv="REPLACE" validate="" depinput="OBJECTFLAG" deppattern="y|Y" prompt="Enter the object owner name: ">USERINPUT-OBJECTOWNER</user_input>
+		</user_inputs>    
+		<duration>12h</duration>
+		<clusterwide>no</clusterwide>
+		<filter_files>
+			<types>
+			</types>
+			<filter_file_patterns>
+				<filter_file_pattern>alert_.*\.log</filter_file_pattern>
+				<filter_file_pattern>trc</filter_file_pattern>
+				<filter_file_pattern>log</filter_file_pattern>
+				<filter_file_pattern>archive\/osw</filter_file_pattern>
+				<filter_file_pattern>ExaWatcher\/archive</filter_file_pattern>
+			</filter_file_patterns>
+			<filter_file_exclude_patterns>
+				<filter_file_exclude_pattern>cdmp_.*_bucket\.tr[cm]</filter_file_exclude_pattern>
+			</filter_file_exclude_patterns>
+		</filter_files>
+		<components>
+			<component>OS</component>
+			<component>DATABASE</component>
+		</components>
+		<commands>
+			<script type="IPSPACK" name="ipspack" timeout="120" validfor="" platform="" version="" depinput="ONERROR_VERIFY" deppattern="Y|y"> </script>
+			<script type="TFADBPERF" name="awr_reports" timeout="120" validfor="" platform="" version="" depinput="PERFORMANCEFLAG" deppattern="y|Y"></script>
+			<script type="SQLSCRIPT" name="srdc_exp_error.sql" timeout="300" validfor="" platform="" version="" depinput="PERFORMANCEFLAG" deppattern="n|N"></script>
+			<script type="SQLSCRIPT" name="srdc_exp_performance.sql" timeout="300" validfor="" platform="" version="" depinput="PERFORMANCEFLAG" deppattern="y|Y"></script>
+			<script type="OS" name="cp_exp_parfile" timeout="120" validfor="" platform="allux" version="">
+       /bin/cp %PAR_FILE% srdc_exp_parfile_`date +%F`.txt
+			</script>
+			<script type="OS" name="cp_exp_logfile" timeout="120" validfor="" platform="allux" version="">
+       /bin/cp %LOG_FILE% srdc_exp_logfile_`date +%F`.txt
+			</script>
+			<script type="OS" name="cp_exp_commandfile" timeout="120" validfor="" platform="allux" version="">
+       /bin/echo %COMMAND_LINE% >srdc_exp_commandfile_`date +%F`.txt
+			</script>
+			<script type="DB" name="srdc_get_ddl.sql" timeout="120" validfor="" platform="" version="" depinput="OBJECTFLAG" deppattern="Y|y">
+				<![CDATA[
+	set echo on;
+	set long 100000;
+	select dbms_metadata.get_ddl(upper('%OBJECTTYPE%'),upper('%OBJECTNAME%'),upper('%OBJECTOWNER%')) from dual;
+  ]]>
+			</script>
+		</commands>
+		<runtime_flags>
+		</runtime_flags>
+	</collection>
+</collections>

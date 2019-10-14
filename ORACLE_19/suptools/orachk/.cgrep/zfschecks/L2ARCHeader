@@ -1,0 +1,87 @@
+printf("==========START_OF_REPORT_chkL2ARCHeader.aksh==========\n");
+//
+// Name: chkL2ArcHeader.aksh
+// Author: Andrego Halim
+//
+// Purpose: Monitor L2Arc Header size on ZFS not to exceed 3GB
+// Changed from 3GB to 12.5% based on total memory - Ajit 9/8/14
+
+
+// Appliance Vars
+var auditcheck = 0;
+var report = 1;
+var runonetime = 1;
+var founderrors = false;
+var l2arc_header_size = 0;
+var si = 0;
+var memory = null;
+var maximum_percent = 30;
+var report_message = "";
+
+
+// ---------------------------------------------------------
+
+function getL2ARCHeaderSize() {
+    run('cd /');
+    run('analytics datasets');
+    var alldatasets = list();
+    run('cd /');
+
+    founderrors=true;
+    for (var i = 0; i < alldatasets.length; i++) {
+        run('analytics datasets select ' + alldatasets[i]);
+        var dataset_name = get ('name');
+        if ( dataset_name == "arc.size[component]" ) {
+            if(!get('suspended')) {
+                result=run('read 1'); 
+                var firstLineWithLTwoArc = /\n.*headers.*\n/.exec(result).toString();
+                firstLineWithLTwoArc = firstLineWithLTwoArc.substring(1, firstLineWithLTwoArc.length-1);
+                l2arc_header_size = firstLineWithLTwoArc.replace(/^\s\s*/, '').split(" ").reverse()[2];
+
+                printreport("Statistics from " + alldatasets[i] + "\n");
+                printreport(result);
+                
+                founderrors = false;                
+            }
+            break;
+        }
+        run('cd /');
+    }    
+    if(founderrors) {
+        printreport("INFO: arc.size[component] dataset doesn't exist or is suspended in this storage node.\n");
+    }   
+}
+
+function checkL2ARCHeader() {
+    getHostname();
+	var memory = getMemory();
+	if(memory == null) {
+	    printreport("Could not check L2ARC header size because memory doesn't exist");
+	    return;
+	}
+    getL2ARCHeaderSize();
+    if(founderrors)
+        return;
+    
+    // Calculate percent. Header size is in MB. Memory is in GB.
+	percent = 100 * l2arc_header_size / (mem_size * 1024);
+	founderrors = percent > maximum_percent;
+	
+    if (!founderrors) {
+        printreport("OK: " + host_name + " L2ARC Header Size Check Completed: L2ARC Header Size " + l2arc_header_size + "MB doesn't exceed " + maximum_percent + "% of total of " + mem_size + "GB.\n");        
+    }
+    else {
+        printreport("WARNING: " + host_name + " L2ARC Header Size Check Completed: L2ARC Header Size " + l2arc_header_size + "MB exceeds the recommended limit of " + maximum_percent + "% of total of " + mem_size + "GB.\n");        
+    }    
+}
+
+if(runonetime==1) {
+	checkL2ARCHeader();
+	runonetime=0;
+}
+printf("==========END_OF_REPORT_chkL2ARCHeader.aksh==========\n");
+
+printf("==========START_OF_AUDIT_CHECK_chkL2ARCHeader.aksh==========\n");
+printf("l2arc_header_check_status = %d\n", founderrors);
+printf("==========END_OF_AUDIT_CHECK_chkL2ARCHeader.aksh==========\n");
+

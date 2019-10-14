@@ -1,0 +1,192 @@
+<?xml version="1.0"?>
+
+<!--  $Header: tfa/src/v2/tfa_home/resources/srdc_dbtde.xml /main/1 2018/08/15 16:55:52 bburton Exp $ -->
+
+<!-- 
+ Copyright (c) 2018, Oracle and/or its affiliates. All rights reserved.
+
+   NAME
+     srdc_dbtde.xml 
+
+   DESCRIPTION
+     SRDC - HOW TO COLLECT STANDARD INFORMATION FOR TRANSPARENT DATA ENCRYPTION (TDE)
+
+   NOTES
+     None 
+
+   MODIFIED   (MM/DD/YY)
+   xiaodowu    07/16/18 - Add prompt to allow encrypted masterkey sharing
+   xiaodowu    07/03/18 - Implement Enh 27614131 - SRDC - HOW TO COLLECT
+                          STANDARD INFORMATION FOR TRANSPARENT DATA ENCRYPTION
+                          (TDE)
+   xiaodowu    07/03/18 - Creation
+
+-->
+<collections>
+	<collection id="dbtde">
+		<description>SRDC - How to Collect Standard Information for Transparent Data Encryption (TDE) (Doc ID 1905607.1)</description>
+		<alias>dbtde</alias>
+		<onevents>
+			<event>
+				<infile>
+					<name_patterns>
+						<pattern>alert_.*\.log</pattern>
+					</name_patterns>
+				</infile>
+			</event>
+		</onevents>
+		<user_inputs>
+			<user_input cmdline="" default="" showprompt="1" setenv="REPLACE" validate="" prompt="Enter the Database Name">USERINPUT-DATABASE_NAME</user_input>
+			<user_input cmdline="" default="N" showprompt="1" setenv="REPLACE" validate="" prompt="Do you agree to TFA gathering your encrypted MASTERKEYID_BASE64 column values for this database? Y/N [N] ">USERINPUT-KEYFLAG</user_input>
+			<user_input cmdline="" default="" showprompt="0" setenv="REPLACE" validate="" prompt="">USERINPUT-TFA_HOME</user_input>
+		</user_inputs>    
+		<duration>12h</duration>
+		<clusterwide>no</clusterwide>
+		<filter_files>
+			<filter_file_patterns>
+				<filter_file_pattern>alert_.*\.log</filter_file_pattern>
+				<filter_file_pattern>trc</filter_file_pattern>
+				<filter_file_pattern>log</filter_file_pattern>
+				<filter_file_pattern>archive\/osw</filter_file_pattern>
+				<filter_file_pattern>ExaWatcher\/archive</filter_file_pattern>
+			</filter_file_patterns>
+			<filter_file_exclude_patterns>
+				<filter_file_exclude_pattern>cdmp_.*_bucket\.tr[cm]</filter_file_exclude_pattern>
+			</filter_file_exclude_patterns>
+		</filter_files>
+		<components>
+			<component>OS</component>
+			<component>CRS</component>
+			<component>DATABASE</component>
+			<component>NOCHMOS</component>
+		</components>
+		<commands>
+			<script type="OS" name="srdc_tde_config_unix" timeout="120" validfor="" platform="allux" version="">
+				<![CDATA[
+instance=$ORACLE_SID
+exec &> "SRDC_TDE_CONFIG_${instance}_$(date +"%Y%m%d_%H%M%S").txt"
+/bin/echo "----------------------------------------------------"
+/bin/echo "Diagnostic-Name : TDE_CONFIG"
+/bin/echo "Machine : $(hostname)"
+/bin/echo "Time : $(date +"%Y-%m-%d %H:%M:%S %Z%:z")"
+/bin/echo "DBName : $ORACLE_SID"
+/bin/echo "-----------------------------------------------------"
+/bin/echo ""
+/bin/echo ""
+/bin/echo "*** Host Name ***"
+$ORACLE_HOME/bin/echodo hostname
+/bin/echo "=================================================="
+/bin/echo ""
+/bin/echo "*** System Information ***"
+$ORACLE_HOME/bin/echodo uname -a
+/bin/echo "=================================================="
+/bin/echo ""
+/bin/echo "*** Environment Variables ***"
+/bin/env | /bin/egrep '^(ORA|TNS|TWO_TASK|PATH|USER|NAME)'
+/bin/echo "=================================================="
+/bin/echo ""
+/bin/echo "*** ORATAB Entries ***"
+/bin/cat /etc/oratab 2>/dev/null | /bin/grep -v \#
+/bin/cat /var/opt/oracle/oratab 2>/dev/null | /bin/grep -v \#
+/bin/echo "==================================================" 
+/bin/echo ""
+/bin/echo "*** Current User and Group IDs ***"
+$ORACLE_HOME/bin/echodo id
+/bin/echo "=================================================="
+/bin/echo ""
+/bin/echo "*** Current User Group ***"
+$ORACLE_HOME/bin/echodo groups
+/bin/echo "=================================================="
+/bin/echo ""
+/bin/echo "*** ORACLE_HOME Bin Directory ***"
+cd $ORACLE_HOME/bin
+/bin/pwd
+/bin/echo "=================================================="
+/bin/echo ""
+/bin/echo "*** ORACLE Binary File Details ***"
+$ORACLE_HOME/bin/echodo ls -l oracle*
+/bin/echo "=================================================="
+/bin/echo ""
+/bin/echo "*** ORACLE_HOME RDBMS Lib Directory ***"
+cd $ORACLE_HOME/rdbms/lib
+/bin/pwd
+/bin/echo "==================================================="
+/bin/echo ""
+/bin/echo "*** CONFIG File Details ***"
+$ORACLE_HOME/bin/echodo ls -l config.[cso]
+/bin/echo "==================================================" 
+/bin/echo ""
+/bin/echo "*** CONFIG File Contents ***"
+$ORACLE_HOME/bin/echodo cat config.[cs]
+/bin/echo "==================================================" 
+/bin/echo ""
+
+/bin/echo "*** Groups Eligible for OS Authentication ***"
+$ORACLE_HOME/bin/echodo osdbagrp
+/bin/echo ""
+/bin/echo "=================================================="
+/bin/echo ""
+/bin/echo "*** ORACLE_HOME SQLNET.ORA Contents ***"
+$ORACLE_HOME/bin/echodo cat $ORACLE_HOME/network/admin/sqlnet.ora 2>/dev/null | /bin/grep -v \#
+/bin/echo "=================================================="
+/bin/echo ""
+/bin/echo "*** TNS_ADMIN SQLNET.ORA Contents ***"
+$ORACLE_HOME/bin/echodo cat $TNS_ADMIN/sqlnet.ora  2>/dev/null | /bin/grep -v \#  2>/dev/null
+/bin/echo "=================================================="
+/bin/echo ""
+/bin/echo "*** Current User's Home SQLNET.ORA Contents ***"
+$ORACLE_HOME/bin/echodo cat ~./.sqlnet.ora  2>/dev/null | /bin/grep -v \#  2>/dev/null
+/bin/echo "==================================================="
+/bin/echo ""
+/bin/echo "*** Current User Password File Details ***"
+/bin/ls -l /etc/passwd
+/bin/egrep `whoami` /etc/passwd
+/bin/echo "=================================================="
+/bin/echo ""
+/bin/echo "*** Current User Group File Details ***"
+/bin/ls -l /etc/group
+for R in `groups`
+do
+   /bin/egrep $R /etc/group
+done
+/bin/echo "=================================================="
+/bin/echo ""
+/bin/echo "*** YPCAT Group ***"
+/usr/bin/ypcat group 2>/dev//null
+/bin/echo "=================================================="
+/bin/echo ""
+/bin/echo "*** Group Entry in nsswitch.conf ***"
+/bin/cat /etc/nsswitch.conf | /bin/grep group | /bin/grep -v \#
+/bin/echo "=================================================="
+/bin/echo ""
+/bin/echo "*** SQLPlus Details ***"
+# connect as sysdba may fail if sqlplus version unequal to db version
+type sqlplus 
+$ORACLE_HOME/bin/sqlplus -version
+/bin/echo "=================================================="
+/bin/echo ""
+
+# check if nscd process runs, this may cause intermittent ora-1031 errors
+# due to bad caching of the group, ref. note 730067.1
+/bin/echo "*** Name Service Cache Daemon(nscd)Process ***"
+/bin/ps -ef | /bin/grep nscd | /bin/grep -v grep
+/bin/echo "=================================================="
+/bin/echo ""
+/bin/echo "*** Disk Space Usage for ORACLE_HOME ***"
+$ORACLE_HOME/bin/echodo df -k $ORACLE_HOME
+/bin/echo "=================================================="
+/bin/echo ""
+/bin/echo "*** Mount Points with nosuid ***"
+/bin/mount | /bin/grep nosuid
+/bin/echo "=================================================="
+/bin/echo ""
+]]>
+			</script>
+			<script type="SQLSCRIPT" name="srdc_dbtde_config.sql" timeout="120" validfor="" platform="" version="" depinput="KEYFLAG" deppattern="Y|y"> </script>
+			<script type="SQLSCRIPT" name="srdc_dbtde_config_12c.sql" timeout="120" validfor="" platform="" version="12.1.0.1,12.1.0.2,12.2,18.0" depinput="KEYFLAG" deppattern="Y|y"> </script>
+			<script type="SQLSCRIPT" name="srdc_dbtde_config_122.sql" timeout="120" validfor="" platform="" version="12.2">  </script>
+		</commands>
+		<runtime_flags>
+		</runtime_flags>
+	</collection>
+</collections>

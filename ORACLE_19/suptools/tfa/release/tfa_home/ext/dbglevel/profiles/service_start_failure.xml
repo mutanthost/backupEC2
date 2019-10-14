@@ -1,0 +1,50 @@
+<?xml version="1.0"?>
+
+<!--  $Header: tfa/src/v2/ext/dbglevel/profiles/service_start_failure.xml /main/2 2017/07/24 03:23:52 bibsahoo Exp $ -->
+
+<!-- 
+ Copyright (c) 2016, 2017, Oracle and/or its affiliates. All rights reserved.
+
+   NAME
+     service_start_failure.xml - <one-line expansion of the name>
+
+   DESCRIPTION
+     <short description of component this file declares/defines>
+
+   NOTES
+     <other useful comments, qualifications, etc.>
+
+   MODIFIED   (MM/DD/YY)
+   bibsahoo    07/21/17 - FIX BUG 25922581
+   bibsahoo    04/06/16 - Creation
+
+-->
+<profile name="service_start_failure" description="For debugging service start failure problems if directed by Oracle Support" type="default" timeout="5m">
+<change>
+<command>crsctl</command>
+<command_location>GI_HOME</command_location>
+<command_type>resource</command_type>
+<daemon>ora.(dbname).srv</daemon>
+<module>ora.(dbname).srv</module>
+<set>5</set>
+<unset>1</unset>
+</change>
+<change>
+<command>crsctl</command>
+<command_location>GI_HOME</command_location>
+<command_type>resource</command_type>
+<daemon>ora.(dbname).(service_name).svc</daemon>
+<module>ora.(dbname).(service_name).svc</module>
+<set>5</set>
+<unset>1</unset>
+</change>
+<change>
+<command>crsctl</command>
+<command_location>GI_HOME</command_location>
+<command_type>resource</command_type>
+<daemon>ora.(dbname).(service_name).(instance_name).srv</daemon>
+<module>ora.(dbname).(service_name).(instance_name).srv</module>
+<set>5</set>
+<unset>1</unset>
+</change>
+</profile>

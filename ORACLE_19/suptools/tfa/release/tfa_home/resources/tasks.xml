@@ -1,0 +1,23 @@
+<tasks>
+<task id="id1" type="collect">
+<component>ALL</component>
+</task>
+<task id="id2" type="collect">
+<component>RDBMS</component>
+</task>
+<task id="id3" type="collect">
+<component>ASM</component>
+</task>
+<task id="id4" type="collect">
+<component>CRS</component>
+</task>
+<task id="id5" type="collect">
+<component>OS</component>
+</task>
+<task id="id6" type="collect">
+<component>INSTALL</component>
+</task>
+<task id="id7" type="execute">
+<command>ls -lrt %tfa_home%/repository</command>
+</task>
+</tasks>

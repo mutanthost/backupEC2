@@ -1,0 +1,40 @@
+<?xml version="1.0"?>
+
+<!--  $Header: tfa/src/v2/tfa_home/resources/srdc_esexalogic.xml /main/1 2018/05/28 15:06:26 bburton Exp $ -->
+
+<!-- 
+ Copyright (c) 2018, Oracle and/or its affiliates. All rights reserved.
+
+   NAME
+     srdc_esexalogic.xml - <one-line expansion of the name>
+
+   DESCRIPTION
+     SRDC - Exalogic Full Exalogs Data Collection Information
+
+   MODIFIED   (MM/DD/YY)
+   xiaodowu    03/28/18 - SRDC - Exalogic Full Exalogs Data Collection
+                          Information (Doc ID 1902648.1)
+   xiaodowu    03/28/18 - Creation
+
+-->
+
+<collections>
+<collection id="esexalogic">
+    <description>SRDC - Exalogic Full Exalogs Data Collection Information.</description>
+    <srdc_docs>Doc ID 1902648.1: SRDC - Exalogic Full Exalogs Data Collection Information.</srdc_docs>
+    <alias>esexalogic</alias>
+    <user_inputs>
+    </user_inputs>
+	<commands>
+      <script type="OS" name="exalogic_tfa_collection" timeout="120" validfor="" platform="allux" version="">
+	<![CDATA[
+	/bin/grep -v " exec &>" /exalogic-lctools/lib/exalogs/exalogs.sh >/exalogic-lctools/lib/exalogs/exalogs$$.sh
+	/bin/bash /exalogic-lctools/lib/exalogs/exalogs$$.sh --discover /exalogic-lctools/bin/myrack.xml --all --diagspath /exalogic-lcdata/diagnostics
+	
+	/bin/rm /exalogic-lctools/lib/exalogs/exalogs$$.sh
+        ]]>
+     </script>
+    </commands>
+</collection>
+</collections>
+

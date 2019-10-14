@@ -1,0 +1,44 @@
+printf("==========START_OF_REPORT_chkExtShareQuota.aksh==========\n");
+
+var founderrorsShareQuota = false;
+var report = 1;
+var MAX_UTILIZATION=85;
+
+getHostname();
+
+var projects, p, shares, s, shareDedup, projDedup, zfs_total_used, zfs_total_avail, zfs_utilization,  projUtilization, myUtilization, projQuota, projSpaceTotal, projSpaceUnusedRes, projSpaceAvailable, myQuota, mySpaceTotal, mySpaceUnusedRes, mySpaceAvailable;
+pools = getPoolNames();
+for (itr = 0; itr < pools.length; itr++) {
+    pool = pools[itr];
+    run('cd /');
+    run('status storage');
+    printreport("Pool name: " + pool + "\n");
+    run('select ' + pool);    
+    zfs_total_used=Number(safeGet('used'));
+    zfs_total_avail=Number(safeGet('avail'));
+    zfs_utilization=Math.round(zfs_total_used*1000/(zfs_total_used + zfs_total_avail))/10;
+
+    if (zfs_utilization >= MAX_UTILIZATION) {
+        founderrorsShareQuota = true;
+    }
+    printreport("Pool total used space is: " + zfs_total_used + " bytes\nPool total available space is: " + zfs_total_avail + " bytes\nPool space utilization is: " + zfs_utilization + " percent. \n\n");    
+
+    run('cd /');
+    run('shares');
+    run('set pool=' + pool);    
+    
+    checkShareQuota();
+
+}    
+if ( founderrorsShareQuota == false ) {
+    printreport("OK: " + host_name + " Share Quota Check Completed: Space utilization on all ZFS projects and shares are less than " + MAX_UTILIZATION + " percent\n");
+}
+else {
+    printreport("WARNING: " + host_name + " Share Quota Check Completed: Space utilization on one or more ZFS projects and shares more than or at least " + MAX_UTILIZATION + " percent\n");
+}
+printf("==========END_OF_REPORT_chkExtShareQuota.aksh==========\n");
+
+printf("==========START_OF_AUDIT_CHECK_chkExtShareQuota.aksh==========\n");
+printf("share_quota_check_status = %d\n", founderrorsShareQuota);
+printf("==========END_OF_AUDIT_CHECK_chkExtShareQuota.aksh==========\n");
+

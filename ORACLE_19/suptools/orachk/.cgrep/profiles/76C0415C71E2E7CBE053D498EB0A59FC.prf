@@ -1,0 +1,3 @@
+76478D9FCF6C9C3EE053D598EB0A9079|Verify all Database and Storage Servers are synchronized with the same NTP server
+76509D434FBAE6C5E053D298EB0A1EE3|verify ORAchk Daemon configuration across cluster
+DC28F07D94FD1B10E04313C0E50A9FD8|TFA Collector status

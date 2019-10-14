@@ -1,0 +1,199 @@
+#!/bin/sh
+#
+# Copyright (c) 2004, 2018, Oracle and/or its affiliates. All rights reserved.
+#
+#    NAME
+#      asmcmd - ASM CoMmanD line interface (Wrapper)
+#
+#    DESCRIPTION
+#      This program is a wrapper for asmcmdcore.  It takes the same parameters
+#      as asmcmdcore.  It first checks to see if $ORACLE_HOME is set, if not it
+#      tries to infer it from the path it was run and if it couldn't be set then
+#      it prints an error message and exits.  It also sets $PERL5LIB based on
+#      $ORACLE_HOME if $PERL5LIB is not already set.  Finally, it invokes
+#      asmcmdcore at $ORACLE_HOME/bin/asmcmdcore with the Perl interpreter at
+#      $ORACLE_HOME/perl/bin/perl.
+#
+#    NOTES
+#      usage: asmcmd [-p] [command]
+#
+#      This wrapper program now supports only UNIX platforms.  Use
+#      asmcmd.bat for Windows platforms.
+#
+#    MODIFIED   (MM/DD/YY)
+#    cemiramo   01/23/18 - 27427542: Use sed to make it work on AIX & HPUX
+#    wanhlee    11/30/17 - 27175229: ${1,,} is not supported in older Solaris
+#    wanhlee    11/15/17 - 26589547: Verify ORACLE_BASE is set for AFD commands
+#    anovelo    03/08/17 - 25655024: Removed use of bash commands
+#    anovelo    02/24/17 - 17880744: Export ORACLE_HOME for ASMCMD
+#    diguzman   11/09/16 - 24741167: ASMCMD should not use oratab
+#    anovelo    02/10/16 - Change develcover extension
+#    shmubeen   04/06/10 - remove -T option
+#    sanselva   02/01/10 - Turn on Code Coverage if ASMCMD_CODE_COV is set
+#    heyuen     03/16/09 - fix version identification
+#    hqian      06/21/07 - #6137843: restructure to use oratab and oraenv
+#    hqian      06/06/07 - Add $ORACLE_HOME/rdbms/lib/asmcmd to include path
+#    hqian      01/10/07 - Add Perl lib path $ORACLE_HOME/lib/asmcmd
+#    heyuen     10/10/06 - Add exit codes
+#    hqian      01/26/06 - #4939032: enable taint mode, deprecate PERL5LIB
+#    hqian      01/20/06 - #4939032: add new module path to PERL5LIB
+#    hqian      07/19/05 - Remove RCS header
+#    hqian      04/01/05 - #4271064: add SHLIB_PATH for HP-UX
+#    hqian      03/29/05 - Add ${ORACLE_HOME}/lib to LD_LIBRARY_PATH
+#    hqian      03/29/05 - #4271064: Add $LIBPATH for AIX
+#    hqian      12/08/04 - Make this wrapper script a bourne shell script.
+#    hqian      10/19/04 - Rename asmcmd0 to asmcmdcore.
+#    hqian      09/01/04 - Fix path to Perl on NT.
+#    hqian      08/06/04 - Add execute bit to ADE.
+#    hqian      07/26/04 - Remove check for Perl version.
+#    hqian      07/21/04 - Fix Perl version path problem.
+#    hqian      06/30/04 - Fix NT porting issues.
+#    hqian      06/29/04 - Add check for LD_LIBRARY_PATH.
+#    hqian      06/22/04 - Creation
+#
+#############################################################################
+
+ECHO=/bin/echo
+SED=/bin/sed
+AWK=/bin/awk
+EGREP=/bin/egrep
+PATH=/bin:/usr/bin:/usr/sbin:/sbin:$PATH
+PLATFORM=`uname`
+
+# Check to see if ORACLE_HOME is set.
+if [ "${ORACLE_HOME}" = "" ] ; then
+  asmcmd_dir=`dirname $0`
+  case $asmcmd_dir in
+    /*)
+      ;;
+    *)
+      if [ $asmcmd_dir = '.' ] ; then
+        asmcmd_dir=$PWD
+      else
+        asmcmd_dir=$PWD/${asmcmd_dir}
+      fi
+      ;;
+  esac
+
+  ORACLE_HOME=`${ECHO} ${asmcmd_dir} | ${SED} 's%/bin%%g'`
+  export ORACLE_HOME
+  unset asmcmd_dir
+
+  # Verify whether this value is actually ORACLE_HOME
+  $ORACLE_HOME/bin/sqlplus -v 2>&1 >/dev/null || {
+    ${ECHO} "ASMCMD-00001: ORACLE_HOME environment variable not set"
+    exit -1
+  }
+fi
+
+# In case the user did set ORACLE_HOME, but not to a valid directory,
+# print error to indicate so.
+if [ ! -d ${ORACLE_HOME} ] ; then
+  ${ECHO} "ASMCMD-00002: ORACLE_HOME is not a valid directory"
+  exit -1
+fi
+
+# Need to export ORACLE_HOME, since we may have set it in this script.
+export ORACLE_HOME
+
+#
+# asmcmd with afd_ subcommands require ORACLE_BASE to be set.
+#
+if [ "$#" -ne 0 ]; then
+  if ${ECHO} "$1" | ${EGREP} -s "^afd_"* 1> /dev/null 2>&1; then
+    # Verify if ORACLE_BASE variable is set
+    if [ "${ORACLE_BASE}" = "" ] ; then
+      ${ECHO} "ASMCMD-00003: ORACLE_BASE environment variable not set"
+        exit -1
+    fi
+
+    # Verify if the ORACLE_BASE directory is valid
+    if [ ! -d ${ORACLE_BASE} ] ; then
+      ${ECHO} "ASMCMD-00004: ORACLE_BASE is not a valid directory"
+      exit -1
+    fi
+  fi
+fi
+
+# Add Solaris32 backward compatibility for LD_LIBRARY_PATH.  This extra
+# path is used for Solaris64 Oracle homes that come with a Solaris32
+# Perl build.
+LD_LIBRARY_PATH="${ORACLE_HOME}/lib:${LD_LIBRARY_PATH}"
+LD_LIBRARY_PATH="${ORACLE_HOME}/lib32:${LD_LIBRARY_PATH}"
+export LD_LIBRARY_PATH
+
+# AIX uses LIBPATH, not LD_LIBRARY_PATH.
+if [ "${PLATFORM}" = "AIX" ] ; then
+  LIBPATH="${ORACLE_HOME}/lib:${LIBPATH}"
+  export LIBPATH
+fi
+
+# HP-UX uses SHLIB_PATH, not LD_LIBRARY_PATH.
+if [ "${PLATFORM}" = "HP-UX" ] ; then
+  SHLIB_PATH="${ORACLE_HOME}/lib:${SHLIB_PATH}"
+  export SHLIB_PATH
+fi
+
+# Set path to Perl.
+PERLBIN="${ORACLE_HOME}/perl/bin/perl"
+
+# Get Perl version.
+PERLV=`${PERLBIN} -e 'printf "%vd", $^V'`          # Get version, in form 5.x.y #
+
+# Set PERLINC, which is a list of -I options passed to the perl
+# interpreter, telling perl where to look for modules.
+# We no longer support the use of PERL5LIB, because we now use
+# taint checks, and PERL5LIB is considered tainted.
+PERLINC="-I ${ORACLE_HOME}/perl/lib/${PERLV}"
+PERLINC="${PERLINC} -I ${ORACLE_HOME}/perl/lib/site_perl/${PERLV}"
+PERLINC="${PERLINC} -I ${ORACLE_HOME}/lib"
+PERLINC="${PERLINC} -I ${ORACLE_HOME}/lib/asmcmd"
+PERLINC="${PERLINC} -I ${ORACLE_HOME}/rdbms/lib/asmcmd"
+
+# Uncomment this one line below to try out asmcmdtemplate.pm, just for fun.
+# *Do not* merge asmcmd with this line uncommented!
+
+# Build command to execute asmcmdcore.
+if [ "${ASMCMD_CODE_COV}" = "" ] ; then
+  RUNTHIS="${PERLBIN} -w ${PERLINC} ${ORACLE_HOME}/bin/asmcmdcore"
+else
+#  echo "WARNING: ASMCMD Code Coverage Turned ON";
+  if [ "${T_WORK}" = "" ] ; then
+     echo "T_WORK directory not set, Exiting"
+     exit -1
+  fi
+
+  if [ ! -d ${T_WORK}/CoverLib ]; then
+    COVERZIP="${ORACLE_HOME}/rdbms/src/client/tools/asmcmd/codecov/develcover.tar.gz"
+    if [ ! -f ${COVERZIP} ]; then
+     echo "${COVERZIP} not found, Exiting"
+     exit -1
+    fi
+
+    mkdir ${T_WORK}/CoverLib
+    STATUS=$?
+    if [ ! -d "${T_WORK}/CoverLib" ]; then
+     echo "Creating cover directory failed, mkdir failed with exit code:$STATUS"
+     exit $STATUS
+    fi
+    tar -zxf ${COVERZIP} -C ${T_WORK}/CoverLib
+    STATUS=$?
+    if [ 0 -ne ${STATUS} ]; then
+     echo "Unzipping ${COVERZIP}"
+     echo " to ${T_WORK}/cover failed, exit code: $STATUS"
+     exit $STATUS
+    fi
+  fi
+
+  MDEVEL="-MDevel::Cover=-ignore,perl,-merge,on,"
+  MDEVEL="${MDEVEL}-coverage,statement,subroutine,condition,branch,"
+  MDEVEL="${MDEVEL}-silent,on"
+  PERLINC="${PERLINC} -I ${T_WORK}/CoverLib/${PERLV}/lib/site_perl/"
+  RUNTHIS="${PERLBIN} -w ${MDEVEL} ${PERLINC} ${ORACLE_HOME}/bin/asmcmdcore"
+fi
+
+# Now run asmcmdcore with all arguments!
+exec ${RUNTHIS} "$@"
+
+# Should never get here.
+exit -1

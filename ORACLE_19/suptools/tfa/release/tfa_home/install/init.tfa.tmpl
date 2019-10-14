@@ -1,0 +1,657 @@
+#!/bin/sh
+# Copyright (c) 2014, 2018, Oracle and/or its affiliates. All rights reserved.
+#
+# Oracle TFA startup
+#
+#
+# init.tfa - Control script for the tfa
+#
+#
+# Supported options:
+#    init.tfa start          Starts the tfa, and inittab starts   monitoring it
+#    init.tfa stop           stops the tfa, but 'init.tfa tfa'  is in sleep state
+#    init.tfa restart        restarts the TFAMain process if 'init.tfa'    is running.
+#    init.tfa shutdown       shutdown the TFAMain. No monitoring from  inittab
+#    init.tfa disable        Remove inittab entries 
+#    init.tfa enable         Add inittab entries
+#
+
+#SUSE_TAGS
+
+AWK=/bin/awk
+CP=/bin/cp
+MV=/bin/mv
+RMF="/bin/rm -f"
+RPM=/bin/rpm
+START=/sbin/start
+STOP=/sbin/stop
+CHMOD=/bin/chmod
+ECHO=/bin/echo
+CAT=/bin/cat
+CUT=/bin/cut
+GREP=/bin/grep
+SLEEP=/bin/sleep
+MODPROBE=/sbin/modprobe
+PERL=/usr/bin/perl
+ID=/usr/bin/id
+EXPRN=/usr/bin/expr
+SED=/bin/sed
+TOUCH=/bin/touch
+LN=/bin/ln
+
+# Check root access
+USERID=`$ID | $AWK -F\( '{print $1}' | $AWK -F= '{print $2}'`
+if [ $USERID -ne 0 ]
+then
+   $ECHO "TFA-00013: init.tfa of Oracle Trace File Analyzer (TFA) must be run as the root user"
+   exit 1;
+fi
+
+TFA_HOME=
+export TFA_HOME
+
+if [ -z $TFA_HOME ]; then
+   $ECHO "TFA_HOME is not set correctly in this script"
+   $ECHO "This is likely due to an initial setup error"
+   exit;
+fi
+
+if [ `$ECHO $TFA_HOME | $GREP -c "\/var\/opt\/oracle\/tfa\/.*\/tfa_home$"` -ge 1 ]
+then
+	CLONE=`$ECHO $TFA_HOME | $SED -e 's/\/var\/opt\/oracle\/tfa\/\(.*\)\/tfa_home/\1/'`;
+
+	if [ -d "$TFA_HOME/database/BERKELEY_JE_DB" ]
+	then
+		HOSTNAME=`hostname | $CUT -d. -f1 | $PERL -ne 'print lc'`;
+
+		# Verify Hostname
+		if [ -z "$HOSTNAME" ] || [ `$ECHO $HOSTNAME | $GREP -c "^(none)$"` -ge 1 ]
+		then
+			if [ "$CLONE" != "tfatemphost" ]
+			then
+				if [ -f "$TFA_HOME/bin/tfaclonesupport.sh" ]
+				then
+					$TFA_HOME/bin/tfaclonesupport.sh
+					exit 0;
+				fi
+			else
+				while [ -z "$HOSTNAME" ] || [ `$ECHO $HOSTNAME | $GREP -c "^(none)$"` -ge 1 ]
+				do
+					$SLEEP 30
+					HOSTNAME=`hostname | $CUT -d. -f1 | $PERL -ne 'print lc'`;
+				done
+			fi
+		fi
+
+		if [ "$CLONE" != "$HOSTNAME" ]
+		then
+			if [ -f "$TFA_HOME/bin/tfaclonesupport.sh" ]
+			then
+				$TFA_HOME/bin/tfaclonesupport.sh
+				exit 0;
+			fi
+		fi
+	fi
+fi
+
+PIDFILE=$TFA_HOME/internal/.pidfile
+CH=$TFA_HOME
+UPSTART_USED=0
+SYSTEMD_USED=0
+SYSTEMCTL=/usr/bin/systemctl
+SYSTEMD_SYSTEM_DIR=/etc/systemd/system
+UNAME=/bin/uname
+PLATFORM=`$UNAME`
+
+if [ ! -s $CH/install/inittab ]
+then
+	if [ `$CAT $CH/install/inittab_master | $GREP -c "$PLATFORM="` -eq 1 ]
+	then
+		$CAT $CH/install/inittab_master | $GREP "$PLATFORM=" | $AWK -F= '{print $2}' > $CH/install/inittab
+	else
+		$ECHO "ERROR: Unable to find inittab entries for $PLATFORM";
+		exit -1;
+	fi
+fi
+
+if [ -s $CH/install/inittab ]
+then
+	NIT=$CH/install/inittab
+fi
+
+case $PLATFORM in
+Linux) 
+	UC=/etc/init
+	ID=/etc/init.d
+	IT=/etc/inittab
+	INIT=/sbin/init
+	#check to see if we are using upstart (OL6)
+	UPSTART_USED=`$RPM -qf /sbin/init | $GREP -i '^upstart-'| wc -l`
+	SYSTEMD_USED=`$RPM -qf /sbin/init | $GREP -i '^systemd-'| wc -l`
+        SUBSYSFILE="/var/lock/subsys/init.tfa"
+        RCKDIR="/etc/rc.d/rc0.d /etc/rc.d/rc1.d /etc/rc.d/rc2.d /etc/rc.d/rc4.d /etc/rc.d/rc6.d"
+        RC_KILL=K17
+;;
+AIX) 
+	ID=/etc
+	IT=/etc/inittab
+	INIT=/etc/init
+        RCKDIR="/etc/rc.d/rc2.d"
+        RC_KILL=K17
+	;;
+SunOS) 
+	ID=/etc/init.d
+	IT=/etc/inittab
+	INIT=/usr/sbin/init
+        RCKDIR="/etc/rc0.d /etc/rc1.d /etc/rc2.d /etc/rcS.d"
+        RC_KILL=K17
+	;;
+HP-UX) 
+	ID=/sbin/init.d
+	IT=/etc/inittab
+	INIT=/sbin/init
+        RCKDIR="/sbin/rc2.d"
+        RC_KILL=K170
+	;;
+*)     /bin/echo "ERROR: Unknown Operating System"
+       exit -1
+       ;;
+esac
+
+# Definitions to Add/Remove inittab entries
+ADDITAB="$CAT \$IT | $GREP -v init.tfa > \$IT.no_tfa || { exit 1; } ; \
+        $CAT \$IT.no_tfa $NIT > \$IT.tmp || { exit 1; }; \
+        $CP \$IT.tmp \$IT.tfa || { exit 1; }; \
+        $MV \$IT.tmp \$IT || { exit 1; }; "
+RMITAB="$CAT \$IT | $GREP -v init.tfa > \$IT.tmp || { exit 1; } ; \
+        $CP \$IT.tmp \$IT.no_tfa || { exit 1; }; \
+        $MV \$IT.tmp \$IT || { exit 1; }; "
+
+# Variables which control the TFAMain restart attempts..
+PREV_RESTART_TIME=0
+RESTART_ATTEMPTS=3
+FAILED_ATTEMPTS=0
+RESTART_TIME_WINDOW=120
+CHECK_TIME=30
+TIME_ELAPSED=0
+TIME_OUT_WINDOW=86400
+ 
+# init.tfa TFA Home Startup Check Time Out Settings
+TFAHOME_CHECK_INTERVAL=10
+TFAHOME_CHECK_COUNT=30
+
+
+#This contains the required flag for the init.tfa
+AUTORUNFILE=$TFA_HOME/install/TFAMainrun
+AUTOSTARTFILE=$TFA_HOME/install/TFAAutoStart
+
+remove_subsys()
+{
+    if [ -f "$SUBSYSFILE" ] && [ "$PLATFORM" = "Linux" ]
+    then
+            $RMF $SUBSYSFILE
+    fi
+}
+
+cleanup_init()
+{
+# TFA_HOME is gone - do what is needed to clean up
+for rc in $RCKDIR
+do
+  rclink=$rc/"$RC_KILL"init.tfa
+  if [ -L "$rclink" ]
+  then
+        $ECHO "Removing Sym Link $rclink to $ID/init.tfa"
+        $RMF $rclink
+  fi
+done
+
+if [ -f $ID/init.tfa ]
+then
+    $RMF $ID/init.tfa
+fi
+
+if [ $UPSTART_USED -gt 0 ]; then
+     if [ -f /etc/init/oracle-tfa.conf ]; then
+        $STOP oracle-tfa
+        $RMF $UC/oracle-tfa.conf
+     fi
+  elif [ $SYSTEMD_USED -gt 0 ]; then
+     if [ -f $SYSTEMD_SYSTEM_DIR/oracle-tfa.service ]; then
+        $SYSTEMCTL stop  oracle-tfa
+        $RMF $SYSTEMD_SYSTEM_DIR/oracle-tfa.service
+     fi
+  else
+     # if not upstart (SYSv) or sysmtemd then remove inittab entry before stop
+     eval $RMITAB
+     # Stop TFA cleanly
+     $INIT q
+fi
+
+}
+
+create_rc_links() 
+{
+for rc in $RCKDIR
+do
+  rclink=$rc/"$RC_KILL"init.tfa
+  if [ ! -L "$rclink" ]
+  then
+        $ECHO "Creating Sym Link $rclink to $ID/init.tfa"
+  	$LN -s $ID/init.tfa $rclink
+  fi
+done
+}
+
+
+isenabled()
+{
+  if [ -r $AUTOSTARTFILE ]; then 
+     TFAENABLED=`$CAT $AUTOSTARTFILE`
+  else
+     TFAENABLED="enabled"
+  fi
+}
+
+checkrunning() 
+{
+  tfapid=0
+  getpid
+  if [ $tfapid -gt 0 ]; then
+        tfarunning=1
+  else
+        tfarunning=0
+  fi
+}
+
+getpid ()
+{
+  if [ -r "$PIDFILE" ]; then
+    tfapidfromfile=`cat $PIDFILE`
+    if [ ! -z "$tfapidfromfile" ]; then
+      tfapid=`ps -p $tfapidfromfile | grep -v PID | grep java | $AWK '{print $1}'`
+      if [ -z "$tfapid" ]; then
+          $RMF $PIDFILE
+          tfapid=0
+      fi
+    fi
+  fi
+}
+
+killpid ()
+{
+    tfapid=0
+    getpid
+    if [ $tfapid -gt 0 ]; then
+      $ECHO "Killing TFA running with pid $tfapid"
+      kill -9 $tfapid > /dev/null 2>&1
+    fi
+}
+
+waitforstop ()
+{
+  waittime=$1
+  waitcount=0
+  while [ $waitcount -lt $waittime ]
+   do
+   checkrunning
+   if [ $tfarunning -eq 1 ]
+   then 
+      $ECHO "TFA Daemon is running waiting 5 seconds"
+      sleepdots 5
+      waitcount=`$EXPRN $waitcount + 5`
+   else
+        return
+   fi
+   done
+}
+
+sleepdots ()
+{
+sleeptime=$1
+count=0
+while [ $count -lt $sleeptime ] 
+do
+      printf ". "
+      $SLEEP 1
+      count=`$EXPRN $count + 1`
+done
+printf "\n"
+}
+
+start_stack() {
+   $ECHO "Starting TFA.."
+ 
+    if [ "$PLATFORM" = "Linux" ]
+    then
+       # touch /var/lock/subsys/tfa so that the shutdown
+       $TOUCH $SUBSYSFILE
+    fi
+
+   # copy init.tfa to /etc/init.d
+   $CP $CH/install/init.tfa $ID/init.tfa || { $ECHO "Unable to copy init.tfa"; exit 1; }
+   $CHMOD 755 $ID/init.tfa || { $ECHO "Unable to change permissions for init.tfa"; exit 1; }
+   
+   # If it is already started then shutdown first 
+   checkrunning
+   if [ $tfarunning -eq 1 ]
+    then 
+      $ECHO "TFA is already running, so will be restarted" 
+      $ECHO "start" > $AUTORUNFILE
+      if [ $UPSTART_USED -gt 0 ]; then 
+         if [ -f /etc/init/oracle-tfa.conf ]; then
+            $STOP oracle-tfa
+            $RMF $UC/oracle-tfa.conf
+            # Wait for it to go - upstart will kill it after 20 seconds
+            waitforstop 20
+         fi
+      elif [ $SYSTEMD_USED -gt 0 ]; then
+         if [ -f $SYSTEMD_SYSTEM_DIR/oracle-tfa.service ]; then
+            $SYSTEMCTL stop  oracle-tfa
+            waitforstop 20
+         fi
+      else
+         # if not upstart (SYSv) or sysmtemd then remove inittab entry before stop
+         eval $RMITAB
+         $INIT q
+      fi
+      # Stop TFA cleanly
+      $TFA_HOME/bin/tfactl -initstop
+   fi
+   # set the flag in TFAMainrun
+   $ECHO "start" > $AUTORUNFILE
+   if [ $UPSTART_USED -gt 0 ]; then 
+       # Copying upstart file to upstart config directory
+       $CP -f $CH/install/oracle-tfa.conf $UC 
+       # start the job
+       $START oracle-tfa 
+   elif [ $SYSTEMD_USED -gt 0 ]; then
+       $CP -f $CH/install/oracle-tfa.service $SYSTEMD_SYSTEM_DIR
+       $CHMOD 644 $SYSTEMD_SYSTEM_DIR/oracle-tfa.service
+       #start the service
+       $SYSTEMCTL daemon-reload
+       $SYSTEMCTL enable oracle-tfa
+       $SYSTEMCTL start oracle-tfa
+   else 
+     # add the entries back and start the tfa
+     eval $ADDITAB
+     $INIT q
+   fi
+   $ECHO "Waiting up to 100 seconds for TFA to be started.."
+   counter=0
+   while [ $counter -lt 20 ]
+   do
+     sleepdots 5 
+     checkrunning
+     if [ $tfarunning -eq 1 ]
+       then 
+       $ECHO "Successfully started TFA Process.."
+       sleepdots 5
+       $TFA_HOME/bin/tfactl -check
+       if [ $? -ne 0 ]; then
+          $ECHO "TFA Failed to start listening for commands"
+       else
+          $ECHO "TFA Started and listening for commands"
+          exit 1
+       fi
+     fi
+     counter=`$EXPRN $counter + 1`
+   done
+
+}
+# Main loop
+
+case $1 in
+'run')
+
+   # see if there is any init.tfa running
+   # there might be some stale init.tfa running , if so remove it
+   START_LOOP="true"
+   while ($START_LOOP)
+   do
+     # Make sure the tfa_home file system is available and Wait in case it is on NFS.
+     waitcount=0
+     while [ ! -r $TFA_HOME/bin/tfactl ]
+     do
+        $ECHO "init.tfa waiting for filesystem containing TFA_HOME to be mounted.."
+        # If we don't find tfactl within specified count, check tfa home
+        if [ $waitcount -eq $TFAHOME_CHECK_COUNT ]
+        then
+           # If TFA_HOME is gone then we have no point in life
+           #  remove init.tfa and inittab etc entries.
+           if [ ! -d $TFA_HOME ]
+           then
+              $ECHO "TFA_HOME directory does not exist - removing init.tfa from system"
+              cleanup_init
+              exit 1
+           fi
+        fi
+        waitcount=`$EXPRN $waitcount + 1`
+        $SLEEP $TFAHOME_CHECK_INTERVAL
+     done
+
+     if [ -f "$TFA_HOME/internal/.initPatchTFA" ]
+     then
+         $RMF -f $TFA_HOME/internal/.initPatchTFA
+         $ID/init.tfa stop cmdline
+	 $TFA_HOME/internal/patchScript.sh
+         $ECHO "start" > $AUTORUNFILE
+     fi  
+     if [ -f "$TFA_HOME/internal/.initRestartTFA" ]
+     then
+         $RMF -f $TFA_HOME/internal/.initRestartTFA
+         $ID/init.tfa stop cmdline
+         $ECHO "start" > $AUTORUNFILE
+     fi  
+     if [ -r $AUTORUNFILE ]
+     then
+       case `$CAT $AUTORUNFILE` in
+        reboot*|start*)
+            isenabled
+            create_rc_links
+            if [ "$TFAENABLED" = "disabled" ]; then 
+               $ECHO "TFA autostart is disabled.."
+            else 
+               #$ECHO "Checking/Starting TFA.." #temporary removal as it writes this every 30 seconds to syslog : New log writing in progress
+	       checkrunning 
+	       if [ $tfarunning -eq 0 ]; then
+                  # failed or not started .
+                  # We will start it ..
+                  $ECHO "Starting TFA.."
+		  if [ "$PLATFORM" = "Linux" ]
+    		  then
+       		        # touch /var/lock/subsys/tfa so that the shutdown
+       			$TOUCH $SUBSYSFILE
+    	    	  fi
+
+                  $TFA_HOME/bin/tfactl -initstart
+                  #tfactl - initstart returns 0 if succeded
+                  if [ $? -ne 0 ]; then 
+                     # failed to start this time  - up the failed attempts
+                     FAILED_ATTEMPTS=`$EXPRN $FAILED_ATTEMPTS + 1`
+                  else
+		     #There is a problem with restart if we have continuos 
+		     #100sec+30sec(CHECKTIME) sleep bcz start wait for 100sec and says 
+		     #TFA not started though it starts after 
+		     #So, First immediately do tfactl check to avoid delay in 
+		     #re/starting TFA. After that check in 20sec intervals for 100sec
+		     sleep_counter=0
+		     failed=0
+		     while [ $sleep_counter -lt 100 ]; do
+                       $TFA_HOME/bin/tfactl -check
+		       failed=0
+                       if [ $? -ne 0 ]; then 
+		         failed=1
+		       else 
+		         break
+		       fi
+                       $SLEEP 20
+		       sleep_counter=`$EXPRN $sleep_counter + 20`
+		     done
+		     if [ $failed -eq 1 ]; then
+		       #Increase the failed attempts
+                       FAILED_ATTEMPTS=`$EXPRN $FAILED_ATTEMPTS + 1`
+                     else
+                       #It's fine so we can reset failed attempts
+                       FAILED_ATTEMPTS=0
+                     fi
+                  fi
+               fi
+              
+               if [ $FAILED_ATTEMPTS -gt $RESTART_ATTEMPTS ]; then
+                  LOGFILE=$TFA_HOME/log/$HOSTNAME/tfa/TFAMain.log
+                  #CT=$(date)
+	          CT=`date`
+                  #Do not try to start it again 
+                  $ECHO "ERROR: TFAaAin is spawning too fast, Human intervention required!!!" >> $LOGFILE
+                  $ECHO "Disabling TFA  at : $CT " >> $LOGFILE
+                  $ECHO "stop" > $AUTORUNFILE
+                  continue
+               fi
+            fi
+         ;;
+
+         stop*)
+            $SLEEP 10
+            ;;
+            
+          *)
+           $ECHO "unknown entry in $AUTORUNFILE"
+           START_LOOP="false"
+           ;;
+       esac
+     fi
+     $SLEEP $CHECK_TIME
+   done
+;;
+
+
+#These entries are for direct user control
+
+'enable')
+   $ECHO "enabled" > $AUTOSTARTFILE
+   $ECHO "TFA autostart has been enabled .."
+   ;;
+'disable')
+   $ECHO "disabled" > $AUTOSTARTFILE
+   $ECHO "TFA autostart has been disabled .."
+   ;;
+'start')
+   isenabled
+   if [ "$TFAENABLED" = "disabled" ]; then 
+      $ECHO "TFA autostart is disabled.."
+   else 
+      create_rc_links
+      start_stack
+   fi
+;;
+
+'restart')
+   # see if init.tfa is running
+   inittfapid=`ps -ef | $GREP "init.tfa run"| $GREP -v grep | $AWK '{print $2}'`
+   if [ ! -z "$inittfapid" ]
+   then
+      $ECHO "Restarting TFA.."
+      killpid
+      $ECHO "start" > $AUTORUNFILE
+   else
+     $ECHO "Error: init.tfa is not running to start TFA.."
+     $ECHO "Run: 'init.tfa start' to start TFA"
+   fi
+   $ECHO "Waiting up to 120 seconds for TFA to be re-started.."
+   counter=0
+   while [ $counter -lt 12 ]
+   do
+     sleepdots 10
+     checkrunning
+     if [ $tfarunning -eq 1 ]
+       then
+         $ECHO "Successfully re-started TFA.."
+         exit 1
+     fi
+     counter=`$EXPRN $counter + 1`
+   done
+
+   $ECHO "Failed to  re-start TFA.."
+   ;;
+
+'stop')
+    if [ "$2" = "cmdline" ]
+    then
+        $ECHO "Stopping TFA from the Command Line"
+        # set the flags in TFAMainrun file.
+        $ECHO "stop" > $AUTORUNFILE
+        remove_subsys
+    else
+        $ECHO "Stopping TFA from init for shutdown/reboot"
+        if [ -f /etc/init/oracle-tfa.conf ]; then
+            $STOP oracle-tfa
+        elif [ -f $SYSTEMD_SYSTEM_DIR/oracle-tfa.service ]; then
+            $SYSTEMCTL stop oracle-tfa
+        fi
+        $ECHO "reboot" > $AUTORUNFILE
+        remove_subsys
+    fi
+
+    # Stop TFA cleanly first 
+    $TFA_HOME/bin/tfactl -initstop
+
+    killpid
+    sleepdots 3
+    checkrunning
+    if [ $tfarunning -eq 0 ]
+     then
+       $ECHO "Successfully stopped TFA.."
+     else 
+       $ECHO "Failed to stop TFA.."
+    fi
+    ;;
+
+'shutdown')
+    $ECHO "Shutting down TFA"
+    $ECHO "stop" > $AUTORUNFILE
+    remove_subsys
+    # remove the entries from inittab
+    # if upstart then remove the config file
+    if [ -f /etc/init/oracle-tfa.conf ]; then
+       $STOP oracle-tfa
+       $RMF $UC/oracle-tfa.conf
+    elif [ -f $SYSTEMD_SYSTEM_DIR/oracle-tfa.service ]; then 
+       $SYSTEMCTL stop oracle-tfa
+       $SYSTEMCTL disable oracle-tfa
+       $RMF $SYSTEMD_SYSTEM_DIR/oracle-tfa.service
+    else
+       # if not upstart (SYSv) then remove inittab entry before stop
+       eval $RMITAB
+       # Stop TFA cleanly
+       $TFA_HOME/bin/tfactl -initstop
+       $INIT q
+    fi
+    sleepdots 5
+    # Kill TFAMain if it is still running
+    #tfapid=`ps -ef | $GREP "TFAMain" | $GREP -v check | $GREP -v grep | $AWK '{print $2}'`
+    #if [ ! -z "$tfapid" ]; then
+   #     kill -9 $tfapid
+   # fi
+   killpid
+   sleepdots 3
+   # TFAMainpid=`ps -ef | $GREP "TFAMain"| $GREP -v check | $GREP -v grep | $AWK '{print $2}'`
+   # if [ -z "$TFAMainpid" ]; then
+   checkrunning
+   if [ $tfarunning -eq 0 ]
+    then
+      $ECHO "Successfully shutdown TFA.."
+    else 
+      $ECHO "Failed to shutdown TFA.."
+    fi
+   ;;
+patchrestart)
+      $TOUCH $TFA_HOME/internal/.initPatchTFA
+   ;;
+
+*)
+    $ECHO "Usage: $0 {stop|start|shutdown|restart}" 
+    exit 1;
+    ;;
+esac
+ 

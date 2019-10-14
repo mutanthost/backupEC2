@@ -1,0 +1,126 @@
+<?xml version="1.0"?>
+
+<!--  $Header: tfa/src/v2/tfa_home/resources/srdc_dbinstall.xml /main/8 2018/08/08 23:01:02 recornej Exp $ -->
+
+<!-- 
+ Copyright (c) 2017, 2018, Oracle and/or its affiliates. All rights reserved.
+
+   NAME
+     srdc_dbinstall.xml - <one-line expansion of the name>
+
+   DESCRIPTION
+     <short description of component this file declares/defines>
+
+   NOTES
+     <other useful comments, qualifications, etc.>
+
+   MODIFIED   (MM/DD/YY)
+   recornej    08/03/18 - Change validate to dbversion.
+   bburton     07/05/18 - Add supported DB version Array - bug 27889149
+   migmoren    04/17/18 - Bug 27624530 - TFAT: HCVE FILE IS NOT GENERATED IN
+                          12.2.0.1.0 DATABASE VERSION
+   bburton     06/26/17 - 26132360 - Fix the Description for help
+   bburton     05/22/17 - PATCH_FILE being null hangs md5sum
+   bburton     05/05/17 - Add CRS to this SRDC
+   bburton     02/23/17 - SRDC XML driver for DB install collections.
+   bburton     02/23/17 - Creation
+
+-->
+<collections>
+  <collection id="dbinstall">
+  <description>SRDC for Oracle RDBMS install problems.</description>
+    <alias>dbinstall</alias>
+    <user_inputs>
+        <user_input cmdline="" required="OPT" showprompt="1" setenv="REPLACE" validate="file" prompt="Please Enter the full path of the downloaded software or patch fileLBREAKEnter file name - Example:/orapatches/p12345678_121020_Linux-x86-64.zip">USERINPUT-PATCH_FILE</user_input>
+        <user_input cmdline="" default="" showprompt="1" setenv="YES" validate="dbversion" prompt="Please Enter the Database version you are trying to installLBREAKEnter Database Version - [11.1,11.2,12.1,12.2,18.1]">USERINPUT-DB_VERSION</user_input>
+    </user_inputs>
+    <onevents>
+    </onevents>
+    <duration>48h</duration>
+    <clusterwide>no</clusterwide>
+    <filter_files>
+        <types>
+        </types>
+        <filter_file_patterns>
+            <filter_file_pattern>alert_.*\.log</filter_file_pattern>
+            <filter_file_pattern>install</filter_file_pattern>
+            <filter_file_pattern>trc</filter_file_pattern>
+            <filter_file_pattern>log</filter_file_pattern>
+            <filter_file_pattern>\.xml</filter_file_pattern>
+            <filter_file_pattern>messages</filter_file_pattern>
+            <filter_file_pattern>archive\/osw</filter_file_pattern>
+            <filter_file_pattern>ExaWatcher\/archive</filter_file_pattern>
+        </filter_file_patterns>
+        <filter_file_exclude_patterns>
+            <filter_file_exclude_pattern>cdmp_.*_bucket\.tr[cm]</filter_file_exclude_pattern>
+        </filter_file_exclude_patterns>
+    </filter_files>
+
+    <components>
+        <component>CFGTOOLS</component>
+        <component>INSTALL</component>
+        <component>DATABASE</component>
+        <component>OS</component>
+        <component>CRS</component>
+        <component>NOCHMOS</component>
+        <component>COLLECTALLDIRS</component>
+    </components>
+    <commands>
+      <script type="OS" name="verify_patch_integrity" timeout="120" validfor="" platform="Linux" version="">     
+if [ -n "%PATCH_FILE%" ]; then      
+echo "+++ md5sum %PATCH_FILE% +++"
+/usr/bin/md5sum %PATCH_FILE%
+echo "+++ cksum %PATCH_FILE% +++"
+/usr/bin/cksum %PATCH_FILE%
+echo "+++ sha1sum %PATCH_FILE% +++"
+/usr/bin/sha1sum %PATCH_FILE%
+fi
+      </script>
+      <script type="OS" name="verify_patch_integrity" timeout="120" validfor="" platform="AIX" version="">     
+if [ -n "%PATCH_FILE%" ]; then      
+echo "+++ csum %PATCH_FILE% +++"
+csum %PATCH_FILE%
+echo "+++ csum -h SHA1 %PATCH_FILE% +++"
+csum -h SHA1 %PATCH_FILE%
+fi
+      </script>
+      <script type="OS" name="verify_patch_integrity" timeout="120" validfor="" platform="SunOS" version="">     
+if [ -n "%PATCH_FILE%" ]; then      
+echo "+++ digest -v -a md5 %PATCH_FILE% +++"
+digest -v -a md5 %PATCH_FILE%
+echo "+++ digest -v -a sha1  %PATCH_FILE% +++"
+digest -v -a sha1 %PATCH_FILE%
+fi
+      </script>
+      <script type="OS" name="verify_patch_integrity" timeout="120" validfor="" platform="HP-UX" version="">     
+if [ -n "%PATCH_FILE%" ]; then      
+echo "+++ openssl dgst -md5 %PATCH_FILE% +++"
+openssl dgst -md5  %PATCH_FILE%
+echo "+++ openssl dgst -sha1 %PATCH_FILE% +++"
+openssl dgst -sha1  %PATCH_FILE%
+fi
+      </script>
+      <script type="OS" name="verify_patch_integrity" timeout="120" validfor="" platform="MSWin32" version="">     
+echo "+++ fciv -both %PATCH_FILE% +++"
+set myfciv=
+for %%i in ('where fciv') do set myfciv=%%i
+if EXIST %myfciv% (
+fciv -both %PATCH_FILE%
+) ELSE (
+echo "No fciv on this windows system"
+)
+      </script>
+      <script type="TFACTL" name="rdahcve112" timeout="120" validfor="" platform="" version="11.2">
+        tfactl run darda run rda_HCVE_11_2 menu menus/oracle_database.xml
+      </script>
+      <script type="TFACTL" name="rdahcve121" timeout="120" validfor="" platform="" version="12.1,12.2">
+        tfactl run darda run rda_HCVE_12_1_0 menu menus/oracle_database.xml
+      </script>
+      <script type="TFACTL" name="rdahcve111" timeout="120" validfor="" platform="" version="11.1">
+        tfactl run darda run rda_HCVE_11_1 menu menus/oracle_database.xml
+      </script>
+    </commands>
+    <runtime_flags>
+    </runtime_flags>
+  </collection>
+</collections>

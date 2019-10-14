@@ -1,0 +1,453 @@
+#!/bin/env sh
+#
+# $Header: tfa/src/orachk_py/orachk /main/40 2018/11/29 09:23:47 apriyada Exp $
+#
+#
+# Copyright (c) 2014, 2018, Oracle and/or its affiliates. All rights reserved.
+#
+#    NAME
+#      - <one-line expansion of the name>
+#
+#    DESCRIPTION
+#      <short description of component this file declares/defines>
+#
+#    NOTES
+#      <other useful comments, qualifications, etc.>
+#
+#    MODIFIED   (MM/DD/YY)
+#	 gowsrini 01/09/18 - XbranchMerge gowsrini_bugfixedtxn from st_tfa_18.1
+#	 rojuyal	 02/07/17 - Creation
+#			For windows, user needs to call orachk.bat
+#			For ROF, user needs to extract python manually.
+#
+#
+unset RAT_PYTHON
+
+# Solaris Issue: Append '/usr/sbin/' to PATH env variable
+PATH=$PATH:/usr/sbin
+export PATH
+
+HPUX_AIX_MSG="Python 3.7 version is not yet compatible for HP-UX and AIX so please download ORAchk in Python 2.7 Version from below URL. you will need My Oracle Support credential\n\nhttps://support.oracle.com/epmos/faces/DocContentDisplay?id=1268927.2"
+ 
+PLATFORM=`uname -s`
+if [ $PLATFORM = "AIX" ]; then
+	#AIX_VERSION=`uname -v|sed 's/ //g'`
+	#if [ $AIX_VERSION = 5 ]; then
+		echo ""
+		echo $HPUX_AIX_MSG
+		echo ""
+		exit 1
+	#fi
+elif [ $PLATFORM = "HP-UX" ]; then
+	echo ""
+	echo $HPUX_AIX_MSG
+	echo ""
+	exit 1
+fi
+
+AWK=`command -v gawk 2>/dev/null`
+if [ ! -f "$AWK" ]; then
+	if [ -f "/usr/xpg4/bin/awk" ]; then
+		AWK=/usr/xpg4/bin/awk;
+	else
+		AWK=awk; 
+	fi
+fi
+
+args="$@"
+#if [ -n "$RAT_SCRIPT_DEBUG" ]; then set -x; fi
+#if [ `echo $args|grep -icw "debug"` -gt '0' ] && [ `echo $args|grep -icw "h"` -eq '0' ]; then set -x; fi
+
+pass() {
+	echo ''
+}
+
+# Internal arguments..
+if [ `echo $args|grep -icw "sf"` -gt '0' ]; then
+    #change this line before beta (scp)
+    cop_file_name=`ls -ltr|grep '^d'|tail -1|awk '{print $NF}'`
+    cop_file_name=$cop_file_name/$cop_file_name.html
+    scp $cop_file_name user@hostname:/home/user/test_reports
+    exit 0
+fi
+if [ `echo $args|grep -icw "sk"` -gt '0' ]; then
+    #change this line before beta (scp)
+    base_cop_file_name=`basename $0`
+    cop_file_name=`echo $base_cop_file_name|sed 's/[\.\/]//g'`
+    scp user@hostname:/net/hostname/scratch/user/view_storage/user_tfa7/tfa/lib/$cop_file_name.zip .
+    unzip -oq $cop_file_name.zip
+    exit 0
+fi
+
+FILENAME=`basename $0`
+PROGRAMN=$FILENAME
+
+TOOL=$PROGRAMN'.py'
+
+GREEN="\033[1;32;40m"
+NORM="\033[0m"
+ppid=`ps -ef |grep "$$"|head -1|$AWK -F" " '{print $3}'`
+pname1=`ps -ef|grep  $ppid|grep -v $$|grep -v grep|$AWK -v apid="$ppid" -F" " '{if ($2 == apid) print $NF}'`
+
+if [ `echo $pname1|grep -ic "/"` -gt '0' ] && [ `echo $pname1|grep -ic "-"` -eq '0' ] ; then
+  pname=`basename $pname1`
+else
+  pname=$pname1
+fi
+#pname="${pname%\\n}" 
+pname=`echo "$pname"|tr -d '\n' `
+CURRENTDIR=`pwd`
+
+
+backupdir=`ls -ltr $CURRENTDIR|grep back_up|tail -1|$AWK -F" " '{print $NF}'`
+
+if [ -n "$backupdir" ] ; then
+  if [ "$pname" = "$PROGRAMN" ] ; then
+    linecnt=`wc -l $backupdir/$PROGRAMN 2>/dev/null|$AWK -F" " '{print $1}'`
+    if [ -z "$linecnt" ]; then linecnt=0; fi
+    if [ $linecnt -gt 1000 ] ; then
+        echo -e "$GREEN
+  NOTE: Please ignore 'No such file or directory' errors for the file/directory $PROGRAMN.py,build,cwallet.sso, wallet.pm,lib. This is due to the change in directory structure between the versions 12.2.0.1.3 and 12.2.0.1.4 $NORM"
+    fi 
+  fi
+fi
+
+`cd -P 2>/dev/null`;
+if [ $? -eq '0' ]
+then
+    TOOLPATH=`cd -P -- "\`dirname -- "$0"\`" && printf '%s\n' "\`pwd -P\`"`
+else
+	#TOOLPATH=`"\`dirname -- "$0"\`" && printf '%s\n' "\`pwd -P\`"`	
+	DIR_TRY1=`echo "\`dirname -- "$0"\`"`
+	DIR_TRY2=`printf '%s\n' "\`pwd -P\`"`
+	if [ -n "$DIR_TRY1" ]; then
+        if [ "$DIR_TRY1" = "." ]; then
+    		if [ -n "$DIR_TRY2" ]; then
+            	TOOLPATH=$DIR_TRY2
+            else
+                TOOLPATH=$DIR_TRY1
+            fi
+        else
+            TOOLPATH=$DIR_TRY1
+        fi
+    fi	
+fi
+#Following code is to support symlink creation of tool as part of rpm installation
+INSTALLATION_LOC="edit"
+if [ $INSTALLATION_LOC = "edit" ];then
+  echo
+else
+  TOOLPATH=$INSTALLATION_LOC
+  #export RAT_DAEMON_AUTO_START=1
+fi
+BUILDPATH=$TOOLPATH/build
+cp -f $TOOLPATH/collections.dat $TOOLPATH/collections.old.dat >/dev/null 2>&1
+cp -f $TOOLPATH/.cgrep/collections.dat $TOOLPATH/ >/dev/null 2>&1
+
+if [ -n "$RAT_PYTHONDIRNAME" ]
+then 
+	RAT_PYDIRNAME=$RAT_PYTHONDIRNAME
+	PYDIR=$RAT_PYTHONDIRNAME
+else
+	PYDIR='Python37'
+	PYDIRZ='Python3'
+fi
+
+if [ -n "$RAT_PYBASE" ]
+then
+	BUILDPATH=`dirname $RAT_PYBASE`
+	PYDIR=`basename $RAT_PYBASE`
+fi
+
+if [ ! -d "$TOOLPATH/web" ]; then
+    `rm -rf $TOOLPATH/$PROGRAMN.pyc;rm -rf $TOOLPATH/$PROGRAMN.py`
+fi
+
+if [ -f "$TOOLPATH/$PROGRAMN.py" ] || [ -f "$TOOLPATH/$PROGRAMN.pyc" ] ; then
+    FILEPRESENT=1
+else
+    FILEPRESENT=0
+fi
+
+if [ -s $BUILDPATH/$PYDIR/ ] && [ $FILEPRESENT -eq 1  ] ; then
+        BUILD=$PYDIR
+else
+    BUILD="${PYDIRZ}_linux.zip"
+    if [ $PLATFORM = "Linux" ]; then
+        if [ -s /etc/redhat-release ]; then
+            os_version=`grep -v ^# /etc/redhat-release|grep release|tr "[A-Z]" "[a-z]"|sed 's/[a-z]//g'|cut -d. -f1|cut -d'(' -f1|sed 's/ //g'|head -1`
+            if [ $os_version -eq 3 ]; then
+                BUILD="${PYDIRZ}_linux.zip"  	
+            elif [ $os_version -eq 4 ]; then
+                BUILD="${PYDIRZ}_linux.zip"
+            elif [ $os_version -eq 5 ]; then
+                if [ `uname -p` = "s390x" ]; then 
+                    BUILD="${PYDIRZ}_zlinux.zip"
+                else
+                    BUILD="${PYDIRZ}_linux.zip"
+                fi
+            elif [ $os_version -ge 6 ]; then
+                if [ `uname -p` = "s390x" ]; then
+                    BUILD="${PYDIRZ}_zlinux.zip"
+                elif [ `uname -p` = "sparc64" ]; then
+                    BUILD="${PYDIRZ}_linux_sparc.zip"
+                else
+                    BUILD="${PYDIRZ}_linux.zip"
+                fi
+            fi	
+        elif [ -s /etc/SuSE-release ]; then
+            os_version=`grep -v ^# /etc/SuSE-release|grep release|tr "[A-Z]" "[a-z]"|sed 's/[a-z]//g'|cut -d. -f1|cut -d'(' -f1|sed 's/ //g'|head -1`
+            if [ -z "$os_version" ]; then
+                os_version=`grep -v ^# /etc/SuSE-release|grep -i version|$AWK '{print $3}'`				          
+            fi
+            if [ $os_version -eq 9 ]; then
+                BUILD="${PYDIRZ}_linux.zip"
+            elif [ $os_version -eq 10 ]; then
+                BUILD="${PYDIRZ}_linux.zip"
+            elif [ $os_version -eq 11 ] || [ $os_version -eq 12 ]; then
+                if [ `uname -p` = "s390x" ]; then 
+                    BUILD="${PYDIRZ}_zlinux.zip" 
+                else
+                    BUILD="${PYDIRZ}_linux.zip"
+                fi
+            fi
+        elif [ -s /etc/os-release ]; then
+            os_version=`grep -v ^# /etc/os-release|grep -i version_id|$AWK -F'=' '{print $2}'|sed 's/"//g'|$AWK -F'.' '{print $1}'`
+            if [ $os_version -eq 12 ]; then
+                if [ `uname -p` = "s390x" ]; then 
+                    BUILD="${PYDIRZ}_zlinux.zip" 
+                else
+                    BUILD="${PYDIRZ}_linux.zip"
+                fi
+            fi        
+        fi
+    elif [ $PLATFORM = "SunOS" ]; then
+        if [ `uname -p` = "sparc" ]; then
+            BUILD="${PYDIRZ}_solaris_sparc.zip"
+        elif [ `uname -p|grep -ic 86` -ge 1 ]; then
+            BUILD="${PYDIRZ}_solaris.zip"
+        fi
+    elif [ $PLATFORM = "AIX" ]; then
+        BUILD="${PYDIRZ}_aix.zip"
+    elif [ $PLATFORM = "HP-UX" ]; then
+        BUILD="${PYDIRZ}_hpux.zip"
+    else
+        echo 'OS not supported'
+        echo ''
+        exit 1
+    fi
+    BUILDNAME=`echo "$BUILD"|sed 's/\.zip//g'`
+    CURRENTDIR=`pwd`
+    	
+    buildmissing=1
+    fnp=0  
+    if [ ! -f "$TOOLPATH/$PROGRAMN.py" ] && [ ! -f "$TOOLPATH/$PROGRAMN.pyc" ]; then
+       fnp=1
+    fi
+    if [ ! -d $BUILDPATH ] || [ $fnp -eq 1 ]; then
+        diffval=""
+        `mkdir $TOOLPATH/checklatest`
+        if [ -z "$RAT_UPGRADE_LOC" ]
+        then
+            if [ -n "$RAT_ORATAB_LOC" ]
+            then
+                ORATAB=$RAT_ORATAB_LOC;
+            else
+                case `/bin/uname` in
+                    Linux)
+                        ORATAB=/etc/oratab
+                    ;;
+                    SunOS)
+                        ORATAB="/var/opt/oracle/oratab"
+                    ;;
+                    HP-UX)
+                        ORATAB=/etc/oratab
+                    ;;
+                    AIX)
+                        ORATAB=/etc/oratab
+                    ;;
+                    CYGWIN_NT-[0-9].[0-9])
+                        ORATAB="win_oratab.out"
+                    ;;
+                    *)
+                        /bin/echo "ERROR: Unknown Operating System"
+                        exit
+                    ;;
+                esac
+            fi
+            if [ -f "$ORATAB" ]
+            then
+                for var in `grep ":/" $ORATAB |grep -v "+"|grep -v "^#"|cut -d: -f2`
+                do
+                    ora_home="$ora_home,$var/suptools"
+                done
+                RAT_UPGRADE_LOC=`echo $ora_home| sed 's/^,//'`
+            fi
+        fi
+
+        if [ -z "$RAT_UPGRADE_LOC" ]; then
+            RAT_UPGRADE_LOC=`pwd`
+        else
+            cur_dir=`pwd`
+            RAT_UPGRADE_LOC="$cur_dir,$RAT_UPGRADE_LOC"
+        fi  
+        RAT_UPGRADE_LOC=`echo $RAT_UPGRADE_LOC| sed 's/RAT_UPGRADE_LOC=//'`
+
+        old_ifs=$IFS
+        IFS=","
+
+        for path in $RAT_UPGRADE_LOC
+        do
+            if [ `which unzip >/dev/null 2>&1; echo $?` = 0 ]; then
+                if [ -f "$path/$PROGRAMN.zip" ] ; then
+                    unzip -o $path/$PROGRAMN.zip -d $TOOLPATH/checklatest >/dev/null 2>&1  
+                    diffval=`diff $TOOLPATH/collections.dat $TOOLPATH/checklatest/collections.dat` 
+                    if [ -z "$diffval" ]; then
+                        buildmissing=0
+                        `cp -R -f $TOOLPATH/checklatest/* $TOOLPATH/`;
+                        `rm -rf $TOOLPATH/build/Python2712_*zip` 
+                        CUSER=`id 2>/dev/null|$AWK '{print $1}'|cut -d'(' -f2|cut -d')' -f1|sed 's/ //g'`
+                        daemon_dir="/$CUSER/.${PROGRAMN}_${CUSER}_s"
+                        if [ -n "$CUSER" ] && [ $CUSER = "root" ]; then
+                            if [  -f "$daemon_dir/.${PROGRAMN}_scheduler.mdf" ]; then
+                                install_dir=`grep "INSTALLATION LOCATION:" "$daemon_dir/.${PROGRAMN}_scheduler.mdf"`  
+                                install_dir=`echo $install_dir| sed 's/INSTALLATION LOCATION://'`
+                                if [ $install_dir = "$TOOLPATH" ]; then
+                                    `cp -f $TOOLPATH/cwallet.sso $TOOLPATH/lib/wallet_jars`;
+                                    if [  -f "$daemon_dir/${PROGRAMN}_s.pid" ]; then
+                                         dpid=`cat "$daemon_dir/${PROGRAMN}_s.pid"`
+                                         `kill -9 $dpid`
+                                         `$TOOLPATH/${PROGRAMN} -initrmsetup`    
+                                         dateval=`date '+%Y-%m-%d %H:%M:%S '`
+                                         echo "[$dateval] Daemon upgraded. Auto restart functionality will not function seamlessly after the upgrade. Auto restart setup has been removed. Please re-setup Auto restart using the command $TOOLPATH/${PROGRAMN} -initsetup" >> "$TOOLPATH/${PROGRAMN}_daemon.log"
+                                    fi     
+                                fi  
+                            fi     
+                        fi 
+                        break  
+                    fi     
+                fi
+            else
+                echo 'unzip not found'
+                echo ''
+                exit 1
+            fi    
+        done
+        IFS=$old_ifs 
+        `rm -rf $TOOLPATH/checklatest`
+    fi   
+
+    if [ ! -d $BUILDPATH ] && [ $buildmissing = 1 ]; then
+        echo 'could not upgrade. please set RAT_UPGRADE_LOC to latest version'
+        echo ''
+        exit 1
+    fi
+
+    CUSER=`id 2>/dev/null|$AWK '{print $1}'|cut -d'(' -f2|cut -d')' -f1|sed 's/ //g'`
+    cd $BUILDPATH
+    if [ -s $BUILD ]; then
+        if [ `which unzip >/dev/null 2>&1; echo $?` = 0 ]; then
+            unzip -o $BUILD >/dev/null 2>&1
+            UNZIPCODE=$?
+            if [ $UNZIPCODE -ne 0 ]; then
+                echo "$CUSER user does not have enough permissions to unzip $BUILD in the $CURRENTDIR/build directory. Please copy the $BUILDPATH/$BUILD in a location with write permissions and set RAT_PYBASE environment variable to that build location.
+Eg: export RAT_PYBASE=/home/user/temp/Python3 ";
+                exit 1;
+            fi
+        else
+            echo 'unzip not found'
+            echo ''
+            exit 1
+        fi
+        # ------------------------------------------
+		if [ -n "$CUSER" ] && [ $CUSER = "root" ]; then
+			ZIP_OWNER=`ls -l $BUILD 2>/dev/null >&1|$AWK '{print $3}'|sed 's/ //g'`
+			if [ -n "$ZIP_OWNER" ] && [ $CUSER != $ZIP_OWNER ]; then
+				ZIP_GRP=`ls -l $BUILD 2>/dev/null >&1|$AWK '{print $4}'|sed 's/ //g'`
+				if [ -n "$ZIP_GRP" ]; then
+					chown -R $ZIP_OWNER:$ZIP_GRP $BUILDPATH/$PYDIR 2>/dev/null
+				else
+					chown -R $ZIP_OWNER $BUILDPATH/$PYDIR 2>/dev/null
+				fi
+			fi
+		fi
+        # ------------------------------------------ 
+    fi	
+    cd $CURRENTDIR
+fi
+
+RAT_PYTHONEXE=$BUILDPATH/$PYDIR/bin/python; export RAT_PYTHONEXE;
+RAT_SCRIPTPATH=$TOOLPATH; export RAT_SCRIPTPATH;
+
+if [ `echo $args|grep -icw "h"` -eq '0' ] && [ `echo $args|grep -icw "help"` -eq '0' ]
+then
+    HELPOPTION=1
+else
+    HELPOPTION=0
+fi
+if [  `echo $args|grep -icw "shell"` -gt '0' ] || [  `echo $args|grep -ic "idm"` -gt '0' ] && [ $HELPOPTION -eq 1 ]
+then
+    zipfiles=`echo "$args" | $AWK '{for(i=1;i<=NF;i++) if ($i=="-merge") print $(i+1)}'`
+    filestodelete=`echo $zipfiles | sed 's/,/ /'`
+    for i in `echo $filestodelete | tr " " "\n"`
+    do
+       file1=`echo $i|sed 's/ //'`
+       file1=`echo $file1|sed 's/.zip//'`
+       rm -rf $file1
+    done
+    argstopass=`echo $args| sed 's/-shell//'`
+    argstopass=`echo $argstopass| sed 's/^[[:blank:]]//'`
+    argstopass=`echo $argstopass| sed 's/[[:blank:]]$//'`
+    argstopass="${argstopass} -noupgrade"
+    mkdir -p $TOOLPATH/.python_backup >/dev/null 2>&1
+    cp -f $TOOLPATH/$PROGRAMN $TOOLPATH/.python_backup/ >/dev/null 2>&1
+    cp -f $TOOLPATH/.cgrep/psqlplus $TOOLPATH/.python_backup/ >/dev/null 2>&1
+    cp -f $TOOLPATH/.cgrep/discoverdbasm.pl $TOOLPATH/.python_backup/ >/dev/null 2>&1
+    cp -f $TOOLPATH/bash/$PROGRAMN $TOOLPATH/ >/dev/null 2>&1
+    cp -f $TOOLPATH/bash/psqlplus $TOOLPATH/.cgrep/psqlplus >/dev/null 2>&1
+    cp -f $TOOLPATH/bash/discoverdbasm.pl $TOOLPATH/.cgrep/discoverdbasm.pl >/dev/null 2>&1
+    chmod 750 $TOOLPATH/$PROGRAMN >/dev/null 2>&1
+    trap "cp -f $TOOLPATH/.python_backup/$PROGRAMN $TOOLPATH >/dev/null 2>&1;cp -f $TOOLPATH/.python_backup/psqlplus $TOOLPATH/.cgrep/ >/dev/null 2>&1;cp -f $TOOLPATH/.python_backup/discoverdbasm.pl $TOOLPATH/.cgrep/ >/dev/null 2>&1;rm -rf $TOOLPATH/.python_backup >/dev/null 2>&1;" INT TERM EXIT
+    $TOOLPATH/$PROGRAMN $argstopass
+    bash_kit_status=$?
+    cp -f $TOOLPATH/.python_backup/$PROGRAMN $TOOLPATH >/dev/null 2>&1
+    cp -f $TOOLPATH/.python_backup/psqlplus $TOOLPATH/.cgrep/ >/dev/null 2>&1
+    cp -f $TOOLPATH/.python_backup/discoverdbasm.pl $TOOLPATH/.cgrep/ >/dev/null 2>&1
+    rm -rf $TOOLPATH/.python_backup >/dev/null 2>&1
+    cp -f $TOOLPATH/collections.old.dat $TOOLPATH/collections.dat >/dev/null 2>&1
+    rm -f $TOOLPATH/collections.old.dat >/dev/null 2>&1
+
+    exit $bash_kit_status
+else   
+    RAT_PYBUILD=$BUILD; export RAT_PYBUILD
+    RAT_PYDIRNAME=$PYDIR; export RAT_PYDIRNAME
+	
+    # Pending - redirect errors to a file(need to decide on location)
+    if [ -s $TOOLPATH/$PROGRAMN.py ]; then
+        $RAT_PYTHONEXE $TOOLPATH/$PROGRAMN.py "$@"
+    else
+        $RAT_PYTHONEXE $TOOLPATH/$PROGRAMN.pyc "$@"
+    fi
+    RUNCODE=$?
+    if [ $RUNCODE -eq 15 ]; then
+        if [ `echo $args|grep -ic "\-d "` -gt '0' ]; then
+        	echo "$PROGRAMN does not support daemon functionality on Exalogic!" 
+        	exit 1
+        fi
+        $0 -shell $args
+        RUNCODE=$?		
+    fi    
+    # Part of cleanup if python cleanup couldnt delete OUTPUTDIR
+    if [ -f "$TOOLPATH/clean_outdir.txt" ];then
+        dir1=`cat "$TOOLPATH/clean_outdir.txt"`
+        if [ -d $dir1 ];then
+        	rm -rf "$dir1"
+        fi
+        rm -f "$TOOLPATH/clean_outdir.txt"
+    fi
+    cp -f $TOOLPATH/collections.old.dat $TOOLPATH/collections.dat >/dev/null 2>&1
+    rm -f $TOOLPATH/collections.old.dat >/dev/null 2>&1
+
+    exit $RUNCODE
+fi
+

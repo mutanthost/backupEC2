@@ -1,0 +1,199 @@
+#!/bin/sh -f
+#
+# $Header: assistants/bin/rconfig.sh.pp /st_assistants_19/1 2019/01/30 01:08:52 japrabhu Exp $
+#
+# rconfig.sh
+#
+# Copyright (c) 2004, 2019, Oracle and/or its affiliates. All rights reserved.
+#
+#    NAME
+#      rconfig.sh - Shell script to run RAC Configuration Tool
+#
+#    DESCRIPTION
+#      Runs RAC CONFIGURATION ENGINE java application
+#
+#    NOTES
+#      <other useful comments, qualifications, etc.>
+#
+#    MODIFIED   (MM/DD/YY)
+#    obriseno    05/15/18 - use LIBMAJORVSN in place of DB_VERSION_FIRST_DIGIT
+#    snimmaku    01/12/16 - fix bug 22383142 : add install jars to classpath
+#    mstalin     07/23/11 - Remove Dbcontrol
+#    mstalin     07/15/11 - Change ojdbc5 to ojdbc6
+#    samaiti     06/30/10 - add gns.jar to classpath
+#    kpalanic    06/29/09 - add EM jars needed for createASM
+#    svsathe     06/15/09 - use dot notation for source
+#    svsathe     05/31/09 - use platform common
+#    spanchum    03/03/08 - fix 6862064
+#    svsathe     02/14/08 - Add cvu.jar
+#    svsathe     12/19/07 - solaris changes
+#    kpalanic    06/22/07 - Add JCE path
+#    spanchum    05/08/07 - XbranchMerge spanchum_bug-6002726 from
+#                           st_assistants_11.1
+#    svsathe     04/09/07 - use ojdbc5.jar
+#    svsathe     04/10/07 - XbranchMerge svsathe_bug-5977776 from
+#                           st_assistants_11.1
+#    kpalanic    01/31/07 - Bug 5729046 - unset EM variables
+#    spanchum    07/30/06 - 
+#    kpalanic    04/11/06 - Remote Debugging 
+#    svsathe     12/29/05 - bug fix 4898748 
+#    xuliu       05/12/05 - -Xms128m 4329070 
+#    kmangtan    03/31/05 - 
+#    spanchum    12/28/04 - remove visi 
+#    kmangtan    12/10/04 - 
+#    spanchum    11/24/04 - 
+#    kmangtan    11/18/04 - 
+#    kmangtan    09/17/04 - kmangtan_scratch
+#    kmangtan    09/13/04 - Creation
+#
+#######################################################################
+# Variables set by Oracle Universal Installer for dependent components.
+#######################################################################
+# Define ORACLE_HOME -> OH
+OH=/u01/app/oracle/product/19.0.0/dbhome_1
+ARGUMENTS=$*
+NUMBER_OF_ARGUMENTS=$#
+
+if [ $NUMBER_OF_ARGUMENTS -lt 1 ]; then
+  echo "Usage: rconfig input.xml [output.xml]"
+  exit 1
+fi
+if [ $1 =  "EMRCONFIG" ]; then
+  OH=$2  #make it as current dir for Windows
+  LD_LIBRARY_PATH=/usr/local/packages/icc_remote/8.0.058/lib:/usr/lib
+fi
+PLATFORM=Linux
+
+ORACLE_HOME=$OH 
+export ORACLE_HOME;
+
+TNS_ADMIN=""
+export TNS_ADMIN;
+
+# Version specific JAR files
+RCONFIG_FILE=rconfig.jar
+JRE_FILE=rt.jar
+JCE_FILE=sunjce_provider.jar
+I18_FILE=i19n.jar
+EWT_FILE=ewt3.jar
+JEWT_FILE=jewt4.jar
+EWT_COMP_FILE=ewtcompat-3_3_15.jar
+SHARE_FILE=share.jar
+HELP_FILE=help4.jar
+#ICE_BROWSER_FILE=oracle_ice5.jar
+ICE_BROWSER5_FILE=oracle_ice.jar
+KODIAK_FILE=kodiak.jar
+SWING_FILE=swingall-1_1_1.jar
+XMLPARSER_FILE=xmlparserv2.jar
+JDBC_FILE=ojdbc6.jar
+GDK_FILE1=orai18n.jar
+GDK_FILE2=orai18n-mapping.jar
+GDK_FILE3=orai18n-utility.jar
+GDK_FILE4=orai18n-collation.jar
+NETCFG_FILE=netcfg.jar
+CVU_JAR=cvu.jar
+OJMISC_FILE=ojmisc.jar
+PKI_FILE=oraclepki.jar
+LDAP_FILE=ldapjclnt19.jar
+OPM_FILE=opm.jar
+SRVM_FILE=srvm.jar
+SRVMHAS_FILE=srvmhas.jar
+SRVMASM_FILE=srvmasm.jar
+GNS_FILE=gns.jar
+DBCA_FILE=dbca.jar
+INSTALLER_FILE=OraInstaller.jar
+PREREQ_JAR_FILE=OraPrereq.jar
+PREREQ_CHECKS_JAR_FILE=OraPrereqChecks.jar
+RCONFIG_PATCH_FILE=rconfigPatch.jar
+ASMCA_FILE=asmca.jar
+ASSISTANTS_COMMON_FILE=assistantsCommon.jar
+
+# Directory Variables
+SRVM_JLIB_DIR=/u01/app/oracle/product/19.0.0/dbhome_1/jlib
+JRE_DIR=/u01/app/oracle/product/19.0.0/dbhome_1/jdk/jre
+JLIB_DIR=$OH/jlib
+DBCA_JLIB_DIR=$OH/assistants/dbca/jlib
+INSTALLER_JLIB_DIR=/u01/app/oracle/product/19.0.0/dbhome_1/oui/jlib
+ASMCA_JLIB_DIR=$OH/assistants/asmca/jlib
+ASSISTANTS_JLIB_DIR=$OH/assistants/jlib
+
+# Classpath
+GNS_CLASSPATH=$JLIB_DIR/$GNS_FILE
+JRE_CLASSPATH=$JRE_DIR/lib/$JRE_FILE
+JRE_EXT_CLASSPATH=$JRE_DIR/lib/ext/$JCE_FILE
+I18_CLASSPATH=$JRE_DIR/lib/$I18_FILE
+EWT_CLASSPATH=$JLIB_DIR/$EWT_FILE:$JLIB_DIR/$EWT_COMP_FILE
+SHARE_CLASSPATH=$JLIB_DIR/$SHARE_FILE
+HELP_CLASSPATH=$JLIB_DIR/$HELP_FILE:$JLIB_DIR/$JEWT_FILE
+ICE_BROWSER_CLASSPATH=$JLIB_DIR/$ICE_BROWSER5_FILE
+KODIAK_CLASSPATH=$JLIB_DIR/$KODIAK_FILE
+SWING_CLASSPATH=$JLIB_DIR/$SWING_FILE
+XMLPARSER_CLASSPATH=/u01/app/oracle/product/19.0.0/dbhome_1/lib/$XMLPARSER_FILE
+JDBC_CLASSPATH=$OH/jdbc/lib/$JDBC_FILE
+GDK_CLASSPATH=$JLIB_DIR/$GDK_FILE1:$JLIB_DIR/$GDK_FILE2:$JLIB_DIR/$GDK_FILE3:$JLIB_DIR/$GDK_FILE4
+NETCFG_CLASSPATH=$JLIB_DIR/$LDAP_FILE:$JLIB_DIR/$NETCFG_FILE:$JLIB_DIR/$OJMISC_FILE:$JLIB_DIR/$PKI_FILE:$JLIB_DIR/$OPM_FILE
+SRVM_CLASSPATH=$SRVM_JLIB_DIR/$SRVM_FILE:$SRVM_JLIB_DIR/$SRVMHAS_FILE:$SRVM_JLIB_DIR/$SRVMASM_FILE
+DBCA_CLASSPATH=$DBCA_JLIB_DIR/$DBCA_FILE
+INSTALLER_CLASSPATH=$INSTALLER_JLIB_DIR/$INSTALLER_FILE:$INSTALLER_JLIB_DIR/$PREREQ_JAR_FILE:$OH/inventory/prereqs/oui/$PREREQ_CHECKS_JAR_FILE:$INSTALLER_JLIB_DIR/$PREREQ_CHECKS_JAR_FILE:$JLIB_DIR/$CVU_JAR:$OH/install/jlib/installcommons_1.0.0b.jar
+RCONFIG_CLASSPATH=$ASSISTANTS_JLIB_DIR/$RCONFIG_FILE
+RCONFIG_PATCH_CLASSPATH=$ASSISTANTS_JLIB_DIR/$RCONFIG_PATCH_FILE
+ASMCA_CLASSPATH=$ASMCA_JLIB_DIR/$ASMCA_FILE
+ASSISTANTS_COMMON_CLASSPATH=$ASSISTANTS_JLIB_DIR/$ASSISTANTS_COMMON_FILE
+
+
+# make sure others can not read/write any files created
+umask 027
+
+# The environment variable $TWO_TASK cannot be set during the installation
+unset TWO_TASK
+
+# The environment variable $JAVA_HOME cannot be set during the installation
+unset JAVA_HOME
+
+# Basic error checking
+case $OH in
+    "") echo "*** ORACLE_HOME Not Set!"
+        echo "    Set and export ORACLE_HOME, then re-run"
+        echo "    ORACLE_HOME points to the main directory that"
+        echo "    contains all Oracle products."
+        exit 1;;
+esac
+
+
+#call platform_common script
+. $ORACLE_HOME/bin/platform_common
+
+JRE_OPTIONS="${JRE_OPTIONS} -DDEV_MODE=false -DTRACING.ENABLED=true -DTRACING.TOFILE=true -DTRACING.LEVEL=2 -mx128m"
+
+# Set Classpath for RAC Configuration Assistant
+CLASSPATH=$JRE_CLASSPATH:$I18_CLASSPATH:$RCONFIG_PATCH_CLASSPATH:$RCONFIG_CLASSPATH:$ASSISTANTS_COMMON_CLASSPATH:$EWT_CLASSPATH:$SHARE_CLASSPATH:$HELP_CLASSPATH:$ICE_BROWSER_CLASSPATH:$KODIAK_CLASSPATH:$SWING_CLASSPATH:$XMLPARSER_CLASSPATH:$GDK_CLASSPATH:$GSS_CLASSPATH:$NETCFG_CLASSPATH:$JDBC_CLASSPATH:$SRVM_CLASSPATH:$INSTALLER_CLASSPATH:$JRE_EXT_CLASSPATH:$ASMCA_CLASSPATH:$GNS_CLASSPATH
+
+###################################Remote debugging############################
+#To enable Remote debugging
+# setenv DEBUG_ASSISTANTS true
+# setenv DEBUG_PORT <desired port>
+
+DEFAULT_DEBUG_PORT=8000
+
+if [ "$DEBUG_ASSISTANTS" = "true" ]; then
+        if [ "$DEBUG_PORT" = "" ]; then
+                #If port not specified then assign default port
+                DEBUG_PORT=$DEFAULT_DEBUG_PORT
+        fi
+        DEBUG_STRING="-Xdebug -Xrunjdwp:transport=dt_socket,address=$DEBUG_PORT,server=y,suspend=n -client"
+         echo "Remote Debugging is enabled in port $DEBUG_PORT"
+else
+        DEBUG_STRING=""
+fi
+###############################################################################
+
+# Bug-5729046 : Unset EM variables
+unset EMSTATE
+unset EMDROOT
+unset EMHOME
+unset REMOTE_EMDROOT
+
+
+
+# Run RConfig
+$JRE_DIR/bin/java  $JRE_OPTIONS $DEBUG_STRING -classpath $CLASSPATH oracle.sysman.assistants.rconfig.RConfig $ARGUMENTS

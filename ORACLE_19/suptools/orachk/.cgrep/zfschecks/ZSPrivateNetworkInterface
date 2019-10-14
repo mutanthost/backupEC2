@@ -1,0 +1,46 @@
+printf("==========START_OF_REPORT_chkZSPrivateNetworkInterface.aksh==========\n");
+var founderrors = false;
+
+function cluster_admin_lock(){						
+    //initializing variables
+    var s = "";
+    var locked = 0;
+    try { 
+        if(is_clustered()) {    
+	        networks = getOwnNetworks();
+
+	        for (i=0; i< networks.length; i++){
+		        network = networks[i];
+		        if (network['type'] == "private") {
+			        locked ++;
+			        s += "\t" + network["name"]+ ", IP: " +  network["IP"] + "\n";			  
+		        }
+	        }	
+	        if (networks.length == 0) {
+	            s = "\n  This node does not own any network.\n";
+	        }										
+	        else if (locked ==0 ){
+		        s = "\n  Private network interface(s): 0\n   You should consider making one of your network interfaces private on this node.\n";
+		        founderrors = true;
+	        }
+	        else if (locked >=1){
+		        s = "\n  Private network interface(s) on this node: " + locked + "\n" + s;
+	        }				
+	    }
+	    else {
+	        s = "\n Not clustered. Check does not apply\n";
+	    }
+    }
+    catch(e){        
+	    s = "\n  Private network interface(s) on this node: " + e + "\n";						
+        founderrors = true;
+    }	
+    printreport(s);				
+}		
+
+cluster_admin_lock();
+
+printf("==========END_OF_REPORT_chkZSPrivateNetworkInterface.aksh==========\n");
+printf("==========START_OF_AUDIT_CHECK_chkZSPrivateNetworkInterface.aksh==========\n");
+printf("private_network_interface_status = %d\n", founderrors);
+printf("==========END_OF_AUDIT_CHECK_chkZSPrivateNetworkInterface.aksh==========\n");

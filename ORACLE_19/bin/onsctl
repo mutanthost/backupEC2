@@ -1,0 +1,787 @@
+#!/u01/app/oracle/product/19.0.0/dbhome_1/perl/bin/perl
+#
+# Front end for executing ONS commands, which provides the following
+# services:
+#
+#  1. Execution environment setup,
+#
+#  2. Initial parsing of the command to determine which which executable
+#     should be run to invoke the command,
+#
+#  3. Command usage
+#
+# Note that checking and increasing the process limits on open files and
+# core file size is now performed in the server itself.
+#
+# The installer will set the values for selected variables after the
+# end of the first comment block.
+#
+#
+# Define the command actions and usage descriptions
+#
+
+$OracleHome = '/u01/app/oracle/product/19.0.0/dbhome_1';
+
+%commands = (
+  start => \&cmd_start,
+  stop => \&cmd_shutdown,
+  shutdown => \&cmd_shutdown,
+  reload => \&cmd_reload,
+  reconfig => \&cmd_reload,
+  debug => \&cmd_debug,
+  ping => \&cmd_ping,
+  set => \&cmd_set,
+  query => \&cmd_query,
+  usage => \&cmd_usage,
+  detailed => \&cmd_usage,
+  help => \&cmd_help
+);
+
+%usages = (
+  start => \&usage_start,
+  stop => \&usage_shutdown,
+  reload => \&usage_reload,
+  reconfig => \&usage_reload,
+  debug => \&usage_debug,
+  ping => \&usage_ping,
+  set => \&usage_set,
+  query => \&usage_query,
+  usage => \&usage_usage,
+  detailed => \&usage_usage,
+  help => \&usage_help
+);
+
+#
+# Detect if the OS is Windows
+#
+if ($^O =~ /win/i)
+{
+  $isWin = 1;
+  $OnsExec = "ons.exe";
+}
+else
+{
+  $isWin = 0;
+  $OnsExec = "ons";
+}
+
+environment_fixup();
+
+#
+# Set default paths
+#
+$Ons = "$OracleHome/opmn/bin/$OnsExec";
+if ($isWin)
+{
+  $Ons =~ s!/!\\!g;
+}
+
+#
+# Validate the environment
+#
+if (! -x $Ons)
+{
+  print "onsctl: invalid ORACLE_HOME ($Ons is missing or not executable).\n";
+  exit 2;
+}
+
+#
+# Check for verbose (debug logging enabled via the environment)
+#
+if ($ARGV[0] && $ARGV[0] eq "verbose")
+{
+  $ENV{ORACLE_ONS_DEBUG} = "true";
+  shift @ARGV; 
+}
+
+#
+# Check for invalid usage
+#
+if (@ARGV == 0)
+{
+  cmd_help();
+  exit 1;
+}
+
+#
+# Match the command to the action
+#
+$command = $ARGV[0];
+shift @ARGV;
+if ($commands{$command})
+{
+  $commands{$command}->(@ARGV);
+}
+else
+{
+  print "onsctl: unknown command: $command\n";
+  cmd_help();
+  exit 1;
+}
+exit 0;
+
+#
+# Command specific subroutines
+#
+sub cmd_start
+{
+  my $exCode;
+  my $startErr = "onsctl $command: ons failed to start\n";
+
+  if (@_ != 0)
+  {
+    usage_start();
+    exit 1;
+  }
+  $exCode = ons_ping();
+  if ($exCode == 0)
+  {
+    print "onsctl $command: ons is already running\n";
+    exit 1;
+  }
+  $exCode = ons_exec("-d");
+  if ($exCode != 0)
+  {
+    print $startErr;
+    exit $exCode;
+  }
+  sleep 1;
+  $exCode = ons_pingwait();
+  if ($exCode != 0)
+  {
+    print $startErr;
+    exit $exCode;
+  }
+  else
+  {
+    print "onsctl $command: ons started\n";
+  }
+}
+
+sub usage_start
+{
+  usageargs_check();
+  print << "__EOF__";
+
+onsctl start
+    Start the ons daemon.
+
+__EOF__
+}
+
+sub cmd_shutdown
+{
+  my $exCode;
+
+  if (@_ != 0)
+  {
+    usage_shutdown();
+    exit 1;
+  }
+  $exCode = ons_ping();
+  if ($exCode != 0)
+  {
+    error_ons_down(0);
+  }
+  print "onsctl $command: shutting down ons daemon ...\n";
+  $exCode = ons_admin("shutdown");
+  if ($exCode != 0)
+  {
+    exit $exCode;
+  }
+}
+
+sub usage_shutdown
+{
+  usageargs_check();
+  print << "__EOF__";
+
+onsctl stop
+    Quickly stop the ons daemon.
+
+    The reload command is the appropriate command to use when the only goal
+    is to restart the ons daemon with a new configuration.
+
+    This request operates synchronously and will wait for the operation to
+    complete before returning.
+
+__EOF__
+}
+
+sub cmd_reload
+{
+  my $exCode;
+
+  if (@_ != 0)
+  {
+    usage_reload();
+    exit 1;
+  }
+  $exCode = ons_ping(1);
+  if ($exCode != 0)
+  {
+    error_ons_down(2);
+  }
+  print "onsctl $command: reconfiguring ons...\n";
+  $exCode = ons_admin("reload");
+  if ($exCode != 0)
+  {
+    error_command($exCode);
+  }
+  $exCode = ons_pingwait();
+  if ($exCode != 0)
+  {
+    print "onsctl $command: ons reload failed, ons cannot start.\n";
+    exit $exCode;
+  }
+}
+
+sub usage_reload
+{
+  usageargs_check();
+  print << "__EOF__";
+
+onsctl reload
+    Trigger ons daemon to re-read its configuration files. The ons
+    server must be running prior to execution of this command.
+
+__EOF__
+}
+
+sub cmd_debug
+{
+  my $exCode;
+
+  $exCode = ons_ping();
+  if ($exCode != 0)
+  {
+    error_ons_down(2);
+  }
+  $exCode = ons_admin("debug", @_);
+  if ($exCode != 0)
+  {
+    error_command($exCode);
+  }
+}
+
+sub usage_debug
+{
+  usageargs_check();
+  print << "__EOF__";
+
+onsctl debug [<attr>=<value> ...]
+    Print debug information of ons.  This command is an internal
+    command, used only for debugging purposes.
+
+__EOF__
+
+  print << "__EOF__";
+    comp=<value>
+        An attribute name may be specified along with an attribute
+        value.
+
+__EOF__
+
+  comp_explain();
+}
+
+sub cmd_ping
+{
+  my $exCode;
+  my $attempts;
+
+  if (@_ == 1)
+  {
+    if ($_[0] <= 0)
+    {
+      print "onsctl ping: <retry> must be number of seconds greater than 0.\n";
+      usage_ping();
+      exit 1;
+    }
+    $attempts = $_[0];
+  }
+  else
+  {
+    $attempts = 1;
+  }
+  $exCode = ons_ping_attempts($attempts);
+  if ($exCode != 0)
+  {
+    print "ons is not running ...\n";
+    exit $exCode;
+  }
+  else
+  {
+    print "ons is running ...\n";
+  }
+}
+
+sub usage_ping
+{
+  usageargs_check();
+  print << "__EOF__";
+
+onsctl ping [<retry>]
+    Pings the ons server.  <retry> should be maximum retry times.
+    If <retry> is specified the local ons server is pinged once per
+    second until the ping succeeds or <retry> is reached.
+    The ping is issued immediately and only once if <retry> is
+    not specified.
+
+__EOF__
+}
+
+sub cmd_set
+{
+  my $exCode;
+
+  $exCode = ons_ping();
+  if ($exCode != 0)
+  {
+    error_ons_down(2);
+  }
+  $exCode = ons_admin("set", @_);
+  if ($exCode != 0)
+  {
+    error_command($exCode);
+  }
+}
+
+sub usage_set
+{
+  usageargs_check();
+  print << "__EOF__";
+
+onsctl set <attr>=<value> ...
+    This command is used to set the ons logging component configuration.
+
+__EOF__
+
+  print << "__EOF__";
+    <attr>=<value>
+        An attribute name must be specified along with an attribute
+        value.  The following attribute names are required by ons for
+        this command:
+
+          target, comp
+
+        Value for "target" is either "log" or "debug", which refer
+        to either the standard ons log or the debug ons log.
+__EOF__
+
+  comp_explain();
+}
+
+sub cmd_query
+{
+  my $exCode;
+
+  $exCode = ons_ping();
+  if ($exCode != 0)
+  {
+    error_ons_down(2);
+  }
+  $exCode = ons_admin("query", @_);
+  if ($exCode != 0)
+  {
+    error_command($exCode);
+  }
+}
+
+sub usage_query
+{
+  usageargs_check();
+  print << "__EOF__";
+
+onsctl query <attr>=<value>
+    ONS is made up of the following logical components - internal, ons.
+
+    internal   Internal information that for ONS
+    ons        ONS component that is responsible for notifications
+
+    The location and severity of logging by these components can be
+    configured in ons.config.  This command is used to query details
+    of this configuration.
+
+__EOF__
+
+  print << "__EOF__";
+    <attr>=<value>
+        An attribute name must be specified along with an attribute
+        value.  The following attribute name is required by ons for
+        this command:
+
+            target
+
+        Value for "target" is either "log" or "debug", which refer
+        to either the standard ons log or the debug ons log.
+
+    The data printed out to the screen in response to this command
+    is the actual configuration string in ons.config file.
+
+__EOF__
+}
+
+sub cmd_usage
+{
+  if (@_ != 0)
+  {
+    if ($usages{$_[0]})
+    {
+      $usages{$_[0]}->(@_);
+    }
+    else
+    {
+      print "onsctl usage: unknown topic $_[0].\n";
+    }
+  }
+  else
+  {
+    foreach $key (keys %usages)
+    {
+      $usages{$key}->();
+    }
+  }
+}
+
+sub usage_usage
+{
+  print  << "__EOF__";
+
+onsctl usage [<command> ...]
+
+  Print a detailed usage description for each <command> specified.  If
+  no command is specified, then the usage messages for all commands
+  are displayed.
+
+  <command> may be one or more of the following:
+__EOF__
+
+  foreach $key (keys %usages)
+  {
+    print "      $key\n";
+  }
+  print "\n";
+}
+
+sub cmd_help
+{
+  if (@_ != 0)
+  {
+    if ($usages{$_[0]})
+    {
+      $usages{$_[0]}->(@_);
+      return
+    }
+    else
+    {
+      print "onsctl help: unknown topic $_[0].\n";
+    }
+  }
+
+  print << "__EOF__";
+
+usage: onsctl [verbose] <command> [<options>]
+
+The verbose option enables debug tracing and logging (for the server start).
+
+Permitted <command>/<options> combinations are:
+
+command   options
+-------   ---------
+start                       - Start ons
+shutdown                    - Shutdown ons
+reload                      - Trigger ons to reread its configuration file
+debug     [<attr>=<val> ..] - Display ons server debug information
+set       [<attr>=<val> ..] - Set ons log parameters
+query     [<attr>=<val>]    - Query ons log parameters
+ping      [<max-retry>]     - Ping local ons
+help                        - Print brief usage description (this)
+usage     [<command>]       - Print detailed usage description
+
+__EOF__
+}
+
+sub usage_help
+{
+  usageargs_check();
+  print << "__EOF__";
+
+onsctl help
+    Print a brief usage description for onsctl. See also the usage command.
+
+__EOF__
+}
+
+sub comp_explain
+{
+  print << "__EOF__";
+
+        The values for "comp" specify the ons internal components and
+        subcomponents.
+
+        none       Clear all components
+
+        internal   Specify the internal information for ons
+        ons        Specify the ONS component information for ons
+
+        The ons component consists of subcomponents which may be specified
+        via the ons[subcomponents] syntax where, and subcomponents is a
+        comma seperated list of valid subcomponents for the given component.
+
+            all         ONS all subcomponents
+            local       ONS local information
+            listener    ONS listener information
+            discover    ONS discover (server or multicast) information
+            servers     ONS remote servers currently up and connected to the
+                            cluster
+            topology    ONS current cluster wide server connection topology
+            server      ONS remote server connection information
+            client      ONS client connection information
+            connect     ONS generic connection information
+            subscribe   ONS client subscription information
+            message     ONS notification receiving and processing information
+            deliver     ONS notification delivery information
+            special     ONS special notification processing
+            internal    ONS internal resource information
+            secure      ONS SSL operation information
+            workers     ONS worker threads
+
+    Each subcomponent may be perfaced with the negation character, !, which
+    deselects the subcomponent. By using all with negated sub-components,
+    specific subcomponents can be easily eliminated from the display.
+
+    Subcomponents are set or negated in the order in which they are
+    encountered, and so
+
+        ons[all,!topology]
+
+    will yield all ons subcomponents excluding topology, while
+
+        ons[!topology,all]
+
+    will yield all ons subcomponents including topology (probably not the
+    intended result).
+
+__EOF__
+}
+
+#
+# Utility functions
+#
+sub excode_fixup
+{
+  my $exCode;
+
+  $exCode = $_[0];
+  if (($exCode != 0) && !($exCode & 0xff))
+  {
+    $exCode = $exCode >> 8;
+  }
+  return $exCode;
+}
+
+sub generic_exec
+{
+  my $exCode;
+
+  $exCode = system(@_);
+  $exCode = excode_fixup($exCode);
+  return $exCode;
+}
+
+sub ons_exec
+{
+  my $exCode;
+
+  @args = ( $Ons, @_ );
+  $exCode = system(@args);
+  $exCode = excode_fixup($exCode);
+  return $exCode;
+}
+
+sub ons_admin
+{
+  my $exCode;
+  my $adminOpt = "-a";
+
+  @args = ( $Ons, $adminOpt, @_ );
+  $exCode = system(@args);
+  $exCode = excode_fixup($exCode);
+  return $exCode;
+}
+
+sub ons_ping
+{
+  my $exCode;
+
+  $exCode = ons_admin("ping");
+  if ($exCode == 3)
+  {
+    error_config();
+  }
+  return $exCode;
+}
+
+sub ons_ping_attempts
+{
+  my $attempts = $_[0];
+  my $exCode = 1;
+
+  for (my $count = 0; $count < $attempts; $count++)
+  {
+    if ($count != 0)
+    {
+      sleep 1;
+    }
+    $exCode = ons_ping(1);
+    if ($exCode == 0)
+    {
+      return 0;
+    }
+  }
+  return $exCode;
+}
+
+sub ons_pingwait
+{
+  my $exCode;
+
+  $exCode = ons_admin("pingwait");
+  if ($exCode == 3)
+  {
+    error_config();
+  }
+  return $exCode;
+}
+
+sub error_config
+{
+  print "onsctl $command: error parsing config\n";
+  exit 3;
+}
+
+sub error_ons_down
+{
+  print "onsctl $command: ons is not running.\n";
+  exit $_[0];
+}
+
+sub error_command
+{
+  if (($_[0] != 1) && ($_[0] != 256))
+  {
+    print "onsctl $command: failed.\n";
+  }
+  exit $_[0];
+}
+
+sub environment_fixup
+{
+  if ($ENV{LD_ASSUME_KERNEL})
+  {
+    delete $ENV{LD_ASSUME_KERNEL};
+  }
+
+  if (!$OracleHome)
+  {
+    if ($ENV{ORACLE_HOME})
+    {
+      $OracleHome = $ENV{ORACLE_HOME};
+    }
+    else
+    {
+      print "onsctl: ORACLE_HOME is not set.\n";
+      exit 2;
+    }
+  }
+  else
+  {
+    $ENV{ORACLE_HOME} = $OracleHome;
+  }
+
+  if (!$NlsLang)
+  {
+    if ($ENV{NLS_LANG})
+    {
+      $NlsLang = $ENV{NLS_LANG};
+    }
+    else
+    {
+      $NlsLang = "AMERICAN_AMERICA.WE8MSWIN1252";
+      $ENV{NLS_LANG} = $NlsLang;
+    }
+  }
+  else
+  {
+    $ENV{NLS_LANG} = $NlsLang;
+  }
+
+  if (!$TnsAdmin)
+  {
+    if ($ENV{TNS_ADMIN})
+    {
+      $TnsAdmin = $ENV{TNS_ADMIN};
+    }
+    else
+    {
+      $TnsAdmin="$OracleHome/network/admin";
+      if ($isWin)
+      {
+        $TnsAdmin =~ s!/!\\!g;
+      }
+      $ENV{TNS_ADMIN} = $TnsAdmin;
+    }
+  }
+  else
+  {
+    $ENV{TNS_ADMIN} = $TnsAdmin;
+  }
+
+  if (!$ENV{ORACLE_BASE_HOME})
+  {
+    my $oracleBaseTool = $OracleHome . '/bin/orabasehome';
+    if ($isWin)
+    {
+      $oracleBaseTool .= '.exe';
+    }
+    if (-x $oracleBaseTool)
+    {
+      my $oracleBaseHome = `$oracleBaseTool $OracleHome`;
+      if ($oracleBaseHome)
+      {
+        chomp($oracleBaseHome);
+        if ($oracleBaseHome ne $OracleHome)
+        {
+          $ENV{ORACLE_BASE_HOME} = $oracleBaseHome;
+        }
+      }
+    }
+  }
+
+  if (!$isWin)
+  {
+    my $oldPath = $ENV{LD_LIBRARY_PATH};
+    my $newPath = "$OracleHome/lib:$OracleHome/opmn/lib:$oldPath";
+    $ENV{LD_LIBRARY_PATH}= $newPath;
+  }
+  else
+  {
+    my $oldPath = $ENV{PATH};
+    my $newPath = "$OracleHome\\bin;$OracleHome\\opmn\\bin;$oldPath";
+    $ENV{PATH} = $newPath;
+  } 
+}
+
+#
+# Check to make sure args are 0 for usage methods
+# that are not allowed to have args
+#
+sub usageargs_check
+{
+  if ($#ARGV > 0)
+  {
+    print "No arguments allowed for usage $ARGV[0]\n";
+    exit 2;
+  }
+}

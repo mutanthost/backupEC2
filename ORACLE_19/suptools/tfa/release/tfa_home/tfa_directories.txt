@@ -1,0 +1,10 @@
+localnode%OS%DIAGDEST=/var/log
+localnode%OS%DIAGDEST=/var/adm
+localnode%OS%DIAGDEST=/var/adm/syslog
+localnode%CRS%DIAGDEST=/etc/oracle
+localnode%CRS%DIAGDEST=/var/opt/oracle
+localnode%ODA%DIAGDEST=/opt/oracle/oak/log
+localnode%ODA%DIAGDEST=/opt/oracle/oak/onecmd/tmp
+localnode%ODA%DIAGDEST=/opt/oracle/oak/pkgrepos/System
+localnode%DCS%DIAGDEST=/opt/oracle/dcs/log
+localnode%DCS%DIAGDEST=/opt/zookeeper/log

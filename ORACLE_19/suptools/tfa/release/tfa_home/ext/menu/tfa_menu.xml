@@ -1,0 +1,2029 @@
+<?xml version="1.0"?>
+
+<!--  $Header: tfa/src/v2/ext/menu/tfa_menu.xml /main/6 2018/08/08 23:01:02 recornej Exp $ -->
+
+<!-- 
+ Copyright (c) 2016, 2018, Oracle and/or its affiliates. All rights reserved.
+
+   NAME
+     tfa_menu.xml - <one-line expansion of the name>
+
+   DESCRIPTION
+     <short description of component this file declares/defines>
+
+   NOTES
+     <other useful comments, qualifications, etc.>
+
+   MODIFIED   (MM/DD/YY)
+   recornej    08/02/18 - Fix tfactl srdc internalerrors
+   recornej    07/16/18 - Fix date format for analyze commands
+   recornej    04/25/17 - Bug 25954627 - TFA MENU DOES NOT WORK PROPERLY FOR
+                          SOME COMMANDS
+   recornej    02/16/17 - Updating TFA Menu
+   bburton     02/09/16 - XML to drive the TFA menuing system
+   bburton     02/09/16 - Creation
+
+-->
+
+<menus>
+  <menu name="main" >
+     <title>TFA Main Menu</title>
+     <text><![CDATA[
+      The Oracle Trace File Analyzer Menu provides a simple
+      interface to the TFA tools.
+
+
+      Select one of the following categories:
+      
+        1.  System Analysis
+        2.  Collections
+        3.  Administration
+
+   ]]></text>
+ <menu_option number="1" type="menu" action="sysanalysis" support="Unix/Windows" access="all"/>
+ <menu_option number="2" type="menu" action="collections" support="Unix/Windows" access="all"/>
+ <!--<menu_option number="3" type="menu" action="diagcollections" support="Unix/Windows"/>-->
+ <!-- <menu_option number="4" type="menu" action="upload" support="Unix/Windows"/>-->
+ <menu_option number="3" type="menu" action="admin" support="Unix/Windows" access="all"/>
+   <help><![CDATA[
+                TFA Main Menu Help:
+
+     The Oracle Trace File Analyzer Menu
+     provides a simple interface to the TFA tools.
+            
+    ]]>
+</help></menu>
+<!--System Analysis Menus -->
+ <menu name="sysanalysis" >
+    <title>System Analysis</title>
+    <text><![CDATA[
+      Select one of the following categories:
+      
+        1. Summary
+        2. Events
+        3. Analize logs
+        4. TFA Utilities
+        5. Support Tool Bundle
+        ]]>
+      </text>
+      <help><![CDATA[
+           System Analysis Help:
+
+        Shortcuts to determining what 
+        has happened on your system.
+
+          ]]>
+      </help>
+      <menu_option number="1" type="menu" action="summary" support="Unix/Windows" access="root"/>
+      <menu_option number="2" type="menu" action="events" support="Unix/Windows"/>
+      <menu_option number="3" type="menu" action="investigateLogs" support="Unix/Windows"/>
+      <menu_option number="4" type="menu" action="utilities" support="Unix/Windows"/>
+      <menu_option number="5" type="menu" action="support" support="Unix"/>
+    </menu>
+<!--Summary Menus-->
+    <menu name="summary" >
+   <title>Summary</title>
+   <text><![CDATA[     
+    Select one of the following options:
+        
+      1. Default full summary
+      2. Summary with [options]
+  ]]>
+   </text>
+
+   <help><![CDATA[
+                Summary Help:
+    
+    The summary command can be used to quickly understand
+    the viability of systems and clusters. It shows a fast,
+    easy to read summary of the status including  any potential
+    problems with important elements such as:
+    
+      * Clusterware
+      * ASM
+      * Patch
+      * Listener
+      * OS
+      * Network
+
+      +-----------------------------------------------------------------------+
+      |          Option             |               Description               |
+      +-----------------------------+-----------------------------------------+
+      |    -overview                | Complete summary collection -overview   |
+      +-----------------------------+-----------------------------------------+
+      |    -crs                     | CRS status summary                      |
+      +-----------------------------+-----------------------------------------+
+      |    -asm                     | ASM status summary                      |
+      +-----------------------------+-----------------------------------------+
+      |    -acfs                    | ACFS status summary                     |
+      +-----------------------------+-----------------------------------------+
+      |    -database                | Database status summary                 |
+      +-----------------------------+-----------------------------------------+
+      |    -exadata                 | Exadata status summary                  |
+      +-----------------------------+-----------------------------------------+
+      |    -patch                   | Patch details                           |
+      +-----------------------------+-----------------------------------------+
+      |    -listener                | Listener status summary                 |
+      +-----------------------------+-----------------------------------------+
+      |    -network                 | Network status summary                  |
+      +-----------------------------+-----------------------------------------+
+      |    -os                      | OS status summary                       |
+      +-----------------------------+-----------------------------------------+
+      |    -tfa                     | Oracle Trace File Analyzer summary      |
+      +-----------------------------+-----------------------------------------+
+      |    -summary                 | Summary tool metadata                   |
+      +-----------------------------+-----------------------------------------+
+      |    -json                    | Outputs summary in json format as well  |
+      |                             | as via the summary interface            |
+      +-----------------------------+-----------------------------------------+
+      |    -html                    | Outputs summary in html format as well  |
+      |                             | as via the summary interface            |
+      +-----------------------------+-----------------------------------------+
+      |    -print                   | Display [html or json] report at console|
+      +-----------------------------+-----------------------------------------+
+      |    -silent                  | Interactive console by default          |
+      +-----------------------------+-----------------------------------------+
+      |    -node <local|node_name > | Local or comma separated node name(s)   |
+      +-----------------------------------------------------------------------+
+
+   ]]>
+   </help>
+
+   <menu_option number="1" type="command" action="tfactl summary " support="Unix/Windows"/>
+   <menu_option number="2" type="command" action="tfactl summary %options" support="Unix/Windows">
+   <prompt name="options">
+   <![CDATA[
+	[Options]:
+
+	[-overview |-crs |-asm | -acfs | -database | -exadata
+	-patch | -listener | -network | -os | -tfa | -summary |
+	-json  | -html | -print | -silent | -node <local|node_name> ]
+		
+	
+	Please enter option to run ]]>
+   </prompt>
+   </menu_option>
+   </menu>
+   <menu name="optSummary" >
+     <title>Summary with [options] </title>
+        <text><![CDATA[
+	Select one of the following options:
+	
+	1. tfactl summary [Options] :
+	
+	
+	[Options]:
+
+	[-overview |-crs |-asm | -acfs | -database | -exadata
+	-patch | -listener | -network | -os | -tfa | -summary |
+	-json  | -html | -print | -silent | -node <local|node_name> ]
+	
+	]]>
+	</text>
+     <help><![CDATA[
+                  Summary with [options] Help:
+      +-----------------------------------------------------------------------+
+      |          Option             |               Description               |
+      +-----------------------------+-----------------------------------------+
+      |    -overview                | Complete summary collection -overview   |
+      +-----------------------------+-----------------------------------------+
+      |    -crs                     | CRS status summary                      |
+      +-----------------------------+-----------------------------------------+
+      |    -asm                     | ASM status summary                      |
+      +-----------------------------+-----------------------------------------+
+      |    -acfs                    | ACFS status summary                     |
+      +-----------------------------+-----------------------------------------+
+      |    -database                | Database status summary                 |
+      +-----------------------------+-----------------------------------------+
+      |    -exadata                 | Exadata status summary                  |
+      +-----------------------------+-----------------------------------------+
+      |    -patch                   | Patch details                           |
+      +-----------------------------+-----------------------------------------+
+      |    -listener                | Listener status summary                 |
+      +-----------------------------+-----------------------------------------+
+      |    -network                 | Network status summary                  |
+      +-----------------------------+-----------------------------------------+
+      |    -os                      | OS status summary                       |
+      +-----------------------------+-----------------------------------------+
+      |    -tfa                     | Oracle Trace File Analyzer summary      |
+      +-----------------------------+-----------------------------------------+
+      |    -summary                 | Summary tool metadata                   |
+      +-----------------------------+-----------------------------------------+
+      |    -json                    | Outputs summary in json format as well  |
+      |                             | as via the summary interface            |
+      +-----------------------------+-----------------------------------------+
+      |    -html                    | Outputs summary in html format as well  |
+      |                             | as via the summary interface            |
+      +-----------------------------+-----------------------------------------+
+      |    -print                   | Display [html or json] report at console|
+      +-----------------------------+-----------------------------------------+
+      |    -silent                  | Interactive console by default          |
+      +-----------------------------+-----------------------------------------+
+      |    -node <local|node_name > | Local or comma separated node name(s)   |
+      +-----------------------------------------------------------------------+
+
+      ]]></help>
+      <menu_option number="1" type="command" action="tfactl summary %options" support="Unix/Windows">
+      <prompt name="options"><![CDATA[Please enter option to run ]]></prompt>
+      </menu_option>
+
+   </menu>
+<!--End Summary Menu-->
+   <menu name="events" >
+     <title>Events</title>
+     <text><![CDATA[
+       Select one of the following options:
+
+        1. Last 12 hours
+        2. From time to time (yyyy-mm-dd hh:mm:ss)
+     
+        ]]></text>
+      <menu_option number="1" type="command" action="tfactl events -last 12h" support="Unix/Windows"/>
+      <menu_option number="2" type="command" action="tfactl events -from %fromtime -to %totime" support="Unix/Windows">
+        <prompt name="fromtime"><![CDATA[Please enter start time [YYYY-MM-DD hh:mi:ss] ]]></prompt>
+        <prompt name="totime"><![CDATA[Please enter end time [YYYY-MM-DD hh:mi:ss] ]]></prompt>
+      </menu_option>
+     <help><![CDATA[
+            Events Help:
+
+      Provides a list of events and  the times 
+      they ocurred.Then allows you to take a collection
+      based on the time that event occurred.
+
+       ]]></help>
+   </menu>
+
+   <menu name="investigateLogs" >
+     <title>Investigate Logs</title>
+     <text><![CDATA[
+        Select one of the following options:
+
+          1. Analyze
+          2. Search
+       
+        ]]></text>
+      <menu_option number="1" type="menu" action="analyze" support="Unix/Windows"/>
+      <menu_option number="2" type="menu" action="search" support="Unix/Windows"/>
+     <help><![CDATA[
+            Investigate Logs Help:
+
+    Investigate all your logs across your cluster.
+       
+       ]]>
+     </help>
+   </menu>
+   <menu name="analyze" >
+     <title>Analyze</title>
+     <text><![CDATA[
+        Select one of the following options:
+
+          1. Default (last 12h)
+          2. Previous time period
+          3. Time range
+       
+          ]]></text>
+      <menu_option number="1" type="command" action="tfactl analyze -last 12h" support="Unix/Windows"/>
+      <menu_option number="2" type="command" action="tfactl analyze -last %sincetime" support="Unix/Windows">
+	<prompt name="sincetime"><![CDATA[Please enter time period n(d|h)]]></prompt>
+      </menu_option>
+      <menu_option number="3" type="command" action="tfactl analyze -from %fromtime -to %totime" support="Unix/Windows">
+	<prompt name="fromtime"><![CDATA[Please enter start time [YYYY-MM-DD hh:mi:ss] ]]></prompt>
+	<prompt name="totime"><![CDATA[Please enter end time [YYYY-MM-DD hh:mi:ss] ]]></prompt>
+      </menu_option>
+     <help><![CDATA[
+                Analyze Help:
+
+      Analyze all your logs across your cluster
+      and tell you about any recent errors or messages.
+
+      -Default (last 12h)       Analyze logs for errors
+                                or messages in the past
+                                12 hours.
+
+      -Previous time period     Analyze logs for errors
+                                or messages which occurred
+                                in the previous n (d)ays
+                                or (h)ours.
+                                e.g.: 5d or 12h
+
+      -Time range              Analyze logs for errors
+                               or messages which occurred
+                               during specific time range
+                               e.g.:
+			       from 2017-05-15 22:15:00
+			       to   2017-05-16 05:00:00
+       ]]></help>
+   </menu>
+
+   <menu name="search" >
+     <title>Search</title>
+     <text><![CDATA[
+       Select one of the following options:
+      
+        1. Default (last 12h)
+        2. Previous time period
+        3. Time range
+
+       ]]>
+     </text>
+     <menu_option number="1" type="command" action="tfactl analyze -search %pattern -last 12h" support="Unix/Windows">
+       <prompt name="pattern"><![CDATA[Please enter the pattern to search:]]></prompt>
+     </menu_option>
+     <menu_option number="2" type="command" action="tfactl analyze -last %sincetime -search %pattern" support="Unix/Windows">
+       <prompt name="sincetime"><![CDATA[Please enter time period [n(d|h)]]]></prompt>
+       <prompt name="pattern"><![CDATA[Please enter the pattern to search:]]></prompt>
+      </menu_option>
+      <menu_option number="3" type="command" action="tfactl analyze -from %fromtime -to %totime -search %pattern" support="Unix/Windows">
+        <prompt name="fromtime"><![CDATA[Please enter start time [YYYY-MM-DD hh:mi:ss]  ]]></prompt>
+        <prompt name="totime"><![CDATA[Please enter end time [YYYY-MM-DD hh:mi:ss] ]]></prompt>
+        <prompt name="pattern"><![CDATA[Please enter the pattern to search]]></prompt>
+      </menu_option>
+      <help><![CDATA[
+              Search  Help:
+
+      Search all your logs  across your cluster
+      for a specific pattern.
+
+      -Default (last 12h)       Analyze logs for errors
+                                or messages in the past
+                                12 hours.
+
+      -Previous time period     Analyze logs for errors
+                                or messages which occurred
+                                in the previous n (d)ays
+                                or (h)ours.
+                                e.g.: 5d or 12h
+
+      -Time range              Analyze logs for errors
+                               or messages which occurred
+                               during specific time range
+                               e.g.:
+			       from 2017-05-15 22:15:00
+			       to   2017-05-16 05:00:00
+     ]]>
+     </help>
+   </menu>
+<!--Utilities Menu-->
+ <menu name="utilities">
+ <title>TFA Utilities</title>
+ <text><![CDATA[
+   Select One of the following options:
+
+      1. ORAchk/ EXAchk
+      2. Oratop
+      3. alertsummary
+      4. calog
+      5. grep
+      6. ls
+      7. managelogs
+      8. param
+      9. ps
+     10. pstack
+     11. tail
+     12. vi	    	   
+]]>
+</text>
+<menu_option number="1" type="menu" action="orachk/exachk" support="Unix"/>
+<menu_option number="2" type="command" action="tfactl oratop -database %database" support="Unix">
+  <prompt name="database">Please enter the database name</prompt>
+</menu_option>
+<menu_option number="3" type="command" action="tfactl alertsummary -db %database" support="Unix" >
+  <prompt name="database">Please enter the database name</prompt>
+</menu_option>
+<menu_option number="4" type="command" action="tfactl calog" support="Unix/Windows"/>
+<menu_option number="5" type="command" action="tfactl grep  %flags %search %pattern" support="Unix">
+  <prompt name="flags"><![CDATA[Please enter <flags>]]> </prompt>
+  <prompt name="search"><![CDATA[Please enter <search string>]]></prompt>
+  <prompt name="pattern"> <![CDATA[Please enter <file name pattern>]]></prompt>
+</menu_option>
+<menu_option number="6" type="command" action="tfactl ls %flags %pattern %exact" support="Unix">
+  <prompt name="flags"><![CDATA[Please enter <flags>, All ls flags are supported.]]> </prompt>
+  <prompt name="pattern"><![CDATA[Please enter <file name pattern>]]></prompt>
+  <prompt name="exact"><![CDATA[Would you like to include  [-exact] y|n ? ]]></prompt>
+</menu_option>
+<menu_option number="7" type="menu" action="managelogs" support="Unix/Windows"/>
+<menu_option number="8" type="command" action="tfactl param %pattern" support="Unix/Windows">
+  <prompt name="pattern"><![CDATA[Please enter <name pattern>]]></prompt>
+</menu_option>
+<menu_option number="9" type="command" action="tfactl ps %flags %pattern" support="Unix">
+  <prompt name="flags"><![CDATA[Please enter <flags> all 'ps' flags supported]]></prompt>
+  <prompt name="pattern"><![CDATA[Please enter <pattern>]]></prompt>
+</menu_option>
+<menu_option number="10" type="menu" action="pstack" support="Unix"/>
+<menu_option number="11" type="menu" action="tail" support="Unix"/>
+<menu_option number="12" type="command" action="tfactl vi %pattern" support="Unix">
+  <prompt name="pattern"><![CDATA[Please enter <file name pattern>]]></prompt>
+  </menu_option>
+
+  <help>
+    <![CDATA[
+            TFA Utilities Help:
+
+   ORAchk / EXAchk      Provides health checks for the 
+                        Oracle stack. Oracle Trace File
+                        Analyzer will install either:
+                        - Oracle EXAchk for Engineered Systems
+                          see document 1070954.1 for more details.
+                                           or
+                        - Oracle ORAchk for all non-Engineered Systems,
+                          see document 1268927.2 for more details.
+    
+   Oratop               Provides near real-time database monitoring.
+                        See document 1500864.1 for more details.
+
+   alertsummary         Provides summary of events for one or more
+                        database or ASM alert files from all nodes.
+
+   calog                Reports major events from the cluster Event log.
+
+   grep                 Searches for a given string in the alert or trace
+                        files with a specified database. 
+
+   ls                   List all files Oracle Trace File Analyzer knows
+                        about for a given file name pattern, across all nodes.
+                          
+   managelogs           Shows disk space usage per diganostic directory
+                        for both GI and database logs.
+   
+   param                Shows all database  and OS parameters that match 
+                        a specified pattern.
+
+   ps                   Finds processes.
+
+   pstack               Generates the process stack for the specified
+                        processes, across all nodes.
+
+   tail                 Runs a tail on an alert or trace files for a given
+                        database and file name pattern.
+   
+   vi                   Opens alert or trace files for viewing a given database
+                        and file name pattern in the vi editor.
+
+
+    ]]>
+</help>
+</menu>
+<menu name="orachk">
+<title>Orachk</title>
+<text><![CDATA[
+   Select One of the following options:
+
+    1. Default Orachk
+    2. Orachk with Options
+    3. Show Orachk Options
+
+    ]]></text>
+<menu_option number="1" type="command" action="tfactl orachk" support="Unix"/>
+<menu_option number="2" type="command" action="tfactl orachk %options" support="Unix">
+	<prompt name="options">Please enter options for orachk </prompt>	
+</menu_option>
+<menu_option number="3" type="command" action="tfactl orachk -help" support="Unix"/>
+<help><![CDATA[
+		ORAchk / EXAchk  Help:  
+
+	Provides health checks for the 
+        Oracle stack. Oracle Trace File
+        Analyzer will install either:
+        - Oracle EXAchk for Engineered Systems
+        see document 1070954.1 for more details.
+                        or
+        - Oracle ORAchk for all non-Engineered Systems,
+        see document 1268927.2 for more details.
+
+	]]></help>
+</menu>
+<menu name="exachk">
+<title>Exachk</title>
+<text><![CDATA[
+   Select One of the following options:
+
+    1. Default Exachk
+    2. Exachk with Options
+    3. Show Exachk Options
+
+    ]]></text>
+<menu_option number="1" type="command" action="tfactl exachk" support="Unix"/>
+<menu_option number="2" type="command" action="tfactl exachk %options" support="Unix">
+	<prompt name="options">Please enter options for exachk </prompt>	
+</menu_option>
+<menu_option number="3" type="command" action="tfactl exachk -help" support="Unix"/>
+<help><![CDATA[
+		ORAchk / EXAchk  Help:  
+
+	Provides health checks for the 
+        Oracle stack. Oracle Trace File
+        Analyzer will install either:
+        - Oracle EXAchk for Engineered Systems
+        see document 1070954.1 for more details.
+                        or
+        - Oracle ORAchk for all non-Engineered Systems,
+        see document 1268927.2 for more details.
+
+	]]></help>
+</menu>
+
+<!--End Utilities Menu -->
+
+<!--Utilities Windows Menu-->
+<menu name="utilitiesWin">
+  <title>TFA Utilities</title>
+  <text><![CDATA[
+    Select one of the following options:
+      
+      1. calog
+      2. findstr
+      3. dir
+      4. managelogs
+      5. param
+      6. tasklist
+      7. notepad
+    
+      ]]></text>
+    <menu_option number="1" type="command" action="tfactl calog" support="Unix/Windows"/>
+    <menu_option number="2" type="command" action="tfactl findstr %pattern" support="Windows">
+      <prompt name="pattern"><![CDATA[Please enter <file name pattern>]]></prompt>
+    </menu_option>
+    <menu_option number="3" type="command" action="tfactl dir %pattern" support="Windows">
+      <prompt name="pattern"><![CDATA[Please enter <file name pattern>]]></prompt>
+    </menu_option>
+    <menu_option number="4" type="menu"    action="tfactl managelogs" support="Unix/Windows"/>
+    <menu_option number="5" type="command" action="tfactl param %pattern" support="Unix/Windows">
+       <prompt name="pattern"><![CDATA[Please enter <name pattern>]]></prompt>
+      </menu_option>
+    <menu_option number="6" type="command" action="tfactl tasklist %pattern" support="Unix/Windows">
+      <prompt name="pattern"><![CDATA[Please enter <file name pattern>]]></prompt>
+    </menu_option>
+    <menu_option number="7" type="command" action="tfactl notepad %pattern" support="Windows">
+      <prompt name="pattern"><![CDATA[Please enter <file name pattern>]]></prompt>
+    </menu_option>
+
+   <help>
+   <![CDATA[
+            TFA Utilities Help:
+
+  
+   calog                Reports major events from the cluster Event log.
+
+   findstr              Searches for a given string in the alert or trace
+                        files with a specified database. 
+
+   dir                  List all files Oracle Trace File Analyzer knows
+                        about for a given file name pattern, across all nodes.
+                          
+   managelogs           Shows disk space usage per diganostic directory
+                        for both GI and database logs.
+   
+   param                Shows all database  and OS parameters that match 
+                        a specified pattern.
+
+      
+   notepad              Opens alert or trace files for viewing a given database
+                        and file name pattern in the notepad editor.
+
+
+    ]]>
+</help>
+</menu>
+<!--End Utilities Windows menu -->
+<menu name="managelogs">
+  <title>Manage Logs</title>
+  <text><![CDATA[
+    Select one of the following options:
+
+      1. show usage
+      2. show variation
+      3. dryrun
+      4. purge
+    
+    ]]>
+  </text>
+  <menu_option number="1" type="menu" action="usage"/>
+  <menu_option number="2" type="command" action="tfactl managelogs -show variation -older %n" support="Unix/Windows">
+    <prompt name="n"><![CDATA[Please specify the period n<m|d|h> e.g. 30d ]]></prompt>
+  </menu_option>
+  <menu_option number="3" type="command" action="tfactl managelogs -purge -older %n -dryrun" support="Unix/Windows">
+    <prompt name="n"><![CDATA[Please specify the period n<m|d|h> e.g. 30d ]]></prompt>
+  </menu_option>
+  <menu_option number="4" type="command" action="tfactl managelogs -purge -older %n" support="Unix/Windows">
+    <prompt name="n"><![CDATA[Please specify the period n<m|d|h> e.g. 30d ]]></prompt>
+  </menu_option>
+  <help>
+    <![CDATA[
+             Managelogs Help:
+
+    Show  disk space usage and purges ADR log 
+    and trace files.
+  
+    -show usage       Show disk space usage per 
+                      diagnostic directory
+                      for both GI and 
+                      database logs.
+
+    -show variation   Use to determine per 
+                      directory disk space growth.
+                      Shows the disk usage variation
+                      for the specified period per 
+                      directory.
+
+    -dryrun           Perform a dryrun of a purge 
+                      to estimate how many files
+                      will be affected and how much
+                      disk space will be freed.
+                          
+    -purge            Remove all ADR files under
+                      the GI_BASE directory, which 
+                      are older than the time specified.
+
+  ]]>
+  </help>
+</menu>
+<menu name="usage" >
+  <title>Show Usage</title>
+  <text><![CDATA[
+    Select one of the following options:
+
+      1 All usage
+      2 GI  usage
+      3 Database usage
+    ]]>
+  </text>
+  <menu_option number="1" type="command" action="tfactl managelogs -show usage" support="Unix/Windows"/>
+  <menu_option number="2" type="command" action="tfactl managelogs -show usage -gi" support="Unix/Windows"/>
+  <menu_option number="3" type="command" action="tfactl managelogs -show usage -database" support="Unix/Windows"/>
+  <help>
+    <![CDATA[
+            Show Usage Help:
+
+   Shows disk space usage per diagnostic
+   directory for both GI and database logs.
+
+   -all usage        Shows disk space usage per
+                     diagnostic directory
+                     for both GI and
+                     database logs.
+
+   -gi usage         Shows disk space usage per
+                     diagnostic directory
+                     for GI logs.
+
+   -database usage   Shows disk space usage per
+                     diagnostic directory 
+                     for only database logs.
+    ]]>
+  </help> 
+</menu>
+<!--PStack Menu -->
+<menu name="pstack" >
+  <title>Pstack</title>
+  <text>
+    <![CDATA[
+    Select one of the following options:
+
+      1 pstack <pid|process name>
+      2 pstack <pid|process name> -n <n>
+      3 pstack <pid|process name> -n <n> -s <secs>
+    ]]>
+  </text>
+  <menu_option number="1" type="command" action="tfactl pstack %pid" support="Unix">
+    <prompt name="pid"><![CDATA[Please enter <pid|process name>]]></prompt>
+  </menu_option>
+  <menu_option number="2" type="command" action="tfactl pstack %pid -n %n" support="Unix">
+    <prompt name="pid"><![CDATA[Please enter <pid|process name>]]></prompt>
+    <prompt name="n"><![CDATA[Please enter number of times]]></prompt>
+  </menu_option>
+  <menu_option number="3" type="command" action="tfactl pstack %pid -n %n -s %s" support="Unix">
+    <prompt name="pid"><![CDATA[Please enter <pid|proces name>]]></prompt>
+    <prompt name="n"><![CDATA[Please enter number of times]]></prompt>
+    <prompt name="s"><![CDATA[Please enter seconds between runs]]></prompt>
+  </menu_option>
+  <help>
+      <![CDATA[
+             Pstack Help:
+
+    Generates the process stack for the specified 
+    processes, across all nodes. 
+    Print stack trace of a running process <n> times.
+    Sleep <secs> seconds between runs.
+      
+      ]]>
+  </help>
+</menu>
+<!--End PStack Menu -->
+<!--Tail Menu -->
+  <menu name="tail" >
+    <title>Tail</title>
+    <text>
+      <![CDATA[
+      Select one of the following options:
+        
+        1 tail <file name pattern>
+        2 tail -f <file name pattern>
+        3 tail -f <file name pattern> -exact
+
+      ]]>
+    </text>
+    <menu_option number="1" type="command" action="tfactl tail %pattern" support="Unix">
+      <prompt name="pattern"><![CDATA[Please enter pattern ]]></prompt>
+    </menu_option>
+    <menu_option number="2" type="command" action="tfactl tail -f %pattern" support="Unix">
+      <prompt name="pattern"><![CDATA[Please enter pattern ]]></prompt>
+    </menu_option>
+    <menu_option number="3" type="command" action="tfactl tail -f %pattern -exact" support="Unix">
+      <prompt name="pattern"><![CDATA[Please enter pattern ]]></prompt>
+    </menu_option>
+    <help>
+         <![CDATA[
+              Tail Help:
+
+    Runs tail on an alert or trace file 
+    for a given database  and file name pattern. 
+
+    Tail all files matching input pattern
+
+    -exact: Do exact matching instead of pattern matching.
+
+   ]]>
+    </help>
+  </menu>
+<!--End Tail Menu-->
+
+
+<!--Support tools Menu -->
+ <menu name="support" >
+ <title>Support Tools Bundle </title>
+ <text><![CDATA[
+	Select One of the following options:
+
+	  1. oswbb
+	  2. prw   
+	  3. sqlt
+]]>
+</text>
+<help><![CDATA[
+           Support Tools Bundle Help:
+  
+  -OS Watcher (oswbb)   Collects and archives OS metrics.
+                        These are useful for instance or 
+                        node evictions & performance Issues.
+                        See document 301137.1 for more details.
+
+  -Procwatcher (prw)    Automates & captures database performance
+                        diagnostics and session level hang information.
+                        See document 459694.1 for more details.
+
+  -sqlt                 Captures SQL trace data useful for tuning.
+                        See document 215187.1 for more details.
+
+  
+  ]]>
+  </help>
+  <menu_option number="1" type="menu" action="oswbb" support="Unix"/>
+  <menu_option number="2" type="menu" action="prw" support="Unix"/>
+  <menu_option number="3" type="menu" action="sqlt" support="Unix"/>
+</menu>
+<!--End Support tools menu-->
+<menu name="oswbb">
+<title>OS Watcher oswbb</title>
+<text><![CDATA[
+   Select One of the following options:
+
+    1. Run OS WAtcher for last n [m]inutes
+       [h]ours or [d]ays.
+    2. Run OS Watcher with [Options]
+
+	Options: -P <name> -L <name> -6 -7 -8 -9 -B <time>
+		 -E <time> -A <name>
+
+	Press <h|H> for more options details.
+
+   
+]]></text>
+<help><![CDATA[
+
+	OS Watcher Help:
+
+   Collects and archives OS metrics.
+   These are useful for instance or 
+   node evictions & performance Issues.
+   See document 301137.1 for more details.
+
+<OSWatcher Analyzer Options>: -P <name> -L <name> -6 -7 -8 -B <time> -E <time> -A 
+     -P <profile name>  User specified name of the html profile generated
+                        by oswbba. This overrides the oswbba automatic naming
+                        convention for html profiles. All profiles
+                        whether user specified named or auto generated
+                        named will be located in the /profile directory.
+
+    -A <analysis name> Same as option A from the menu. Will generate  
+				an analysis report in the /analysis directory or
+                        an analysis report in the /analysis directory or
+                        user can also specify the name of the analysis file
+                        by specifying full qualified path name of file.
+                        The "A" option can not be used together with the
+                        "S" option.
+     -S <>              Will generate an analysis of a subset of the data
+                        in the archive directory. This option must be used
+                        together with the -b and -e options below. See the
+                        section "Specifying the begin/end time of the analysis"
+                        above. The "S" option can not be used together with
+                        the "A" option.
+
+     -START <filename>  Used with the analysis option to specify the first
+                        file located in the oswvmstat directory to analyze.
+
+     -STOP <filename>   Used with the analysis option to specify the last
+                        file located in the oswvmstat directory to analyze.
+
+     -b <begin time>    Used with the -S option to specify the begin time
+                        of the analysis period. Example format:
+                        -b Jan 09 13:00:00 2013
+
+     -e <end time>      Used with the -S option to specify the end time
+                        of the analysis period. Example format:
+                        -e Jan 09 13:15:00 2013
+
+     -L <location name> User specified location of an existing directory
+                        to place any gif files generated
+                        by oswbba. This overrides the oswbba automatic
+                        convention for placing all gif files in the
+                        /gif directory. This directory must pre-exist!
+     -6                 Same as option 6 from the menu. Will generate
+                        all cpu gif files.
+
+
+     -7                 Same as option 7 from the menu. Will generate
+                        all memory gif files.
+
+     -8                 Same as option 8 from the menu. Will generate
+                        all disk gif files.
+
+
+
+     -NO_IOSTAT         Ignores files in the oswiostat directory from
+                        analysis
+
+     -NO_TOP            Ignores files in the oswtop directory from
+                        analysis
+
+     -NO_NETSTAT        Ignores files in the oswnetstat directory from
+                        analysis
+
+     -NO_PS             Ignores files in the oswps directory from
+                        analysis
+
+     -MEM_ALL           Analyzes virtual and resident memory allocations
+                        for all processes. This is very resource intensive.
+
+     -NO_Linux          Ignores files in the oswmeminfo directory from
+                        analysis
+	
+]]>
+</help>
+ <menu_option number="1" type="command" action="tfactl oswbb -since %since" support="Unix">
+    <prompt name="since"><![CDATA[Please enter <n[m|h|d]> [m]inutes or [h]ours or [d]ays]]></prompt>
+  </menu_option>
+ <menu_option number="2" type="command" action="tfactl oswbb %options" support="Unix">
+   <prompt name="options"><![CDATA[Please enter oswbb options ]]></prompt>
+ </menu_option>
+</menu>
+<menu name="sqlt">
+  <title>SQLT</title>
+  <text><![CDATA[
+    Select one of the following options:
+
+      1. sqlt install 
+      2. sqlt getid
+      3. sqlt with [Options]
+
+      Options: [-database <dbname>] [-dbuser <username>/<password>] [sqlt options]
+
+       Press <h|H> for more sqlt options details.     
+    ]]>
+  </text>
+  <menu_option number="1" type="command" action="tfactl sqlt install -database %database" support="Unix">
+    <prompt name="database"><![CDATA[Please enter the <databasename>]]></prompt>
+  </menu_option>
+  <menu_option number="2" type="command" action="tfactl sqlt getid %pattern -database %database" support="Unix">
+    <prompt name="pattern"><![CDATA[Please enter the <pattern>]]></prompt>
+    <prompt name="database"><![CDATA[Please enter the <databasename>]]></prompt>
+  </menu_option>
+  <menu_option number="3" type="command" action="tfactl sqlt %options" support="Unix">
+  <prompt name="options"><![CDATA[Please enter sqlt options ]]></prompt>
+  </menu_option>
+  <help>
+    <![CDATA[
+
+              SQLT Help:
+
+     Captures SQL trace data useful for tuning.
+     See document 215187.1 for more details.
+
+     Options: [-database <dbname>] [-dbuser <username>/<password>] [sqlt options]
+
+     SQLT Options:
+
+     Main Methods
+
+     xtract [SQL_ID]|[HASH_VALUE] [sqltxplain_password]
+     xecute [path]scriptname [sqltxplain_password]
+     xtrxec [SQL_ID]|[HASH_VALUE] [sqltxplain_password]
+     xplain [path] filename [sqltxplain_password]
+     xtrsby [SQL_ID]|[HASH_VALUE] [sqltxplain_password] [DB_LINK]
+     xprext [SQL_ID]|[HASH_VALUE] [sqltxplain_password]
+     xprexc [path] scriptname [sqltxplain_password]
+
+     Special Methods
+
+     compare [STATEMENT_ID 1] [STATEMENT_ID 2]
+     trcanlzr [SQL Trace filename|control.txt]
+     trcaxtr  [SQL Trace filename|control.txt]
+     trcasplit [SQL Trace filename]
+     xtrset
+
+    
+    ]]>
+  </help>
+</menu>
+<!--ProcWatcher Menu-->
+<menu name="prw" >
+  <title>    ProcWatcher       </title>
+  <text><![CDATA[
+          1. start
+          2. stop
+          3. stat
+          4. pack
+          5. param
+          6. deinstall
+          7. log [number]
+          8. log [runtime]
+          9. init[directory]
+         10. dir 
+
+    ]]></text>
+  <help><![CDATA[
+           Procwatcher (prw) Help:
+
+    Automates & captures database performance diagnostics
+    and session level hang information.
+    See document 459694.1 for mor details.
+    
+    
+    ]]>
+  </help>
+  <menu_option number="1"  type="command" action="tfactl prw start %all" support="Unix">
+    <prompt name="all">Start procwatcher on all nodes [y|n]</prompt>
+  </menu_option>
+  <menu_option number="2" type ="command" action="tfactl prw stop %all" support="Unix">
+    <prompt name="all"> Stop procwatcher on all nodes [y|n] </prompt>
+  </menu_option>
+  <menu_option number="3" type="command" action="tfactl prw stat" support="Unix"/>
+  <menu_option number="4" type="command" action="tfactl prw pack" support="Unix"/>
+  <menu_option number="5" type="command" action="tfactl prw param" support="Unix"/>
+  <menu_option number="6" type="command" action="tfactl prw deinstall" support="Unix"/>
+  <menu_option number="7" type="command" action="tfactl prw log %number" support="Unix">
+    <prompt name="number">Enter number of the last lines you would like to see</prompt>
+  </menu_option>
+  <menu_option number="8" type="command" action="tfactl prw log runtime" support="Unix"/>
+  <menu_option number="9" type="command" action="tfactl prw init %dir" support="Unix">
+    <prompt name="dir">Enter the directory</prompt>
+  </menu_option>
+  <menu_option number="10" type="command" action="tfactl prw dir" support="Unix"/>
+</menu>
+<!--End ProcWatcher Menu-->
+
+<!--System Analysis Menus-->
+
+<!--Collections Menus-->
+  <menu name="collections" >
+  <title>Collections</title>
+  <text><![CDATA[
+    Select one of the following options:
+      
+      1. Default Collection
+      2. SRDC Collection
+      3. Engineered System Collection
+      4. Advanced Collection 
+    
+  ]]>
+</text>
+<menu_option number="1" type="menu" action="default" support="Unix/Windows" />
+<menu_option number="2" type="menu" action="srdc" support="Unix/Windows" access="non-root"/>
+<menu_option number="3" type="menu" action="engineered" support="Unix/Windows"/>
+<menu_option number="4" type="menu" action="advanced" support="Unix/Windows"/>
+  <help>
+    <![CDATA[
+
+        Collections Help:
+
+   Take a diagnostic collection, which will trim & collect
+   all important log files.Collections are stored 
+   in the respoitory directory.
+    
+    ]]>
+  </help>
+</menu>
+
+<!--Default Collection Menu-->
+<menu name="default" >
+   <title>Default Collection</title>
+   <text><![CDATA[      
+      Select One fo the following options:
+
+        1. Collect for last hours (h) or days (d) (default is 12h)
+        2. Collect based on time of an incident
+        3. Collect based on time range 
+        ]]>
+   </text>
+   <help><![CDATA[
+        Default Collection Help:
+  
+    Collection will trim & collect all important
+    log files updated during the time period
+    specified across the whole cluster. Collections
+    are stored in the repository directory.
+      
+      ]]>
+   </help>
+   <menu_option number="1" type="command" action="tfactl diagcollect -last %sincetime" support="Unix/Windows">
+	   <prompt name="sincetime"><![CDATA[Please enter number of [h]ours or [d]ays to collect]]></prompt>
+   </menu_option>
+   <menu_option number="2" type="command" action="tfactl diagcollect -for %fortime" support="Unix/Windows" >
+   <prompt name="fortime"><![CDATA[Please enter Incident Time [YYYY-MM-DD hh:mi:ss]]]></prompt>
+   </menu_option>
+   <menu_option number="3" type="command" action="tfactl diagcollect -from %fromtime -to %totime" support="Unix/Windows">
+   <prompt name="fromtime"><![CDATA[Please enter Start Time [YYYY-MM-DD hh:mi:ss]]]></prompt>
+   <prompt name="totime"><![CDATA[Please enter End Time [YYYY-MM-DD hh:mi:ss]]]></prompt>
+   </menu_option>
+ </menu>
+<!--End Default Collection Menu-->
+<!--SRDC Collection Menus -->
+<menu name="srdc" >
+    <title>SRDC Collections</title>
+    <text><![CDATA[
+
+     Select One of the following options:
+
+      1. Database Errors
+      2. Database Performance Problems
+      3. Database Install, Upgrading & Patching problems
+      4. Enterprise Manager Problems
+
+   ]]>
+ </text>
+ <menu_option number="1" type="menu" action="dberrors" support="Unix/Windows"/>
+ <menu_option number="2" type="command" action="tfactl diagcollect -srdc dbperf" support="Unix/Windows"/>
+ <menu_option number="3" type="menu" action="dbinstall" support="Unix/Windows"/>
+ <menu_option number="4" type="menu" action ="emproblems" support="Unix/Windows"/>
+ <help><![CDATA[
+            SRDC Collections Help:
+
+      TFA one command SRDCs collect exactly
+      what you or Oracle Support need to
+      diagnose a specific type of problem.
+    
+        ]]>
+  </help>
+</menu>
+<!--Database Errors Menu-->
+<menu name="dberrors">
+  <title>Database Errors</title>
+  <text><![CDATA[
+
+    Select One of the following options:
+    
+      1. ORA-00600
+      2. ORA-00700
+      3. ORA-04030
+      4. ORA-04031
+      5. ORA-07445
+      6. ORA-27300
+      7. ORA-27301
+      8. ORA-27302
+      9. Other internal database errors
+    ]]>
+  </text>
+  <menu_option number="1" type="command" action="tfactl diagcollect -srdc ORA-00600" support="Unix/Windows"/>
+  <menu_option number="2" type="command" action="tfactl diagcollect -srdc ORA-00700" support="Unix/Windows"/>
+  <menu_option number="3" type="command" action="tfactl diagcollect -srdc ORA-04030" support="Unix/Windows"/>
+  <menu_option number="4" type="command" action="tfactl diagcollect -srdc ORA-04031" support="Unix/Windows"/>
+  <menu_option number="5" type="command" action="tfactl diagcollect -srdc ORA-07445" support="Unix/Windows"/>
+  <menu_option number="6" type="command" action="tfactl diagcollect -srdc ORA-27300" support="Unix/Windows"/>
+  <menu_option number="7" type="command" action="tfactl diagcollect -srdc ORA-27301" support="Unix/Windows"/>
+  <menu_option number="8" type="command" action="tfactl diagcollect -srdc ORA-27302" support="Unix/Windows"/>
+  <menu_option number="9" type="command" action="tfactl diagcollect -srdc internalerror" support="Unix/Windows"/>
+  <help><![CDATA[
+          Database Errors Help:
+    
+    Collects exactly what you or Oracle Support
+    need to diagnose database errors.
+    
+    
+    ]]></help>
+</menu>
+<!-- End Database Errors Menu-->
+
+<!--Database install, upgrading & patching problems-->
+<menu name="dbinstall">
+  <title><![CDATA[Database install,upgrading & patching problems]]></title>
+  <text><![CDATA[      
+      Select One of the following options:
+      
+        1. Database install problems
+        2. Database patch install problems
+        3. Database patch conflicts problems
+        4. Database upgrade problem
+    ]]>
+  </text>
+  <menu_option number="1" type="command" action="tfactl diagcollect -srdc dbinstall" support="Unix/Windows"/>
+  <menu_option number="2" type="command" action="tfactl diagcollect -srdc dbpatchinstall" support="Unix/Windows"/>
+  <menu_option number="3" type="command" action="tfactl diagcollect -srdc dbpatchconflict" support="Unix/Windows"/>
+  <menu_option number="4" type="command" action="tfactl diagcollect -srdc dbupgrade" support="Unix/Windows"/>
+  <help><![CDATA[
+    Database install, upgrading & patching problems Help:
+
+    Collect exactly what you or Oracle Support need to 
+    diagnose database install, upgrade and patching
+    problems.
+    
+    ]]></help>
+</menu>
+<!--End Database install, upgrading & patching problems-->
+
+<!--Enterprise Manager Problems Menu-->
+<menu name="emproblems">
+  <title>Enterprise Manager Problems</title>
+  <text><![CDATA[
+
+      Select One of the following options:
+
+        1. Tablespace usage metric problems
+        2. General metrics page on threshold problems
+        3. Enterprise Manager Debug
+
+        ]]></text>
+  <menu_option number="1" type="command" action="tfactl diagcollect -srdc emtbsmetric" support="Unix/Windows"/>
+  <menu_option number="2" type="command" action="tfactl diagcollect -srdc emmetricalert" support="Unix/Windows"/>
+  <menu_option number="3" type="menu"    action="emdebug" support="Unix/Windows"/>
+  <help><![CDATA[
+        Enterprise Manager Problems Help:
+
+    Collect exaclty what you or Oracle Support need to diagnose 
+    Enterprise Manager Problems.
+
+
+    ]]>
+  </help>
+</menu>
+<!--End Enterprise manager Problems Menu-->
+
+<!--Enterprise Manager Debug Menu-->
+<menu name="emdebug">
+  <title>Enterprise Manager Debug</title>
+  <text><![CDATA[
+
+      Select One of the following options:
+        
+        1. Debug on
+        2. Debug off and collect
+    
+    
+        ]]></text>
+  <menu_option number="1" type="command" action="tfactl diagcollect -srdc emdebugon" support="Unix/Windows"/>
+  <menu_option number="2" type="command" action="tfactl diagcollect -srdc emdebugoff" support="Unix/Windows"/>
+  <help><![CDATA[
+          Enterprise Manager Debug Help:
+
+  Turns Enterprise Manager debug on or off and collects
+  the diagnostics necessary to diagnose general problems.
+    
+    ]]>
+  </help>
+</menu>
+<!--Enterprise Manager Debug Menu-->
+<!--End SRDC Collection Menus -->
+
+<!--Engineered System Collection Menus-->
+<menu name="engineered" >
+  <title>Engineered Systems Collections</title>
+  <text><![CDATA[    
+    Select One of the following options:
+
+      1. Oracle Exadata DBMachine Collections
+      2. Oracle ZDLRA Collections
+      3. Oracle Database Appliance (ODA) Collections
+    ]]>
+  </text>
+  <help><![CDATA[
+      Engineered Systems Collections Help:
+      
+  Collect diagnostics for an Oracle Engineered System.
+      
+    ]]>
+    </help>
+    <menu_option number="1" type="menu" action="exadataDBM" support="Unix/Windows"/>
+    <menu_option number="2" type="menu" action="ZDLRA" support="Unix/Windows"/>
+    <menu_option number="3" type="menu" action="ODA" support="Unix/Windows"/>
+</menu>
+<!--Exadata Menu-->
+  <menu name="exadataDBM">
+    <title>Oracle Exadata DBMachine Collections</title>
+    <text><![CDATA[
+
+      Select One of the following options:
+
+        1. Collect for last hours (h) or days (d) (default is 12h)
+        2. Collect based on time of an incident
+        3. Collect between start and end time
+        
+    ]]>
+   </text>
+   <menu_option number="1" type="command" action="tfactl diagcollect -last %sincetime" support="Unix/Windows">
+	   <prompt name="sincetime"><![CDATA[Please enter number of [h]ours or [d]ays to collect]]></prompt>
+   </menu_option>
+   <menu_option number="2" type="command" action="tfactl diagcollect -for %fortime" support="Unix/Windows" >
+   <prompt name="fortime"><![CDATA[Please enter Incident Time [YYYY-MM-DD hh:mi:ss]]]></prompt>
+   </menu_option>
+   <menu_option number="3" type="command" action="tfactl diagcollect -from %fromtime -to %totime" support="Unix/Windows">
+   <prompt name="fromtime"><![CDATA[Please enter Start Time [YYYY-MM-DD hh:mi:ss]]]></prompt>
+   <prompt name="totime"><![CDATA[Please enter End Time [YYYY-MM-DD hh:mi:ss]]]></prompt>
+   </menu_option>
+
+
+   <help><![CDATA[
+      Oracle Exadata DBMachine Collections Help:
+
+      Collects diagnostigs for an Oracle Exadata.
+      
+    ]]>
+    </help>
+  </menu>
+<!--End Exadata Menu-->
+<!--Oracle ZDLRA Collections Menu-->
+<menu name="ZDLRA">
+  <title>Oracle ZDLRA Collections</title>
+  <text><![CDATA[  
+      Select One of the following options:
+        
+        1. Collect for last hours (h) or days (d) (default is 12h)
+        2. Collect based on time of an incident
+        3. Collect between start and end time
+
+    ]]>
+  </text>
+  <help><![CDATA[
+                Oracle ZDLRA Collections Help:
+
+    Collect diagnostics for an Oracle Zero Data Loss Recovery Appliance.
+    
+    ]]>
+   </help> 
+   <menu_option number="1" type="command" action="tfactl diagcollect -last %sincetime" support="Unix/Windows">
+	   <prompt name="sincetime"><![CDATA[Please enter number of [h]ours or [d]ays to collect]]></prompt>
+   </menu_option>
+   <menu_option number="2" type="command" action="tfactl diagcollect -for %fortime" support="Unix/Windows" >
+   <prompt name="fortime"><![CDATA[Please enter Incident Time [YYYY-MM-DD hh:mi:ss]]]></prompt>
+   </menu_option>
+   <menu_option number="3" type="command" action="tfactl diagcollect -from %fromtime -to %totime" support="Unix/Windows">
+   <prompt name="fromtime"><![CDATA[Please enter Start Time [YYYY-MM-DD hh:mi:ss]]]></prompt>
+   <prompt name="totime"><![CDATA[Please enter End Time [YYYY-MM-DD hh:mi:ss]]]></prompt>
+   </menu_option>
+
+ </menu>
+<!--End ZDLRA Menu-->
+
+<!--ODA Menu-->
+<menu name="ODA">
+  <title>Oracle Database Appliance (ODA) Collections</title>
+  <text><![CDATA[
+
+      Select One of the following options:
+
+        1. Collect for last hours (h) or days (d) (default is 12h)
+        2. Collect based on time of an incident
+        3. Collect between start and end time
+        
+    ]]>
+  </text>
+  <menu_option number="1" type="command" action="tfactl diagcollect -last %sincetime" support="Unix/Windows">
+	   <prompt name="sincetime"><![CDATA[Please enter number of [h]ours or [d]ays to collect]]></prompt>
+   </menu_option>
+   <menu_option number="2" type="command" action="tfactl diagcollect -for %fortime" support="Unix/Windows" >
+   <prompt name="fortime"><![CDATA[Please enter Incident Time [YYYY-MM-DD hh:mi:ss]]]></prompt>
+   </menu_option>
+   <menu_option number="3" type="command" action="tfactl diagcollect -from %fromtime -to %totime" support="Unix/Windows">
+   <prompt name="fromtime"><![CDATA[Please enter Start Time [YYYY-MM-DD hh:mi:ss]]]></prompt>
+   <prompt name="totime"><![CDATA[Please enter End Time [YYYY-MM-DD hh:mi:ss]]]></prompt>
+   </menu_option>
+  <help><![CDATA[
+        Oracle Database Appliance (ODA) Collections Help:
+  
+    Collect diagnostics for an Oracle Database Appliance (ODA).
+
+    ]]>
+  </help>
+</menu>
+<!--END ODA Menu -->
+<!--End Engineered System Collection Menus-->
+
+<!--Advanced Collection Menus-->
+<menu name="advanced">
+  <title>Advanced Collection</title>
+  <text><![CDATA[
+    Select One of the following options:
+
+      1. Query IPS
+      2. Collection with options
+
+      ]]></text>
+  <menu_option number="1" type="menu" action="ips" support="Unix/Windows"/>
+  <menu_option number="2" type="command" action="tfactl diagcollect %options" support="Unix/Windows">
+  <prompt name="options">
+  <![CDATA[
+    Options : [ -all | [component_name1] [component_name2] ... [component_nameN]
+    [-srdc  <srdc_profile>]][-node <all|local|n1,n2,..>] [-tag <tagname>] [-z <filename>]
+    [-last  <n><h|d>| -from <time> -to <time> | -for <time>][-nocopy] [-notrim] [-silent]
+    [-nocores][- collectalldirs][-collectdir <dir1,dir2..>][-examples]
+
+      components:-ips|-database|-asm|-crsclient|-dbclient|-dbwlm|-tns|-rhp|-procinfo|-afd|
+      -crs|-wls|-emagent|-oms|-ocm|-emplugins|-em|-acfs|-install|-cfgtools|-os|-ashhtml|
+      -ashtext|- awrhtml|-awrtext
+
+    -srdc           Service Request Data Collection (SRDC).
+
+    -node           Specify comma separated list of host names for collection
+
+    -tag <tagname>  The files will be collected into tagname directory inside
+
+                   repository
+
+    -z <zipname>    The files will be collected into tagname directory with the
+
+                    specified zipname
+
+    -last  <n><h|d> Files from last 'n' [d]ays or 'n' [h]ours
+
+    -since Same as -last. Kept for backward compatibility.
+
+    -from           "Mon/dd/yyyy hh:mm:ss"    From <time>
+
+                    or "yyyy-mm-dd hh:mm:ss"
+
+                    or "yyyy-mm-ddThh:mm:ss"
+
+                    or "yyyy-mm-dd"
+
+    -to             "Mon/dd/yyyy hh:mm:ss"    To <time>
+
+                    or "yyyy-mm-dd hh:mm:ss"
+
+                    or "yyyy-mm-ddThh:mm:ss"
+
+                    or "yyyy-mm-dd"
+
+    -for            "Mon/dd/yyyy"             For <date>.
+
+                    or "yyyy-mm-dd"
+
+    -nocopy         Does not copy back the zip files to initiating node from all nodes
+
+    -notrim         Does not trim the files collected
+
+    -silent         This option is used to submit the diagcollection as a background
+
+                    process
+
+    -nocores        Do not collect Core files when it would normally have been
+
+                    collected
+
+    -collectalldirs Collect all files from a directory marked "Collect All"
+
+                    flag to true
+
+    -collectdir     Specify comma separated list of directories and collection will
+
+                    include all files from these irrespective of type and time constraints
+
+                    in addition to components specified
+
+    -examples       Show diagcollect usage example
+
+   
+    Please enter the options for your collections ]]>
+  </prompt>
+  </menu_option>
+  <help><![CDATA[    
+                Advanced Collection Help:
+
+      Query the Automatic Diagnostic Repository (ADR)
+      Incident Packaging Service (IPS) and run customized
+      collections specifying your own options.
+    
+    
+    ]]></help>
+</menu>
+<!--IPS Menu-->
+<menu name="ips">
+  <title>Query Incident Packaging Service (IPS)</title>
+  <text><![CDATA[
+
+    Select One of the following options:
+
+      1. Show Incidents
+      2. Show Problems
+      3. Show packages  
+    
+      ]]></text>
+    <!--<menu_option number="1" type="command" action="" support="Unix\Windows"/>-->
+    <!--Ask which command to run-->
+  <menu_option number="1" type="command" action="tfactl ips show incidents" support="Unix/Windows"/>
+  <menu_option number="2" type="command" action="tfactl ips show problems" support="Unix/Windows"/>
+  <menu_option number="3" type="command" action="tfactl ips show package" support="Unix/Windows"/>
+  <!-- Run IPS               Invoke the Incident Packaging Service
+                        (IPS) interface.
+-->
+  <help><![CDATA[
+        Query Incident Packaging Service (IPS) Help:
+
+  Query the Automatic Diagnostic Repository (ADR) Incident
+  Packaging Service (IPS) for incidents, problems and packages.
+
+   
+  Show incidents        Query the Incident Packaging Service
+                        (IPS) for incidents.
+
+  Show problems         Query the Incident Packaging Service
+                        (IPS) for problems.
+
+  Show packages         Query the Indicent Packaging Service
+                        (IPS) for packages.
+  ]]></help>
+</menu>
+<!--End IPS Menu-->
+<!--Collection with Options Menu-->
+<menu name="collectOpt">
+  <title>Collection with options</title>
+  <text><![CDATA[
+      Select One of the following options:
+
+        1. Run a diagnostic collection 
+	specifying your own options
+
+    Options : [ -all | [component_name1] [component_name2] ... [component_nameN]
+    [-srdc  <srdc_profile>]][-node <all|local|n1,n2,..>] [-tag <tagname>] [-z <filename>]
+    [-last  <n><h|d>| -from <time> -to <time> | -for <time>][-nocopy] [-notrim] [-silent]
+    [-nocores][- collectalldirs][-collectdir <dir1,dir2..>][-examples]
+
+      components:-ips|-database|-asm|-crsclient|-dbclient|-dbwlm|-tns|-rhp|-procinfo|-afd|
+      -crs|-wls|-emagent|-oms|-ocm|-emplugins|-em|-acfs|-install|-cfgtools|-os|-ashhtml|
+      -ashtext|- awrhtml|-awrtext
+      
+          Press <h|H> to see details.
+    
+  ]]></text>
+  <menu_option number="1" type="command" action="tfactl diagcollect %options" support="Unix/Windows">
+    <prompt name="options"><![CDATA[Please enter the options for your collection]]></prompt>
+  </menu_option>
+  <help><![CDATA[
+          Collect with Options Help:
+
+    Collect logs from across node in cluster.
+
+    Usage : [ -all | [component_name1] [component_name2] ... [component_nameN]
+    [-srdc  <srdc_profile>]][-node <all|local|n1,n2,..>] [-tag <tagname>] [-z <filename>]
+    [-last  <n><h|d>| -from <time> -to <time> | -for <time>][-nocopy] [-notrim] [-silent]
+    [-nocores][- collectalldirs][-collectdir <dir1,dir2..>][-examples]
+
+      components:-ips|-database|-asm|-crsclient|-dbclient|-dbwlm|-tns|-rhp|-procinfo|-afd|
+      -crs|-wls|-emagent|-oms|-ocm|-emplugins|-em|-acfs|-install|-cfgtools|-os|-ashhtml|
+      -ashtext|- awrhtml|-awrtext
+
+    -srdc           Service Request Data Collection (SRDC).
+
+    -node           Specify comma separated list of host names for collection
+
+    -tag <tagname>  The files will be collected into tagname directory inside
+
+                   repository
+
+    -z <zipname>    The files will be collected into tagname directory with the
+
+                    specified zipname
+
+    -last  <n><h|d> Files from last 'n' [d]ays or 'n' [h]ours
+
+    -since Same as -last. Kept for backward compatibility.
+
+    -from           "Mon/dd/yyyy hh:mm:ss"    From <time>
+
+                    or "yyyy-mm-dd hh:mm:ss"
+
+                    or "yyyy-mm-ddThh:mm:ss"
+
+                    or "yyyy-mm-dd"
+
+    -to             "Mon/dd/yyyy hh:mm:ss"    To <time>
+
+                    or "yyyy-mm-dd hh:mm:ss"
+
+                    or "yyyy-mm-ddThh:mm:ss"
+
+                    or "yyyy-mm-dd"
+
+    -for            "Mon/dd/yyyy"             For <date>.
+
+                    or "yyyy-mm-dd"
+
+    -nocopy         Does not copy back the zip files to initiating node from all nodes
+
+    -notrim         Does not trim the files collected
+
+    -silent         This option is used to submit the diagcollection as a background
+
+                    process
+
+    -nocores        Do not collect Core files when it would normally have been
+
+                    collected
+
+    -collectalldirs Collect all files from a directory marked "Collect All"
+
+                    flag to true
+
+    -collectdir     Specify comma separated list of directories and collection will
+
+                    include all files from these irrespective of type and time constraints
+
+                    in addition to components specified
+
+    -examples       Show diagcollect usage example
+
+    
+    ]]></help>
+</menu>
+<!--End collection with Options Menu-->
+
+<!--End Advanced Collection Menus-->
+
+<!--End Collection Menus-->
+
+
+<!--Administration Menus-->
+<menu name="admin">
+<title>Administration</title>
+<text><![CDATA[
+
+  Select One of the following options:
+
+    1. Version & status
+    2. Start, stop & auto start
+    3. Hosts & ports
+    4. Settings
+    5. Actions submitted
+    6. Manage Database logs
+    7. Tracing Level
+    8. Users
+  ]]>
+ </text>
+ <menu_option number="1" type="command" action="tfactl print status" support="Unix/Windows"/>
+ <menu_option number="2" type="menu" action="start" support="Unix/Windows" access="root"/>
+ <menu_option number="3" type="menu" action="hosts" support="Unix/Windows" access="root"/>
+ <menu_option number="4" type="menu" action="settings" support="Unix/Windows"/>
+ <menu_option number="5" type="command" action="tfactl print actions" support="Unix/Windows"/>
+ <menu_option number="6" type="menu" action="managedblogs" support="Unix/Windows"/>
+ <menu_option number="7" type="command" action="tfactl set tracelevel=%level" support="Unix/Windows" access="root">
+	 <prompt name="level"><![CDATA[Enter tracing level <COLLECT|SCAN|INVENTORY|OTHER>:<1|2|3|4> ]]></prompt>
+ </menu_option>
+ <menu_option number="8" type="menu" action="users" support="Unix/Windows" access="root"/>
+<help><![CDATA[
+             Administratrion Help:
+  
+      Perform TFA Administration and manage database logs.
+  ]]>
+ </help>
+</menu>
+<!--Start, stop & auto start Menu-->
+<menu name="start">
+  <title><![CDATA[Start, stop & auto start]]></title>
+<text><![CDATA[
+  Select One of the following options:
+    
+    1. start
+    2. stop
+    3. Enable auto restart
+    4. Disable auto restart
+  
+  
+    ]]></text>
+  <menu_option number="1" type="command" action="tfactl start" support="Unix/Windows"/>
+  <menu_option number="2" type="command" action="tfactl stop" support="Unix/Windows"/>
+  <menu_option number="3" type="command" action="tfactl enable" support="Unix/Windows"/>
+  <menu_option number="4" type="command" action="tfactl disable" support="Unix/Windows"/>
+<help><![CDATA[
+
+      Start, stop & auto start Help:
+
+  Start and stop TFA or configure auto start.
+
+
+  ]]></help>
+</menu>
+<!--End of Start, stop & auto start Menu-->
+<!--Hosts and ports Menu-->
+<menu name="hosts">
+  <title>Hosts and Ports</title>
+  <text><![CDATA[
+    Select One of the following options:
+      
+      1. Add host
+      2. Remove host
+      3. Synchnodes
+      4. Show ports
+    
+      ]]></text>
+    <menu_option number="1" type="command" action="tfactl host add %host " support="Unix/Windows">
+    <prompt name="host"><![CDATA[Please enter the host you would like to add]]></prompt>
+    </menu_option>
+    <menu_option number="2" type="command" action="tfactl host remove %host " support="Unix/Windows">
+    <prompt name="host"><![CDATA[Please enter the host you would like to remove]]></prompt>
+    </menu_option>
+    <menu_option number="3" type="command" action="tfactl syncnodes " support="Unix/Windows"/>
+    <menu_option number="4" type="command" action="showports" support="Unix/Windows"/> 
+    <!--Pending-->
+    <!-- <menu_option number="5" type="command" action="changeports" support="Unix/Windows"/>-->
+    <!--Pending-->
+
+<help><![CDATA[
+           Host and Ports Help:
+  
+      Administer host and port settings.
+     
+      Add host        Add a host to the TFA
+                      configuration.
+  
+      Remove host     Remove a host from the TFA
+                      configuration.
+
+      Synchnodes      Syncronize TFA across 
+                      multiple nodes.
+
+      Show ports      Show the ports currently 
+                      configured for TFA secure 
+                      communication.
+]]></help>
+</menu>
+<!--End hosts and ports Menu-->
+<!--Settings Menus-->
+<menu name="settings">
+  <title>Settings</title>
+  <text><![CDATA[
+    Select One of the following options:
+
+      1. Show config
+      2. Show repository
+      3. Set Trimming of files during diagcollection
+      4. Set Max Size of Core File (MB)
+      5. Set Max Collection Size of Core File (MB)
+      6. Set Automatic Diagnostic Collection
+      7. Set Repository location
+      8. Set Repository maximum size (MB)
+      9. Set Minimum Age of Collection to Purge (Hours) 
+     10. Set Automatic Purging of repository
+     11. Directories to Collect from
+     ]]></text>
+  <menu_option number="1" type="command" action="tfactl print config" support="Unix/Windows"/>
+  <menu_option number="2" type="command" action="tfactl print repository" support="Unix/Windows"/>
+  <menu_option number="3" type="command" action="tfactl set trimfiles=%value" support="Unix/Windows" access="root">
+  <prompt name="value"><![CDATA[Please enter <ON|OFF> ]]></prompt>
+  </menu_option>
+  <menu_option number="4" type="command" action="tfactl set maxcorefilesize=%sizevalue" support="Unix/Windows" access="root">
+  <prompt name="sizevalue"><![CDATA[Plese enter size value <n> ]]></prompt>
+  </menu_option>
+  <menu_option number="5" type="command" action="tfactl set maxcorecollectionsize=%sizevalue" support="Unix/Windows" access="root">
+  <prompt name="sizevalue"><![CDATA[Please enter size value <n> ]]></prompt>
+  </menu_option>
+  <menu_option number="6" type="command" action="tfactl set autodiagcollect=%value" support="Unix/Windows" access="root">
+  <prompt name="value"><![CDATA[Please enter <ON|OFF> ]]></prompt>
+  </menu_option>
+  <!--<menu_option number="7" type="command" action="" support="Unix/Windows"/>-->
+  <!--Pending command-->
+  <menu_option number="7" type="command" action="tfactl set repositorydir=%dir" support="Unix/Windows" access="root">
+  <prompt name="dir"><![CDATA[Please enter the directory to set repository]]></prompt>
+  </menu_option>
+  <menu_option number="8" type="command" action="tfactl set reposizeMB=%sizevalue" support="Unix/Windows" access="root">
+  <prompt name="sizevalue"><![CDATA[Please enter size value <n>]]></prompt>
+  </menu_option>
+  <menu_option number="9" type="command" action="tfactl set minagetopurge=%number" support="Unix/Windows" access="root">
+    <prompt name="number"><![CDATA[Please enter number of hours <n>]]></prompt>
+  </menu_option>
+  <menu_option number="10" type="command" action="tfactl set autopurge=%value" support="Unix/Windows" access="root">
+    <prompt name="value"><![CDATA[Plese enter <ON|OFF> ]]></prompt>
+  </menu_option>
+  <menu_option number="11" type="menu" action="directories" support="Unix/Windows"/>
+  <help><![CDATA[        
+                      Settings Help:
+
+             Administer general TFA settings
+
+    Show Config                           Show the current TFA configuration.
+
+    Show Repository                       Show the TFA repository details.
+
+    Set Trimming of files                 Changes the trimming of files during
+    during diagcollection                 collection.
+
+    Set Max size of                       Set the largest size of core file
+    Core File (MB)                        to collect. Ignore any core files
+                                          larger than this value.
+
+    Set Max Collection                    Set the larges size of collections
+    Size of Core Files (MB)               containing core files. If collection
+                                          size reaches this value, do not collect
+                                          any more cores.
+
+    Set Automatic Diagnostic              Enable or disable automatic collection
+    Collection                            of diagnostics  after significant problems.
+    
+    Set Repository location               Change the location of the repository.
+
+    Set Repository maximum size (MB)      Set the largest size of the repository in MB.
+                                          Default value is smaler or ither 10 GB or 50%
+                                          of free space in the file system.
+
+    Set Minimum Age of Collections        Set the minimum age of collections, before
+    to Purge                              they are eligible for purging.
+
+    Set Automatic Purging of repository   Enable or disables automatic purging of 
+                                          the repository.
+
+    Directories to collect from           Configure which directories TFA will 
+                                          Collect from.
+
+    
+    
+    ]]>
+  </help>
+</menu>
+<!--Directories Menu-->
+<menu name="directories">
+  <title>Directories to Collect From</title>
+  <text><![CDATA[
+    Select One of the following options:
+
+      1. Show directories
+      2. Add Directory
+      3. Modify directory
+      4. Remove directory
+    
+      ]]></text>
+    <menu_option number="1" type="command" action="tfactl print directories" support="Unix/Windows"/>
+    <menu_option number="2" type="command" action="tfactl directory add %dir %options" support="Unix/Windows">
+    <prompt name="dir"><![CDATA[Please enter directory to add]]></prompt>
+    <prompt name="options">
+      <![CDATA[Please enter options 
+              [ -public ]
+              [ -exclusions | -noexclusions | -collectall ]
+              [ -node <all | n1,n2..> ]]>
+    </prompt>
+    </menu_option>
+    <menu_option number="3" type="command" action="tfactl directory modify %dir %options" support="Unix/Windows">
+      <prompt name="dir"><![CDATA[Please enter directory to modify]]></prompt>
+      <prompt name="options">
+        <![CDATA[Please enter options 
+        [ -private | -public ] 
+        [ -exclusions | -noexclusions | -collectall ]
+        [ -node <all | n1,n2..> ]]]>
+    </prompt>
+    </menu_option>
+    <menu_option number="4" type="command" action="tfactl directory remove %dir" support="Unix/Windows">
+      <prompt name="dir"><![CDATA[Please enter directory to remove ]]></prompt>
+    </menu_option>
+    <help>
+      <![CDATA[
+            Directories to Collect From Help:
+
+
+      Show directories        Shows the directories TFA
+                              is currently configured to
+                              collect from.
+
+      Add directory           Adds a directory for TFA
+                              to collect from.
+
+      Modify directory        Changes how TFA will collect
+                              from a certain directory.
+
+      Remove directory        Removes a directory from
+                              being collected by  TFA.
+      
+      
+      
+      ]]>
+    </help>
+
+</menu>
+<!--End Directories Menu-->
+<!--Manage Database logs Menus-->
+<menu name="managedblogs">
+  <title>Manage Database Logs</title>
+  <text><![CDATA[
+
+    Select One of the following options:
+
+      1. Automatic database log purging
+      2. Manual database log purging
+      3. Disk usage monitoring
+
+      ]]></text>
+  <menu_option number="1" type="menu" action="autodblog" support="Unix/Windows" access="root"/>
+  <menu_option number="2" type="menu" action="manualdblog" support="Unix/Windows"/>
+  <menu_option number="3" type="menu" action="diskusage" support="Unix/Windows" access="root"/>
+
+  <help>
+    <![CDATA[
+              Manage Database Logs Help:
+
+               Manage database logs.
+
+    Automatic Database            Configures the automatic  
+    Log Purging                   purging of Database ADR
+                                  log and trace files.
+
+    Manual Database                Manually purge Database
+    Log Purging                    ADR log and trace files.
+
+    Disk Usage Monitoring          Configure disk usage 
+                                   snapshots and tracking.
+    ]]></help>
+</menu>
+
+<menu name="autodblog">
+  <title>Automatic Database Log Purging</title>
+  <text><![CDATA[
+
+    Select One of the following options:
+
+      1. Set Automatic purge of database logs
+      2. Set Manage Logs Auto Purge Policy Age
+      3. Set Manage Logs Auto Purge interval
+    
+      ]]></text>
+    <menu_option number="1" type="command" action="tfactl set manageLogsAutoPurge=%value" support="Unix/Windows" access="root">
+    <prompt name="value"><![CDATA[Please enter <ON|OFF>]]></prompt>
+    </menu_option>
+    <menu_option number="2" type="command" action="tfactl set manageLogsAutoPurgePolicyAge=%sincetime" support="Unix/Windows" access="root">
+    <prompt name="sincetime"><![CDATA[Please enter the value <n><d|h>]]></prompt>
+    </menu_option>
+    <menu_option number="3" type="command" action="tfactl set manageLogsAutoPurgeInterval=%number" support="Unix/Windows" access="root">
+    <prompt name="number"><![CDATA[Please enter the interval <n>]]></prompt>
+    </menu_option>
+    <help><![CDATA[
+            Automatic Database Log Purging Help:
+
+       Configures the automatic purging of Database 
+       ADR log and  trace files.
+
+       Set Automatic Purge      Enable or disable automatic Purging
+       of Database Logs         of Database ADR log and trace files.
+                                Default is off.
+
+       Set Manage Logs Auto     Configures the age  of logs that
+       Purge Policy Age         are eligible for automatic purging.
+                                Default is 30 days old.
+
+      Set Manage Logs Auto     Configures the frequency of automatic
+      Purge interval           purging. Default is every 60 minutes.
+      
+  
+      ]]>
+    </help>
+</menu>
+<menu name="manualdblog">
+  <title>Manual Database Log Purging</title>
+  <text><![CDATA[    
+    Select One of the following options:
+
+      1. Show log disk space usage
+      2. Show log disk space variation
+      3. Dry run log purge
+      4. Purge logs
+    
+    
+      ]]></text>
+    <menu_option number="1" type="command" action="tfactl managelogs -show usage -database %database" support="Unix/Windows">
+    <prompt name="database"><![CDATA[Please enter database <all|dbname>]]></prompt>
+    </menu_option>
+    <menu_option number="2" type="command" action="tfactl managelogs -show variation -older %older -database %database" support="Unix/Windows">
+    <prompt name="older"><![CDATA[Please enter number of (h)ours or (d)ays <n><h|d>]]></prompt>
+    <prompt name="database"><![CDATA[Please enter database <all|dbname>]]></prompt>
+    </menu_option>
+    <menu_option number="3" type="command" action="tfactl managelogs -purge -older %older -dryrun -database %database" support="Unix/Windows">
+    <prompt name="older"><![CDATA[Please enter number of (h)ours or (d)ays <n><h|d>]]></prompt>
+    <prompt name="database"><![CDATA[Please enter database <all|dbname>]]></prompt>
+    </menu_option>
+    <menu_option number="4" type="command" action="tfactl managelogs -purge -older %older -database %database" support="Unix/Windows">
+    <prompt name="older"><![CDATA[Please enter number of (h)ours or (d)ays <n><h|d>]]></prompt>
+    <prompt name="database"><![CDATA[Please enter database <all|dbname>]]></prompt>
+    </menu_option>
+
+
+  <help><![CDATA[
+
+          Manual Database Log Purging Help:
+
+  Manually purge Database ADR log and trace files.
+  
+  Show log disk space         Show disk space usage per
+  usage.                      diagnostic directory for 
+                              both GI and database logs.
+
+  Show log disk space         Show the disk usage variation
+  variation.                  for the specified period per
+                              directory to understand disk 
+                              space growth.
+
+  Dry Run log purge           Estimate how many files will be
+                              affected and how much disk space
+                              will be freed by a potential purge
+                              command.
+
+  Purge Logs                  Purge Database ADR log and trace files.
+
+    
+    
+    ]]></help>
+</menu>
+
+<menu name="diskusage">
+<title>Disk Usage Monitoring</title>
+<text><![CDATA[
+    Select One of the following options:
+
+      1. Set Disk Usage Monitoring
+      2. Set Disk Usage Monitoring Interval
+
+      ]]></text>
+    <menu_option number="1" type="command" action="tfactl set diskUsageMon=%value" support="Unix/Windows" access="root">
+    <prompt name="value"><![CDATA[Please enter <ON|OFF>]]></prompt>
+    </menu_option>
+    <menu_option number="2" type="command" action="tfactl set diskUsageMonInterval=%number" support="Unix/Windows" access="root">
+    <prompt name="number"><![CDATA[Please enter the interval in minutes <n>]]></prompt>
+    </menu_option>
+    <help><![CDATA[            
+              Disk Usage Monitoring Help:
+        
+        Configure disk usage snapshots and tracking.
+
+        Set Disk Usage            Turns on or off disk
+        Monitoring                usage monitoring and snapshots.
+
+        Set Disk Usage            Change the interval of disk usage
+        Monitoring Interval       monitoring and snapshots. Default
+                                  is every 60 minutes.
+      
+      ]]>
+    </help>
+</menu>
+<!--End Manage Database logs Menus-->
+<!--End Settings Menus-->
+<!--Users Menu-->
+<menu name="users">
+  <title>Users</title>
+  <text><![CDATA[
+    Select One of the following Options:
+      
+      1. Add User
+      2. Remove User
+      3. Remove All
+      4. Reset
+      5. Show Users
+    
+    
+      ]]></text>
+    <menu_option number="1" type="command" action="tfactl access add -user %user %local" support="Unix/Windows" access="root">
+      <prompt name="user"><![CDATA[Enter user to add ]]></prompt>
+      <prompt name="local"><![CDATA[Would you like to add the user locally [Y|N] ? N ]]></prompt>
+    </menu_option>
+    <menu_option number="2" type="command" action="tfactl access remove -user %user %local" support="Unix/Windows" access="root">
+      <prompt name="user">Enter user to remove</prompt>
+      <prompt name="local"><![CDATA[Would you like to remove user locally [Y|N] ? N ]]></prompt>
+    </menu_option>
+    <menu_option number="3" type="command" action="tfactl access removeall %local" support="Unix/Windows" access="root">
+      <prompt name="local"><![CDATA[Would you like to remove all the users locally [Y|N] ? N ]]></prompt>
+    </menu_option>
+    <menu_option number="4" type="command" action="tfactl access reset %local" support="Unix/Windows" access="root">
+      <prompt name="local"><![CDATA[Would you like to reset users locally [Y|N] ? N]]></prompt>
+    </menu_option>
+    <menu_option number="5" type="command" action="tfactl access lsusers" support="Unix/Windows" access="root"/>
+
+  <help><![CDATA[
+	      Users Help:
+
+    Add, remove, reset and show TFA Users.
+    
+    ]]></help>
+
+</menu>
+<!--End of Users Menu-->
+<!--End of Administration Menus-->
+</menus>     

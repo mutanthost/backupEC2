@@ -1,0 +1,91 @@
+#!/bin/sh
+#
+# $Header: rdbms/admin/dbupgrade /main/4 2017/11/09 07:20:29 fvallin Exp $
+#
+# catctl
+#
+# Copyright (c) 2015, 2017, Oracle and/or its affiliates. All rights reserved.
+#
+#    NAME
+#      dbupgrade -  Database Upgrade wrapper script 
+#
+#    DESCRIPTION
+#      Shell script program that allows to execute catctl.pl without
+#      the need to write the full path for it 
+#
+#    NOTES
+#      To execute it: ./dbupgrade <optional catctl.pl parameters>
+#
+#    MODIFIED   (MM/DD/YY)
+#    fvallin     11/07/17 - Bug 27011105: Removed usgage of =~ operator to work
+#                           properly on HP UX and AIX
+#    frealvar    04/29/16 - Fixing brackets binary operator
+#    bymotta     02/03/16 - Fixing PERL LIB path
+#    bymotta     07/01/15 - Fix for bug 21324164 - UPGRADE:CATCTL SHOULD
+#                           SUPPORT TWO OR MORE PDBS UPGRADE TOGETHER
+#    bymotta     04/27/15 - Adding user capability to manually add ORACLE_HOME
+#                           and run it everywhere. Also as last resort try to
+#                           determine ORACLE_HOME if the script is run from
+#                           rdbms/admin --Bug # 19171538
+#    bymotta     03/25/15 - shell script for catctl.pl:name catctl --Bug # 19171538
+#    bymotta     03/25/15 - Creation
+
+
+#   Parsing -d parameter to allow user to manually set ORACLE_HOME
+
+if [[ ${#} -gt 0 ]]
+then
+  while getopts ":d:" opt; do
+     case $opt in
+       d)
+         OH_USR=$OPTARG
+       ;;
+     esac
+  done
+fi
+
+ACTUAL_DIR=`pwd`    # Getting actual directory
+DIR_REGEX="rdbms\/admin"   # rdbms/admin to use in a regex check.
+BIN_DIR="bin"   # rdbms/admin to use in a regex check.
+OH_PATH=`env | grep ^ORACLE_HOME=`  # storing value of ORACLE_HOME if exists.
+OH=${OH_PATH#ORACLE_HOME=}  # Removing "ORACLE_HOME"
+OH_NOT_SET="Please set Oracle Home before script is run."   
+
+#
+# If ORACLE_HOME is not empty, then it will take that value
+# else if it has not being set but user send the value the set it.
+# else if the actual directory contains the regex value or orahome 
+# returns any value, then set ORACLE_HOME by going up to levels.
+# else exit with error.
+# Note that accepts the same parameter as catctl.pl as they are passed
+# directly to catctl.pl
+# 
+
+if [[ ${#OH} -gt 0 ]]
+then
+   ORACLE_HOME=${OH}
+elif [[ ${#OH} -eq 0 ]] &&  [[ ${#OH_USR} -gt 0 ]]
+   then
+     ORACLE_HOME=$(dirname $(dirname ${OH_USR}))
+     echo ${ORACLE_HOME}
+elif  [[ "${ACTUAL_DIR}" = ${DIR_REGEX} ]]
+   then
+      ORACLE_HOME=`orahome`           #storing the value of orahome if returns any value
+elif  [[ "${ACTUAL_DIR}" = ${BIN_DIR} ]]
+   then
+      ORACLE_HOME=$(dirname ${ACTUAL_DIR})
+else
+  echo ${OH_NOT_SET}
+  exit 1
+fi
+
+# If user is sending parameter then pass them directly to catctl.pl
+# else execute the base case and let catctl.pl decide how to work.
+if [[ $# -gt 0 ]]
+then
+         $ORACLE_HOME/perl/bin/perl -I$ORACLE_HOME/perl/lib $ORACLE_HOME/rdbms/admin/catctl.pl "$@" $ORACLE_HOME/rdbms/admin/catupgrd.sql
+else
+        $ORACLE_HOME/perl/bin/perl -I$ORACLE_HOME/perl/lib $ORACLE_HOME/rdbms/admin/catctl.pl $ORACLE_HOME/rdbms/admin/catupgrd.sql
+fi
+
+exit $? 

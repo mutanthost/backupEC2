@@ -1,0 +1,95 @@
+#!/bin/sh
+#
+# $Header: buildtools/port/orald /linuxamd64/8 2015/11/19 14:29:33 ekarichk Exp $
+#
+# orald
+#
+# Copyright (c) 2012, 2015, Oracle and/or its affiliates. All rights reserved.
+#
+#   NAME
+#     orald - Wrapper to invoke ld
+#
+#   DESCRIPTION
+#     Invokes ld to link binaries and shared libraries against Intel
+#     runtime and runtime libraries.
+#
+#   NOTES
+#     Emulates some of the gcc command line options, in particular, -Wl,xxx
+#     can be used to pass an option to ld.
+#
+#   MODIFIED   (MM/DD/YY)
+#   ekarichk    11/12/15 - bug/22200467: conflict between large text pages 
+#                          and online patching
+#   ekarichk    03/25/14 - handle -pie
+#   ekarichk    03/25/14 - handle i-static
+#   ekarichk    09/26/13 - large page support for Oracle binary text
+#   ekarichk    09/28/12 - bug/14692807: pull out crt*
+#   ekarichk    09/04/12 - bug/13517928: use ld for linking
+#   ekarichk    01/18/12 - Creation
+#
+
+if [ -z "$BASH_VERSION" -o -n "$ORALD_USE_GCC" ] ; then
+  exec gcc "$@"
+  exit 1
+fi
+ 
+PATH=/bin:/usr/bin:/usr/local/bin
+export PATH
+
+lib_locs="${SRCHOME:-$ORACLE_HOME}/lib"
+
+verbose=
+shared=
+cxx=
+pthread=
+pie=
+have_o=
+have_lhugetlbfs=
+outf=
+declare -a cmd libdirs cmdsfx
+
+for arg 
+do
+ case "$arg" in
+   -shared  ) shared=1  ; cmd[${#cmd[@]}]="$arg" ;;
+   -pie     ) pie=S     ; cmd[${#cmd[@]}]="$arg" ;;
+   -pthread ) pthread=1 ;;
+   -lstdc++ ) cxx=1 ; cmd[${#cmd[@]}]="$arg" ;;
+   -m32     ) exec gcc "$@" ; exit 1 ;;
+   -m64     ) ;;
+   -v       ) verbose=1 ; cmd[${#cmd[@]}]="$arg" ;;
+   -L*      ) libdirs[${#libdirs[@]}]="$arg" ;;
+   -Wl,*    )
+     for opt in $(echo "" "${arg:4}" | tr ',' ' ') ; do
+       test -n "$opt" && cmd[${#cmd[@]}]="$opt"
+     done
+     ;;
+   -i-static | -Bstatic | -Bdynamic ) ;;
+   -o       )   have_o=1; cmd[${#cmd[@]}]="$arg" ;;
+   -lhugetlbfs) have_lhugetlbfs=1; cmd[${#cmd[@]}]="$arg" ;;
+   *        )   cmd[${#cmd[@]}]="$arg"; test -n "$have_o" && outf="$arg" ; have_o= ;;
+ esac 
+done
+
+cmdpfx1="/usr/bin/ld --eh-frame-hdr -m elf_x86_64 --hash-style=gnu --build-id"
+[[ -z "$shared" ]] && cmdpfx1="$cmdpfx1 -dynamic-linker /lib64/ld-linux-x86-64.so.2 /usr/lib64/${pie}crt1.o"
+
+cmdpfx=( $cmdpfx1 "${libdirs[@]}" /usr/lib64/crti.o "$lib_locs/crtbegin.o" \
+         -L/usr/lib64 -L/lib64 "-L$lib_locs" )
+
+[[ -n "$pthread" ]] && cmdsfx=( -lpthread )
+cmdsfx=( "${cmdsfx[@]}" -Bstatic -lirc -Bdynamic -lc \
+         --as-needed -lgcc_s --no-as-needed -Bstatic -lirc -Bdynamic -ldl -lc \
+         "$lib_locs/crtend.o" /usr/lib64/crtn.o )
+
+[[ -n "$verbose" ]] && echo "${cmdpfx[@]}" "${cmd[@]}" "${cmdsfx[@]}"
+"${cmdpfx[@]}" "${cmd[@]}" "${cmdsfx[@]}" 
+rc=$?
+
+if test "${rc}${have_lhugetlbfs}" = "01" && test -n "$outf" && \
+     test -x /usr/bin/hugeedit ; then
+  /usr/bin/hugeedit --text "$outf"
+  rc=$?
+fi
+
+exit $rc

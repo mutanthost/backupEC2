@@ -1,0 +1,227 @@
+printf("==========START_OF_REPORT_chkZSZillas.aksh==========\n");
+var founderrors=false;
+
+function getPoolsUsingDisk(diskType, diskID) {
+    var pools = getPoolNames();
+    var poolsUsingDisk = new Array();
+topLoop:
+    for(var i = 0; i < pools.length; i++) {
+        var result = null;
+        if(diskType == "log") {
+            result = nas.poolStatus(pools[i]).np_log;
+        }
+        else if(diskType == "cache") {
+            result = nas.poolStatus(pools[i]).np_cache;
+        }
+        
+        if(result != null) {
+            for(var j = 0; j < result.length; j++) {
+                var disks = new Array();
+                // Collect disks. We have do this because np_children may or may not exist
+                if(result[j].np_children == null ) {
+                    disks.push(result[j]);
+                }
+                else {                
+                    for(var c = 0; c < result[j].np_children.length; c++)
+                        disks.push(result[j].np_children[c]);                    
+                }
+                
+                for(var c = 0; c < disks.length; c++) {
+                    if(disks[c].np_label == diskID) {
+                        poolsUsingDisk.push(pools[i]);
+                        continue topLoop;
+                    }
+                }                                
+            }
+        }        
+    }
+    
+    return poolsUsingDisk;
+}
+
+function reportPoolsUsingDisk(indentation, diskType, diskID) {    
+    var poolsUsingDisk = getPoolsUsingDisk(diskType, diskID);
+    var poolsReport = indentation + "Used by pools:\n";
+    for(var index = 0; index < poolsUsingDisk.length; index++) {
+        poolsReport += indentation + poolsUsingDisk[index] + "\n";
+    }
+    return poolsReport;    
+}
+
+function disk_check(chassis_o, chassis_index){
+    faulted_disks = "";
+    chassis_o.disks = new Array();
+
+    run('select disk');
+    output = run('list').split('\n');								
+
+    for (j = 1; (j < output.length) && (output[j].lastIndexOf("disk-")>=0); j++)  { // go through all the disks;
+	    line = output[j].replace(/\s+/g, " ");
+	    items = line.split(' ');					
+	
+	    pos = items[0];					
+	    status = items[3];
+	
+	    //print("select "+ pos + "\n");
+	    run("select "+ pos);										
+	    disk = {"label": get("label"), "present": get("present"), "faulted": get("faulted"), "status": status, "endurance": getOrNA("endurance")};
+						
+	    if ((disk["faulted"].toString() == "true") || (disk["present"].toString() == "false") || (output[j].lastIndexOf("ok")<0)){
+		    faulted =  disk.label + " - " + status; //takes disk location and status																	
+		    faulted_disks = faulted_disks + "      " +faulted + ";\n";								
+	    } 
+	    else {
+		    try{ 
+			    disk.type = get("type");
+             // appl.com_issues.disk_type.push(disk.type);
+		    }
+		    catch(err){}
+		    finally{
+			    try{
+				    disk.manufacturer = get("manufacturer");
+			    }
+			    catch(err) {
+				    disk.manufacturer = "n/a";
+			    }
+			    finally{
+				    try{
+					    disk.model = get("model");
+	                //  appl.com_issues.disk_model.push(disk.model);
+				    }
+				    catch(err) {
+					    disk.model = "-";
+				    }
+				    finally{
+					    try{
+						    disk.rev = get("revision");
+                        //  appl.com_issues.disk_fw.push(disk.rev);
+					    }
+					    catch(err){
+						    disk.rev = "-";
+					    }
+					    finally{
+						    try{
+							    disk.interface = get("interface");
+							//    appl.com_issues.disk_interface.push(disk.interface);
+						    }
+						    catch(err){
+							    disk.interface = "-";
+						    }
+					    }
+				    }
+			    }
+		    }							
+	    }
+	
+	    run("cd ..");										
+	    chassis_o.disks.push(disk);
+    }
+    
+    return faulted_disks;
+}
+
+var readzillas_logzillas = function(){
+	var zillaDetailsLong = '',
+		chassis 		 = [],
+		readzillas 		 = "",
+		all_logzillas 	 = "",
+		logzillas 		 = "",
+		logzilla         = "";		
+		
+		try {
+			// get readzillas - always on chassis-000			
+			// go through all the disks;
+			for (var i=0, disks =appl.hardware.chassis[0]["disks"]; i < disks.length; i++)  { 						
+				if (disks[i]["type"] == "cache"){			
+													
+					//takes disk location, status, manufacturer and model
+					readzillas += "\t" + disks[i]["label"]+" - "+disks[i]["status"]+" "+disks[i]["manufacturer"]+
+								  " model: "+disks[i]["model"]+"\n"; 
+								  
+                    // Check endurance
+                    readzillas += "\t\tEndurance: " + disks[i]["endurance"];
+                    if(disks[i]["endurance"] != "100%") {
+                        founderrors = true;
+                        readzillas += " (WARNING: should be 100%)";
+                    }
+                    readzillas += "\n";
+                    
+                    // List pools using disk								  
+					readzillas += reportPoolsUsingDisk("\t\t", disks[i]["type"], disks[i]["label"]); 	
+					
+				}
+			}
+			if (readzillas!=""){
+				//s = "\nREADZILLAS:\n" + readzillas + "\n";
+				zillaDetailsLong = "*\t READZILLAS:\n"+readzillas;
+			}
+			else {
+				zillaDetailsLong = "*\tREADZILLAS:\n\tNone found";
+                founderrors = true;
+			}
+			
+			zillaTable.details.push(zillaDetailsLong);
+			
+			// get logzillas - check on each chassis			
+			for (var i = 1 ; i <  appl.hardware.chassis.length; i++) {	// go through all the chassis encountered			
+				logzillas = "";
+				for (var j = 0, disks = appl.hardware.chassis[i]["disks"]; j < disks.length; j++)  { // go through all the disks;
+				
+					if (disks[j]["type"] == "log"){
+						//takes disk location, status, manufacturer and model
+						logzilla = "\t"+disks[j]["label"]+" - "+disks[j]["status"]+" "+disks[j]["manufacturer"]+
+								   " model: "+disks[j]["model"]+" \n"; 						
+						logzillas += logzilla;
+					//	printf("Log %s\n", disks[j]["label"]);
+					    // Check endurance
+                        logzillas += "\t\tEndurance: " + disks[j]["endurance"];
+                        if(disks[j]["endurance"] != "100%") {
+                            founderrors = true;
+                            logzillas += " (WARNING: should be 100%)";
+                        }
+                        logzillas += "\n";
+					    
+						logzillas += reportPoolsUsingDisk("\t\t", disks[j]["type"], disks[j]["label"]);
+					}									
+				}
+				// if we found logzillas, add them to the list
+				if (logzillas != ""){
+					all_logzillas += "\t "+appl.hardware.chassis[i]["chassis"]+":\n"+logzillas+"\n";							
+				}								
+			}
+			
+			if (all_logzillas != ""){
+				zillaDetailsLong = "*\tLOGZILLAS:\n" + all_logzillas;
+				
+			}
+			else {
+				zillaDetailsLong = "*\tLOGZILLAS:\n"+
+								   "\tNone found.";
+	            founderrors = true;
+			}			
+		}
+	catch(e){
+		//s = "READZILLAS/LOGZILLAS: Couldn't get component info. Error: "+e+"\n"
+		zillaDetailsLong = "*\tLOGZILLA And READZILLA ERROR:\n"+
+						   "\t"+e.message+"\n";
+        founderrors = true;						   
+	}
+	finally {
+		zillaTable.details.push(zillaDetailsLong);
+	}
+}		
+
+// Disk check is a pre-requisite for zillas check - we will be running the check to 
+// retrieve the disks - we're not interested in the disk check itself here
+var hardwareTable = new printTable({name:"Disk Check", headNames:["Name", "Status", "Details"]});
+appl.hardware 	= new Array();	
+failed_hw_components(disk_check);
+var zillaTable = new printTable({name:"Zillas", headNames:[]});
+founderrors = false; // Must be reset after disk check
+readzillas_logzillas();
+printReportTable(zillaTable); 
+							
+printf("==========END_OF_REPORT_chkZSZillas.aksh==========\n");
+printf("==========START_OF_AUDIT_CHECK_chkZSZillas.aksh==========\n");
+printf("zillas_status = %d\n", founderrors);
+printf("==========END_OF_AUDIT_CHECK_chkZSZillas.aksh==========\n");			

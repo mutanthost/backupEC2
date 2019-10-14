@@ -1,0 +1,343 @@
+#!/bin/sh
+#
+#  $Header: tfa/src/orachk_py/lib/init.tmpl /main/8 2017/09/13 22:55:19 rojuyal Exp $
+#
+# init.tmpl - Control script for the orachk/exachk webserver and scheduler
+#
+# Supported options:
+#    init.orachk.[ws|s] start          Starts the orachk webserver/scheduler, and inittab starts monitoring it
+#    init.orachk.[ws|s] start_debug    Starts the orachk webserver/scheduler in debug mode, and inittab starts monitoring it
+#    init.orachk.[ws|s] stop           stops the orachk webserver/scheduler, but 'init.orachk' is in sleep state
+#    init.orachk.[ws|s] shutdown       shutdown the orachk webserver/scheduler. No monitoring from inittab
+#
+
+PEXT=edit
+AWK=/bin/awk
+CP=/bin/cp
+MV=/bin/mv
+RMF="/bin/rm -f"
+RPM=/bin/rpm
+START=/sbin/start
+STOP=/sbin/stop
+CHMOD=/bin/chmod
+ECHO=/bin/echo
+CAT=/bin/cat
+GREP=/bin/grep
+SYNC=/bin/sync
+SLEEP=/bin/sleep
+MODPROBE=/sbin/modprobe
+PERL=/usr/bin/perl
+ID=/usr/bin/id
+EXPRN=/usr/bin/expr
+SED=/bin/sed
+
+ORACHK_HOME=edit
+export ORACHK_HOME
+PROGRAM_NAME=edit
+program_name=edit
+SYSARGS=edit
+export program_name
+export SYSARGS
+USER_NAME=edit
+ORACHK_FLAGS=edit
+INITTAB_STRING=edit
+ORACHK_WRKDIR=edit
+ORACHK_LOGDIR=edit
+TMPDIR=edit
+RTEMPDIR_S=edit
+DEBUG=edit
+PMODE=edit
+TAG=edit
+CHECK_TIME=edit
+INITENVFIL=edit
+PYTHON=edit
+
+if [ $ORACHK_HOME = "edit" ]; then
+	$ECHO "ORACHK_HOME is not set correctly in this script"
+   	$ECHO "This is likely due to an initial setup error"
+   	exit;
+fi
+CH=$ORACHK_HOME
+UPSTART_USED=0
+SYSTEMD_USED=0
+UNAME=/bin/uname
+PLATFORM=`$UNAME`
+NIT=/$RTEMPDIR_S/$$.${PROGRAM_NAME}${PMODE}.inittab
+
+touch $RTEMPDIR_S/.init${PMODE}.pid;
+#init_pid=$(ps -ef|grep -v grep|grep 'ssh'|grep $0|awk '{print $2}'|sed 's/ //g');
+init_pid=$(ps -ef|grep -v grep|grep 'sh'|grep $0|head -1|awk '{print $2}'|sed 's/ //g');
+echo $init_pid > $RTEMPDIR_S/.init${PMODE}.pid;
+
+case $PLATFORM in
+	Linux) 
+		UC=/etc/init
+		ID=/etc/init.d
+		IT=/etc/inittab
+		INIT=/sbin/init
+		#upstart (OL6)
+		UPSTART_USED=`$RPM -qf /sbin/init | $GREP -i '^upstart-'| wc -l`
+		#systemd (OL7)
+		SYSTEMD_USED=`ps -ef |grep systemd|grep -v grep|head -1|awk '{print $2}'|sed 's/ //g'`
+		if [ "x$SYSTEMD_USED" = "x" ]; then SYSTEMD_USED=0; fi
+		;;
+	AIX) 
+		ID=/etc
+		IT=/etc/inittab
+		INIT=/etc/init
+		;;
+	SunOS) 
+		ID=/etc/init.d
+		IT=/etc/inittab
+		INIT=/usr/sbin/init
+		;;
+	HP-UX) 
+		ID=/sbin/init.d
+		IT=/etc/inittab
+		INIT=/sbin/init
+		;;
+	*)	/bin/echo "ERROR: Unknown Operating System"
+	    exit -1
+	    ;;
+esac
+
+#Definitions to Add/Remove inittab entries
+ADDITAB="$CAT \$IT | $GREP -v init.${PROGRAM_NAME}${PMODE} > \$IT.no_${PROGRAM_NAME}${PMODE} || { $ECHO $?; exit 1; } ; \
+        $CAT \$IT.no_${PROGRAM_NAME}${PMODE} $NIT > \$IT.tmp || { $ECHO $?; exit 1; }; \
+        $CP \$IT.tmp \$IT.${PROGRAM_NAME}${PMODE} || { $ECHO $?; exit 1; }; \
+        \$SYNC ; \$SYNC ; \$SYNC ; \
+        $MV \$IT.tmp \$IT || { $ECHO $?; exit 1; };\
+        \$SYNC ; \$SYNC ; \$SYNC "
+RMITAB="$CAT \$IT | $GREP -v init.${PROGRAM_NAME}${PMODE} > \$IT.tmp || { $ECHO $?; exit 1; } ; \
+        $CP \$IT.tmp \$IT.no_${PROGRAM_NAME}${PMODE} || { $ECHO $?; exit 1; }; \
+        \$SYNC ; \$SYNC ; \$SYNC ; \
+        $MV \$IT.tmp \$IT || { $ECHO $?; exit 1; }; \
+        \$SYNC ; \$SYNC ; \$SYNC "
+
+LOG=$ORACHK_LOGDIR/${PROGRAM_NAME}_daemon.log
+
+INIT_FLAG=-init
+if [ `$ECHO $ORACHK_FLAGS | $GREP -c "initsudo"` -gt "0" ] ; then
+	INIT_FLAG=-initsudo
+fi
+
+touch $LOG
+o_user=`ls -l $ORACHK_HOME/${PROGRAM_NAME}${PEXT} | awk '{print $3}'`
+o_group=`ls -l $ORACHK_HOME/${PROGRAM_NAME}${PEXT} | awk '{print $4}'`
+chown $o_user:$o_group $LOG
+
+if [ $PMODE = 'scheduler' ]; then
+	PIDFILE="/$TMPDIR/.${PROGRAM_NAME}_${USER_NAME}_s/${PROGRAM_NAME}_s.pid"
+else
+	PIDFILE="/$TMPDIR/.${PROGRAM_NAME}_${USER_NAME}_ws/${PROGRAM_NAME}_ws.pid"
+fi
+
+log()
+{
+	echo "[`date '+%Y-%m-%d %H:%M:%S'` ] - [init] $1" >> $LOG
+}
+
+sleepdots()
+{
+	sleeptime=$1
+	count=0
+	while [ $count -lt $sleeptime ] 
+	do
+		printf ". "
+		$SLEEP 2
+		count=`$EXPRN $count + 1`
+	done
+}
+
+pass() { echo '' > /dev/null 2>&1; }
+
+echo_debug()
+{
+	if [ $DEBUG -eq "1" ] ; then log "DEBUG : $1"; fi
+}
+
+wait_for_start()
+{
+	while [ ! -f "/$RTEMPDIR_S/.${PROGRAM_NAME}${PMODE}.init.started" ] ; do
+        sleep 2
+  	done
+
+  	if [ $DEBUG -eq "1" ] ; then
+   		printf "Starting $PROGRAM_NAME daemon in debug mode"
+  	else
+        printf "Starting $PROGRAM_NAME daemon"
+  	fi
+  	done=0
+  	while [ $done -eq "0" ] ; do
+    	if [ -f "/$RTEMPDIR_S/.${PROGRAM_NAME}${PMODE}.init.done" ] ; then
+      		done=1
+      		break
+    	fi
+    	sleepdots 5
+  	done
+  	$RMF /$RTEMPDIR_S/.${PROGRAM_NAME}${PMODE}.init.started
+  	$RMF /$RTEMPDIR_S/.${PROGRAM_NAME}${PMODE}.init.done
+  	if [ -f "$PIDFILE" ] ; then
+	    echo 
+	    echo 
+	    echo "$PROGRAM_NAME daemon started successfully";
+	    echo 
+	else
+	    echo 
+	    echo 
+	    echo "Failed to start $PROGRAM_NAME daemon";
+	    echo 
+	    echo "Check $LOG for details";
+	    echo 
+	fi
+}
+
+case $1 in
+	'run')
+		START_LOOP="true"
+	   	while ($START_LOOP)
+	   	do
+	    	orachk_running=0
+	     	if [ -f "$PIDFILE" ] ; then
+	       		PID=`cat $PIDFILE`
+	       		if [ -n "$PID" ] && [ `ps -ef | grep $PID | grep -v grep | wc -l` -gt "0" ] ; then
+					orachk_running=1
+	       		else
+					$RMF $PIDFILE 
+	       		fi
+	     	fi
+	     	echo_debug "orachk_running=$orachk_running"
+	     	if [ $orachk_running -eq "0" ] ; then
+	       		touch /$RTEMPDIR_S/.${PROGRAM_NAME}${PMODE}.init.started
+	       		if [ $PMODE = 'scheduler' ]; then
+		       		if [ $DEBUG -eq "1" ] ; then
+		         		log "Starting $PROGRAM_NAME daemon with flags $ORACHK_FLAGS $INIT_FLAG"
+		        		/bin/su - $USER_NAME -c ". $INITENVFIL; cd $ORACHK_HOME; $PYTHON ${PROGRAM_NAME}${PEXT} $ORACHK_FLAGS >> $LOG 2>&1"
+		        		  
+		       		else
+		       		    log "Starting $PROGRAM_NAME daemon with flags $ORACHK_FLAGS $INIT_FLAG"
+		       		    AUTO_PROGRAM_NAME="autoscheduler"
+		         	    /bin/su - $USER_NAME -c ". $INITENVFIL; cd $ORACHK_HOME; $PYTHON ${PROGRAM_NAME}${PEXT} $ORACHK_FLAGS >> $LOG 2>&1"
+		       		fi
+		       	else
+		       		if [ $DEBUG -eq "1" ] ; then
+		         		log "Starting $PROGRAM_NAME daemon with flags $ORACHK_FLAGS $INIT_FLAG"
+		        		/bin/su - $USER_NAME -c ". $INITENVFIL; cd $ORACHK_HOME; $PYTHON ${PROGRAM_NAME}${PEXT} $ORACHK_FLAGS >> $LOG 2>&1"
+		       		else
+		         		log "Starting $PROGRAM_NAME daemon with flags $ORACHK_FLAGS $INIT_FLAG"
+		         		/bin/su - $USER_NAME -c ". $INITENVFIL; cd $ORACHK_HOME; $PYTHON ${PROGRAM_NAME}${PEXT} $ORACHK_FLAGS >> $LOG 2>&1"
+		       		fi		       	
+		       	fi
+	       		touch /$RTEMPDIR_S/.${PROGRAM_NAME}${PMODE}.init.done
+	     	fi
+	     	$SLEEP $CHECK_TIME
+	   	done
+	;;
+
+#These entries are for direct user control
+'start'|'start_debug')
+   if [ -f "$PIDFILE" ] ; then
+     echo "$PROGRAM_NAME $TAG is already running";
+     echo
+     exit;
+   fi
+
+   $RMF /$RTEMPDIR_S/.${PROGRAM_NAME}${PMODE}.init.started
+   $RMF /$RTEMPDIR_S/.${PROGRAM_NAME}${PMODE}.init.done
+   if [ $UPSTART_USED -gt 0 ]; then 
+     # Copying upstart file to upstart config directory
+     $SED 's/upstarttmpl/'${PROGRAM_NAME}${PMODE}'/' $CH/lib/oracle-upstarttmpl.conf > $UC/oracle-${PROGRAM_NAME}${PMODE}.conf
+     # start the job
+     $START oracle-${PROGRAM_NAME}${PMODE} 
+   else 
+     #add the entries back and start the orachk
+     echo "$INITTAB_STRING" > /$RTEMPDIR_S/$$.${PROGRAM_NAME}${PMODE}.inittab
+     eval $ADDITAB
+     $INIT q
+     rm -f /$RTEMPDIR_S/$$.${PROGRAM_NAME}${PMODE}.inittab
+     if [ -n $SYSTEMD_USED ] && [ $SYSTEMD_USED -gt 0 ]; then
+       SYSTEMCTL="/usr/bin/systemctl"
+       SERVICE_DIR=/etc/systemd/system
+       SERVICE_FIL=oracle-${PROGRAM_NAME}${PMODE}.service	
+
+       cat > ${SERVICE_DIR}/${SERVICE_FIL} <<EOF
+[Unit]
+Description=Oracle ${PROGRAM_NAME} ${PMODE} initsetup
+After=syslog.target
+
+[Service]
+ExecStart=/etc/init.d/init.${PROGRAM_NAME}${PMODE} run >/dev/null 2>&1 </dev/null
+Type=simple
+Restart=always
+RestartSec=${CHECK_TIME}
+
+[Install]
+WantedBy=multi-user.target graphical.target
+EOF
+
+       $SYSTEMCTL disable ${SERVICE_FIL} >/dev/null 2>&1 </dev/null
+       $SYSTEMCTL enable ${SERVICE_FIL} >/dev/null 2>&1 </dev/null
+       $SYSTEMCTL start ${SERVICE_FIL} >/dev/null 2>&1 </dev/null
+     fi
+   fi
+   wait_for_start
+   ;;
+
+'restart')
+	$RMF /$RTEMPDIR_S/.${PROGRAM_NAME}${PMODE}.init.started
+	$RMF /$RTEMPDIR_S/.${PROGRAM_NAME}${PMODE}.init.done
+	if [ $PMODE = 'scheduler' ]; then
+		/bin/su - $USER_NAME -c "cd $ORACHK_HOME; $PYTHON ${PROGRAM_NAME}${PEXT} -d stop -noupgrade"
+	else
+		/bin/su - $USER_NAME -c "cd $ORACHK_HOME; $PYTHON ${PROGRAM_NAME}${PEXT} -wsstop"
+	fi
+	wait_for_start
+	;;
+
+'stop')
+ 	if [ $PMODE = 'scheduler' ]; then
+		/bin/su - $USER_NAME -c "cd $ORACHK_HOME; $PYTHON ${PROGRAM_NAME}${PEXT} -d stop -noupgrade"
+	else
+		/bin/su - $USER_NAME -c "cd $ORACHK_HOME; $PYTHON ${PROGRAM_NAME}${PEXT} -wsstop"
+	fi
+    ;;
+
+'shutdown')
+    $ECHO "Shutting down $PROGRAM_NAME"
+    # if upstart then remove the config file
+    if [ -f /etc/init/oracle-${PROGRAM_NAME}${PMODE}.conf ]; then
+       $STOP oracle-${PROGRAM_NAME}${PMODE}
+       $RMF $UC/oracle-${PROGRAM_NAME}${PMODE}.conf
+       if [ $PMODE = 'scheduler' ]; then 
+       		/bin/su - $USER_NAME -c "cd $ORACHK_HOME; $PYTHON ${PROGRAM_NAME}${PEXT} -d stop -noupgrade"
+       else
+       		/bin/su - $USER_NAME -c "cd $ORACHK_HOME; $PYTHON ${PROGRAM_NAME}${PEXT} -wsstop"
+       fi
+    else
+       # if not upstart (SYSv) then remove inittab entry before stop
+       eval $RMITAB
+       # Stop orachk cleanly
+       if [ $PMODE = 'scheduler' ]; then
+       		/bin/su - $USER_NAME -c "cd $ORACHK_HOME; $PYTHON ${PROGRAM_NAME}${PEXT} -d stop -noupgrade"
+       else
+       		/bin/su - $USER_NAME -c "cd $ORACHK_HOME; $PYTHON ${PROGRAM_NAME}${PEXT} -wsstop"
+       fi
+       $INIT q
+    fi
+
+    SYSTEMCTL="/usr/bin/systemctl"
+    SERVICE_DIR=/etc/systemd/system
+    SERVICE_FIL=oracle-${PROGRAM_NAME}${PMODE}.service	
+
+    if [ -f ${SERVICE_DIR}/${SERVICE_FIL} ]; then
+      $SYSTEMCTL disable ${SERVICE_FIL} >/dev/null 2>&1 </dev/null
+      $SYSTEMCTL stop ${SERVICE_FIL} >/dev/null 2>&1 </dev/null
+      $RMF ${SERVICE_DIR}/${SERVICE_FIL}
+    fi
+   ;;
+
+*)
+    $ECHO "Usage: $0 {stop|start|start_debug|shutdown|restart}" 
+    exit 1;
+    ;;
+esac

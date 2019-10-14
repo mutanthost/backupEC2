@@ -1,0 +1,99 @@
+#!/usr/bin/env bash
+
+# Path to environments directory
+[[ -z "$MAPS_ENVS_DIR" ]] && MAPS_ENVS_DIR="${HOME}/.config/MAPS"
+# Create environments directory if it doesn't exist
+[[ -d "${MAPS_ENVS_DIR}" ]] || mkdir "${MAPS_ENVS_DIR}"
+
+fail() {
+    (>&2 echo "$1")
+    exit 1
+}
+
+
+# Subcommand: list
+# List the available environments.
+if [[ "${1}" == "list" ]]; then
+    [[ -z "${2}" ]] || fail "the list subcommand does not take arguments"
+    echo "environments in ${MAPS_ENVS_DIR}:"
+    for file in "${MAPS_ENVS_DIR}/"*; do
+        echo "${file##*/}"
+    done
+
+# Subcommand: append
+# Append paths to an environment. Creates the environment if it does not exist.
+elif [[ "${1}" == "append" ]]; then
+    [[ -z "${2}" ]] && fail "missing argument: environment name"
+    [[ -z "${3}" ]] && fail "missing argument(s): path(s)"
+    envpath="${MAPS_ENVS_DIR}/${2}"
+    # Use further arguments as paths
+    shift 2
+    for file in "${@}"; do
+        echo "${file}"
+    done >> "${envpath}"
+
+# Subcommand: edit
+# Open an environment in the editor specified by the EDITOR variable of the
+# bash session.
+elif [[ "${1}" == "edit" ]]; then
+    [[ -z "${2}" ]] && fail "missing argument: environment name"
+    [[ -z "${3}" ]] || fail "edit subcommand only takes one argument"
+    [[ -z "$EDITOR" ]] && fail "EDITOR is not set"
+    envpath="${MAPS_ENVS_DIR}/${2}"
+    [[ -e "${envpath}" ]] || fail "environment ${2} does not exist"
+    "${EDITOR}" "${envpath}"
+
+# Subcommand: remove
+# Remove an environment.
+elif [[ "${1}" == "remove" ]]; then
+    [[ -z "${2}" ]] && fail "missing argument: environment name"
+    [[ -z "${3}" ]] || fail "remove subcommand only takes one argument"
+    envpath="${MAPS_ENVS_DIR}/${2}"
+    [[ -e "${envpath}" ]] || fail "environment ${2} does not exist"
+    rm "${envpath}"
+
+# Subcommand: enter
+elif [[ "${1}" == "enter" ]]; then
+    [[ -z "${2}" ]] && fail "missing argument(s): environment name(s)"
+    shift 1
+    # PS1: prepend names of environments entered
+    newPS1="($(IFS=' '; echo "${*}")) "
+    # PATH: collect all pieces in array and then join
+    paths=("$PATH")
+    for file in "${@}"; do
+        envpath="${MAPS_ENVS_DIR}/${file}"
+        [[ -e "${envpath}" ]] || fail "environment ${file} does not exist"
+        while IFS= read -r line || [[ -n "$line" ]]; do
+            [[ -z "${line// }" ]] && continue
+            paths=("$line" "${paths[@]}")
+        done < "${envpath}"
+    done
+    newPATH="$(IFS=':'; echo "${paths[*]}")"
+    # Bash-init script: call .bashrc if exists, then set PS1 and PATH
+    read -d "" initcmds <<EOF
+[[ -f "\${HOME}/.bashrc" ]] && source "\${HOME}/.bashrc"
+PS1="${newPS1}\${PS1}"
+export PATH="$newPATH"
+EOF
+    # Open new interactive console with environment
+    bash --init-file <(echo "$initcmds")
+
+# No/unkonwn subcommand specified: display usage information
+else
+    read -d "" usage <<EOF
+usage:  MAPS list
+        MAPS append <environment> <path>...
+        MAPS edit <environment>
+        MAPS remove <environment>
+        MAPS enter <environment>...
+
+Put environment files (containing one path per line) into '~/.config/MAPS' or
+use the append, edit and remove subcommands to manage environments. Entering an
+environment launches an interactive session of bash where the PATH variable is
+extended by the paths specified in the environment file. Multiple environments
+can be activated at the same time. To exit an entered environment just leave
+the launched session of bash (exit or ^D).
+EOF
+    fail "${usage}"
+fi
+

@@ -1,0 +1,44 @@
+#!/bin/sh 
+#
+# $Header: usm/src/cmds/olfsroot/olfsroot /main/1 2012/05/22 
+#
+# olfsroot
+# 
+# Copyright (c) 2007, 2015, Oracle and/or its affiliates. All rights reserved.
+#
+#    NAME
+#      olfsroot - front end for the Perl script that does the work.
+#
+#    DESCRIPTION
+#      Purpose
+#          install or uninstall OLFS components.
+#
+#    NOTES
+#
+#
+#    NOTES
+#      This wrapper program now supports only Lunix/Unix platforms.
+#      Use olfsroot.bat for Windows platforms.
+#
+#############################################################################
+
+if [ ! -d "$ADE_VIEW_ROOT" ] ; then
+  BASE=`dirname $0`
+  cd $BASE
+  ORACLE_HOME=`pwd`
+  if [ `basename $ORACLE_HOME` = 'bin' ] ; then
+    # usm_root lives in $ORACLE_HOME/bin - lose the trailing '/bin'.
+    ORACLE_HOME=`dirname $ORACLE_HOME`
+    ORA_CRS_HOME=$ORACLE_HOME
+  fi
+fi
+
+export ORACLE_HOME ORA_CRS_HOME
+
+CMDNAME=olfsroot
+ 
+TOOLS_DRIVER=${ORACLE_HOME}/lib/olfstoolsdriver.sh
+
+exec $TOOLS_DRIVER $CMDNAME $@
+# Should never get here.
+exit -1

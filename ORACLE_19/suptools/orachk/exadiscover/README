@@ -1,0 +1,125 @@
+************************************************
+
+                ExaDiscover
+      Exalogic Discovering Tool
+                 README
+
+   Version 1.5.5
+
+   Version 1.5
+
+************************************************
+
+Table of Contents
+
+  - Overview
+  - Usage
+
+
+=============
+  Overview 
+=============
+[What is ExaDiscover?]
+ExaDiscover is a tool for discovering IP addresses of assets in Exalogic racks 
+and is designed to be executed on the Enterprise Manager Ops Center (EMOC) 
+"Enterprise Controller" component (EC1). It will check information from ECU 
+configuration files on the first compute node and live information from EMOC.
+The following is the assets list which ExaDiscover can discover:
+
+    Enterprise Controller
+    Proxy Controllers
+    Exalogic Control DB (VM)
+    Exalogic Control OVM Manager (VM)
+    Compute Nodes
+    Storage Nodes
+    Infiniband Switches
+    Compute Nodes ILOM
+    Storage Nodes ILOM
+    PDU
+
+=============
+Prerequisites
+=============
+=== Exalogic ===
+ExaDiscover is tested on Exalogic 2.0.1.0.0, 2.0.2.0.0, 2.0.4.0.0, 2.0.6.0.0
+
+=== Servers ===
+   Exalogic Control Ops Center (EC1 VM) -- needed for running ExaDiscover tool and by <source>: ALL, ECU and EMOC
+   Exalogic Control DB (DB VM) -- needed by <source>: ALL and EMOC
+   Compute Node 1 (master node/cn01, OVS) -- needed by <source>: ALL and ECU
+
+=== Software ===
+   Enterprise Manager Ops Center (EMOC, included in EC1 VM)
+   Oracle Database (inclued in DB VM)
+   
+=== Credentials ===
+Need root access to EC1 VM and Compute Node 1 (if need to run <source> ECU).
+
+   
+=============
+Installation
+=============
+Create a folder on EC1 VM and copy following files into it:
+   exadiscover.sh
+   list_all_ips.sql
+   list_all_ips_vars.sql
+   list_assets.sql
+   list_master_node.sql
+
+Quick start:
+./exadiscover.sh
+
+=============
+    Usage 
+=============
+
+=== Help Information ===
+./exadiscover.sh -h
+** Display help and usage information about ExaDiscover.
+
+=== Discovery sources ===
+
+./exadiscover.sh -s <source>
+** <source> can be ALL, ECU and EMOC
+
+./exadiscover.sh -s ALL
+** which is equal to "./exadiscover.sh". Two predefined sources will be accessed in the order of ECU and EMOC.
+A comparison will be made between results of <source> ECU and EMOC.
+
+./exadiscover.sh -s ECU
+** extract IP addresses of assets from ECU configurations under /opt/exalogic/ecu/config on first compute node (master node or cn01).
+-p option maybe need here when a password is needed to access cn01, e.g.
+./exadiscover.sh -s ECU -p password
+./exadiscover.sh -p password
+-i option can be used here for manually specifying a local ops_center.properties file and in this case the tool can be run on non-EC machine, e.g.
+./exadiscover.sh -s ECU -i /tmp/ops_center.properties
+
+./exadiscover.sh -s EMOC
+** extract IP addresses of assets from EMOC. The output will include a table in which a row represents an asset and a column represents a type of network. Major control IPs will be highlighted.
+
+./exadiscover.sh -f shell
+** extract one IP per asset and output as machine readable format
+
+./exadiscover.sh -f shell -a
+** extract all IPs per asset and output as machine readable format. From version 1.4, this list also contains "-f shell" output. 
+
+=== Output ===
+By default, all output will be displayed on screen. But using following option:
+./exadiscover.sh -s shell -o <filename>
+
+can stop screen output and redirect non-human readable output to the specified output file <filename>.
+
+To change the width of human readable table, use option -w:
+./exadiscover.sh -w 190
+
+=== Version ===
+./exadiscover -v
+** Display the version of ExaDiscover tool and its compatible versions of Exalogic.
+
+=== Predefined Variables ===
+The following environment variables can be predefined by bash export command:
+master node: CNODES_IP_0
+ECU configuration file name: ECU_OPS_PROPERTY_FILE
+local temporary folder: LOCAL_TMP_DIR
+system temporary folder: SYS_TMP_DIR
+OVMM root password (default: ovsroot): OVMM_ROOT_PASSWORD

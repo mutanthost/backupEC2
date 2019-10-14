@@ -1,0 +1,107 @@
+printf("==========START_OF_REPORT_chkAnalyticsRetentionPolicy.aksh==========\n");
+const SECONDS_PER_DAY = 86400;
+const SECONDS_PER_WEEK = 604800;
+const SECONDS_PER_MONTH = 2419200; //1 month = 4 weeks
+var report_output;
+//
+var retain_second_data_threshold;
+var retain_minute_data_threshold;
+var retain_hour_data_threshold;
+//
+//retain_second_data_threshold retention policy
+function privateAnalyticsRetentionPolicyS(day, week, month) {
+	var total_secs = SECONDS_PER_DAY * day + SECONDS_PER_WEEK * week + SECONDS_PER_MONTH*month;
+	retain_second_data_threshold = total_secs;
+}
+//
+//retain_minute_data_threshold policy
+function privateAnalyticsRetentionPolicyM(day, week, month) {
+	var total_secs = SECONDS_PER_DAY * day + SECONDS_PER_WEEK * week + SECONDS_PER_MONTH*month;
+	retain_minute_data_threshold = total_secs;
+}
+//
+//retain_hour_data_threshold retention policy
+function privateAnalyticsRetentionPolicyH(day, week, month) {
+	var total_secs = SECONDS_PER_DAY * day + SECONDS_PER_WEEK * week + SECONDS_PER_MONTH*month;
+	retain_hour_data_threshold = total_secs;
+}
+// Check retention period policy of ZFSSA analytics to stop unbounded data set growth
+//
+
+// ----------------------------------------------------------------------------
+// VARS
+	var host_name = null;
+	var founderrors = false; // Track error findings
+	var auditcheck = 0;
+	var report = 1;
+        var runonetime = 1;
+
+// ----------------------------------------------------------------------------
+// MAIN STARTS HERE	
+if(runonetime==1)
+{
+getHostname();
+// Have the retention policy as 1,2 and 3 months for seconds, minutes, hour data
+privateAnalyticsRetentionPolicyS(0, 0, 1);
+privateAnalyticsRetentionPolicyM(0, 0, 2);
+privateAnalyticsRetentionPolicyH(0, 0, 3);
+
+// Get the analytics setting
+try { 
+	run('analytics settings');
+	var retain_second_data=get('retain_second_data');
+	var retain_minute_data=get('retain_minute_data');
+	var retain_hour_data=get('retain_hour_data');
+
+	report_output = "retain_second_data = " + retain_second_data + " seconds";
+	// Display seconds in weeks if it's aesthetically possible and in days otherwise
+	if(retain_second_data % SECONDS_PER_WEEK == 0)
+		report_output += " (" + retain_second_data/SECONDS_PER_WEEK + " weeks)\n";
+	else
+		report_output += " (" + retain_second_data/SECONDS_PER_DAY + " days)\n";
+	
+	report_output += "retain_minute_data = " + retain_minute_data + " seconds";
+	if(retain_minute_data % SECONDS_PER_WEEK == 0)
+		report_output += " (" + retain_minute_data/SECONDS_PER_WEEK + " weeks)\n";
+	else
+		report_output += " (" + retain_minute_data/SECONDS_PER_DAY + " days)\n";
+
+	report_output += "retain_hour_data = " + retain_hour_data + " seconds";
+	if(retain_hour_data % SECONDS_PER_WEEK == 0)
+		report_output += " (" + retain_hour_data/SECONDS_PER_WEEK + " weeks)\n";
+	else
+		report_output += " (" + retain_hour_data/SECONDS_PER_DAY + " days)\n";
+    
+	run('cd /');
+
+    	if (retain_second_data == "" || 
+		retain_minute_data == "" ||
+		retain_hour_data == "" ||
+		retain_second_data > retain_second_data_threshold || 
+		retain_minute_data > retain_minute_data_threshold ||
+		retain_hour_data > retain_hour_data_threshold ){
+			founderrors=true;
+    	}
+}
+catch(err) { 
+	// do nothing
+}
+runonetime=0;
+}
+
+// Report Command
+
+if ( report == 1 ) {
+    printf("%s",report_output);
+}
+//END
+printf("==========END_OF_REPORT_chkAnalyticsRetentionPolicy.aksh==========\n");
+printf("==========START_OF_AUDIT_CHECK_chkAnalyticsRetentionPolicy.aksh==========\n");
+if( founderrors == false ) {
+        printf("analytics_retention_policy_status = 0\n");
+}
+else {
+	printf("analytics_retention_policy_status = 1\n");
+}
+//END
+printf("==========END_OF_AUDIT_CHECK_chkAnalyticsRetentionPolicy.aksh==========\n");

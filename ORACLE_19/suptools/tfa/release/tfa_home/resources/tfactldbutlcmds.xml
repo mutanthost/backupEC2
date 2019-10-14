@@ -1,0 +1,260 @@
+<?xml version="1.0"?>
+
+<!--  $Header: tfa/src/v2/tfa_home/resources/tfactldbutlcmds.xml /main/5 2018/08/20 12:45:48 manuegar Exp $ -->
+
+<!-- 
+ Copyright (c) 2017, 2018, Oracle and/or its affiliates. All rights reserved.
+
+   NAME
+     tfactldbutlcmds.xml - <one-line expansion of the name>
+
+   DESCRIPTION
+     <short description of component this file declares/defines>
+
+   NOTES
+     <other useful comments, qualifications, etc.>
+
+   MODIFIED   (MM/DD/YY)
+   manuegar    08/05/18 - XbranchMerge manuegar_dbutils16 from main
+   manuegar    07/20/18 - manuegar_dbutils16.
+   manuegar    06/12/18 - manuegar_dbutils13_handlers.
+   recornej    03/12/18 - Adding timezone to server metadata
+   recornej    02/23/18 - Changing metadata
+   manuegar    02/01/18 - manuegar_shared_dbutils01.
+   manuegar    12/01/17 - Creation
+
+-->
+<commands>
+  <command categoryid="availability" commandid="server">
+    <cmdpiece parentcmd="" commandid="server" keyname="server" handler="" xtraproc="no" content="object"/>
+      <cmdpiece parentcmd="server" commandid="data_type" keyname="data_type" handler="serverhandler" content="value"/>
+      <cmdpiece parentcmd="server" commandid="hostname" keyname="hostname" handler="serverhandler" content="value"/>
+      <cmdpiece parentcmd="server" commandid="timestamp" keyname="timestamp" handler="serverhandler" content="value"/>
+      <cmdpiece parentcmd="server" commandid="timezone" keyname="timezone" handler="serverhandler" content="value"/>
+      <cmdpiece parentcmd="server" commandid="domainname" keyname="domainname" handler="serverhandler" content="value"/>
+      <cmdpiece parentcmd="server" commandid="osname" keyname="osname" handler="serverhandler" content="value"/>
+      <cmdpiece parentcmd="server" commandid="osversion" keyname="osversion" handler="serverhandler" content="value"/>
+      <cmdpiece parentcmd="server" commandid="server_type" keyname="server_type" handler="serverhandler" content="value"/>
+      <cmdpiece parentcmd="server" commandid="vm" keyname="vm" handler="serverhandler" content="value"/>
+      <cmdpiece parentcmd="server" commandid="boot" keyname="boot" handler="serverhandler" content="value"/>
+      <cmdpiece parentcmd="server" commandid="down" keyname="down" handler="serverhandler" content="value"/>
+    <cmdpiece parentcmd="" commandid="server" keyname="server" handler="" content="objectclose"/>
+  </command>
+
+  <command categoryid="availability" commandid="server_cpu">
+    <cmdpiece parentcmd="" commandid="server_cpu" keyname="server_cpu" handler="" xtraproc="no" content="object"/>
+      <cmdpiece parentcmd="server_cpu" commandid="data_type" keyname="data_type" handler="cpuhandler" content="value"/>
+      <cmdpiece parentcmd="server_cpu" commandid="hostname" keyname="hostname" handler="cpuhandler" content="value"/>
+      <cmdpiece parentcmd="server_cpu" commandid="timestamp" keyname="timestamp" handler="cpuhandler" content="value"/>
+      <cmdpiece parentcmd="server_cpu" commandid="count" keyname="count" handler="cpuhandler" content="value"/>
+      <cmdpiece parentcmd="server_cpu" commandid="pct_used" keyname="pct_used" handler="cpuhandler" content="value"/>
+      <cmdpiece parentcmd="server_cpu" commandid="pct_user" keyname="pct_user" handler="cpuhandler" content="value"/>
+      <cmdpiece parentcmd="server_cpu" commandid="pct_sys" keyname="pct_sys" handler="cpuhandler" content="value"/>
+      <cmdpiece parentcmd="server_cpu" commandid="pct_idle" keyname="pct_idle" handler="cpuhandler" content="value"/>
+      <cmdpiece parentcmd="server_cpu" commandid="pct_wio" keyname="pct_wio" handler="cpuhandler" content="value"/>
+      <cmdpiece parentcmd="server_cpu" commandid="load_averange" keyname="load_averange" handler="cpuhandler" content="value"/>
+    <cmdpiece parentcmd="" commandid="server_cpu" keyname="server_cpu" handler="" content="objectclose"/>
+  </command>
+  
+  <command categoryid="availability" commandid="server_memory">
+    <cmdpiece parentcmd="" commandid="server_memory" keyname="server_memory" handler="" xtraproc="no" content="object"/>
+      <cmdpiece parentcmd="server_memory" commandid="data_type" keyname="data_type" handler="memoryhandler" content="value"/>
+      <cmdpiece parentcmd="server_memory" commandid="hostname" keyname="hostname" handler="memoryhandler" content="value"/>
+      <cmdpiece parentcmd="server_memory" commandid="timestamp" keyname="timestamp" handler="memoryhandler" content="value"/>
+      <cmdpiece parentcmd="server_memory" commandid="total_memory" keyname="total_memory" handler="memoryhandler" content="value"/>
+      <cmdpiece parentcmd="server_memory" commandid="free_memory" keyname="free_memory" handler="memoryhandler" content="value"/>
+      <cmdpiece parentcmd="server_memory" commandid="used_memory" keyname="used_memory" handler="memoryhandler" content="value"/>
+      <cmdpiece parentcmd="server_memory" commandid="cache_memory" keyname="cache_memory" handler="memoryhandler" content="value"/>
+      <cmdpiece parentcmd="server_memory" commandid="swap_total" keyname="swap_total" handler="memoryhandler" content="value"/>
+      <cmdpiece parentcmd="server_memory" commandid="swap_free" keyname="swap_free" handler="memoryhandler" content="value"/>
+      <cmdpiece parentcmd="server_memory" commandid="swap_used" keyname="swap_used" handler="memoryhandler" content="value"/>
+    <cmdpiece parentcmd="" commandid="server_memory" keyname="server_memory" handler="" content="objectclose"/>
+  </command>
+
+  <command categoryid="availability" commandid="server_disk">
+    <cmdpiece parentcmd="" commandid="server_disk" keyname="server_disk" handler="" xtraproc="no" content="array"/>
+      <cmdpiece parentcmd="server_disk" commandid="array" keyname="array" handler=""  content="object"/>
+        <cmdpiece parentcmd="array" commandid="data_type" keyname="data_type" handler="diskhandler" content="value"/>
+        <cmdpiece parentcmd="array" commandid="hostname" keyname="hostname" handler="diskhandler" content="value"/>
+        <cmdpiece parentcmd="array" commandid="timestamp" keyname="timestamp" handler="diskhandler" content="value"/>
+        <cmdpiece parentcmd="array" commandid="filesystem" keyname="filesystem" handler="diskhandler" content="value"/>
+        <cmdpiece parentcmd="array" commandid="mountpoint" keyname="mountpoint" handler="diskhandler" content="value"/>
+        <cmdpiece parentcmd="array" commandid="size" keyname="size" handler="diskhandler" content="value"/>
+        <cmdpiece parentcmd="array" commandid="used" keyname="used" handler="diskhandler" content="value"/>
+        <cmdpiece parentcmd="array" commandid="used_percent" keyname="used_percent" handler="diskhandler" content="value"/>
+        <cmdpiece parentcmd="array" commandid="available" keyname="available" handler="diskhandler" content="value"/>
+      <cmdpiece parentcmd="server_disk" commandid="array" keyname="array" handler=""  content="objectclose"/>
+    <cmdpiece parentcmd="" commandid="server_disk" keyname="server_disk" handler="diskhandler" content="arrayclose"/>
+  </command>
+
+  <command categoryid="availability" commandid="server_network">
+    <cmdpiece parentcmd="" commandid="server_network" keyname="server_network" handler="" xtraproc="no" content="array"/>
+      <cmdpiece parentcmd="server_network" commandid="array" keyname="array" handler=""  content="object"/>
+        <cmdpiece parentcmd="array" commandid="data_type" keyname="data_type" handler="networkhandler" content="value"/>
+        <cmdpiece parentcmd="array" commandid="hostname" keyname="hostname" handler="networkhandler" content="value"/>
+        <cmdpiece parentcmd="array" commandid="timestamp" keyname="timestamp" handler="networkhandler" content="value"/>
+        <cmdpiece parentcmd="array" commandid="interface" keyname="interface" handler="networkhandler" content="value"/>
+        <cmdpiece parentcmd="array" commandid="virtual_interface" keyname="virtual_interface" handler="networkhandler" content="value"/>
+        <cmdpiece parentcmd="array" commandid="mac_address" keyname="mac_address" handler="networkhandler" content="value"/>
+        <cmdpiece parentcmd="array" commandid="ip_address" keyname="ip_address" handler="networkhandler" content="value"/>
+        <cmdpiece parentcmd="array" commandid="state" keyname="state" handler="networkhandler" content="value"/>
+        <cmdpiece parentcmd="array" commandid="mtu" keyname="mtu" handler="networkhandler" content="value"/>
+        <cmdpiece parentcmd="array" commandid="alive" keyname="alive" handler="networkhandler" content="value"/>
+      <cmdpiece parentcmd="server_network" commandid="array" keyname="array" handler=""  content="objectclose"/>
+    <cmdpiece parentcmd="" commandid="server_network" keyname="server_network" handler="networkhandler" content="arrayclose"/>
+  </command>
+
+  <command categoryid="availability" commandid="server_ospackages">
+    <cmdpiece parentcmd="" commandid="server_ospackages" keyname="server_ospackages" handler="" xtraproc="no" content="array"/>
+      <cmdpiece parentcmd="server_ospackages" commandid="array" keyname="array" handler=""  content="object"/>
+        <cmdpiece parentcmd="array" commandid="data_type" keyname="data_type" handler="ospackageshandler" content="value"/>
+        <cmdpiece parentcmd="array" commandid="hostname" keyname="hostname" handler="ospackageshandler" content="value"/>
+        <cmdpiece parentcmd="array" commandid="timestamp" keyname="timestamp" handler="ospackageshandler" content="value"/>
+        <cmdpiece parentcmd="array" commandid="package" keyname="package" handler="ospackageshandler" content="value"/>
+      <cmdpiece parentcmd="server_ospackages" commandid="array" keyname="array" handler=""  content="objectclose"/>
+    <cmdpiece parentcmd="" commandid="server_ospackages" keyname="server_ospackages" handler="ospackageshandler" content="arrayclose"/>
+  </command>
+
+  <command categoryid="availability" commandid="server_osparameter">
+    <cmdpiece parentcmd="" commandid="server_osparameter" keyname="server_osparameter" handler="" xtraproc="no" content="array"/>
+      <cmdpiece parentcmd="server_osparameter" commandid="array" keyname="array" handler=""  content="object"/>
+        <cmdpiece parentcmd="array" commandid="data_type" keyname="data_type" handler="osparameterhandler" content="value"/>
+        <cmdpiece parentcmd="array" commandid="hostname" keyname="hostname" handler="osparameterhandler" content="value"/>
+        <cmdpiece parentcmd="array" commandid="timestamp" keyname="timestamp" handler="osparameterhandler" content="value"/>
+        <cmdpiece parentcmd="array" commandid="name" keyname="name" handler="osparameterhandler" content="value"/>
+        <cmdpiece parentcmd="array" commandid="value" keyname="value" handler="osparameterhandler" content="value"/>
+      <cmdpiece parentcmd="server_osparameter" commandid="array" keyname="array" handler=""  content="objectclose"/>
+    <cmdpiece parentcmd="" commandid="server_osparameter" keyname="server_osparameter" handler="osparameterhandler" content="arrayclose"/>
+  </command>
+
+  <command categoryid="availability" commandid="crs_resource">
+    <cmdpiece parentcmd="" commandid="crs_resource" keyname="crs_resource" handler="" xtraproc="no" content="array"/>
+      <cmdpiece parentcmd="crs_resource" commandid="array" keyname="array" handler=""  content="object"/>
+        <cmdpiece parentcmd="array" commandid="data_type" keyname="data_type" handler="crsreshandler" content="value"/>
+        <cmdpiece parentcmd="array" commandid="hostname" keyname="hostname" handler="crsreshandler" content="value"/>
+        <cmdpiece parentcmd="array" commandid="timestamp" keyname="timestamp" handler="crsreshandler" content="value"/>
+        <cmdpiece parentcmd="array" commandid="name" keyname="name" handler="crsreshandler" content="value"/>
+        <cmdpiece parentcmd="array" commandid="type" keyname="type" handler="crsreshandler" content="value"/>
+        <cmdpiece parentcmd="array" commandid="state" keyname="state" handler="crsreshandler" content="value"/>
+        <cmdpiece parentcmd="array" commandid="target" keyname="target" handler="crsreshandler" content="value"/>
+        <cmdpiece parentcmd="array" commandid="acl" keyname="acl" handler="crsreshandler" content="value"/>
+        <cmdpiece parentcmd="array" commandid="internal_state" keyname="internal_state" handler="crsreshandler" content="value"/>
+        <cmdpiece parentcmd="array" commandid="last_restart" keyname="last_restart" handler="crsreshandler" content="value"/>
+        <cmdpiece parentcmd="array" commandid="last_state_change" keyname="last_state_change" handler="crsreshandler" content="value"/>
+     <cmdpiece parentcmd="crs_resource" commandid="array" keyname="array" handler=""  content="objectclose"/>
+    <cmdpiece parentcmd="" commandid="crs_resource" keyname="crs_resource" handler="crsreshandler" content="arrayclose"/>
+  </command>
+
+  <command categoryid="availability" commandid="asm">
+    <cmdpiece parentcmd="" commandid="asm" keyname="asm" handler="" xtraproc="no" content="array"/>
+      <cmdpiece parentcmd="asm" commandid="array" keyname="array" handler=""  content="object"/>
+        <cmdpiece parentcmd="array" commandid="data_type" keyname="data_type" handler="asmhandler" content="value"/>
+        <cmdpiece parentcmd="array" commandid="hostname" keyname="hostname" handler="asmhandler" content="value"/>
+        <cmdpiece parentcmd="array" commandid="timestamp" keyname="timestamp" handler="asmhandler" content="value"/>
+        <cmdpiece parentcmd="array" commandid="asm_home_path" keyname="asm_home_path" handler="asmhandler" content="value"/>
+        <cmdpiece parentcmd="array" commandid="timezone" keyname="timezone" handler="asmhandler" content="value"/>
+        <cmdpiece parentcmd="array" commandid="diagnostic_destination" keyname="diagnostic_destination" handler="asmhandler" content="value"/>
+        <cmdpiece parentcmd="array" commandid="presence" keyname="presence" handler="asmhandler" content="value"/>
+        <cmdpiece parentcmd="array" commandid="instance_count" keyname="instance_count" handler="asmhandler" content="value"/>
+     <cmdpiece parentcmd="asm" commandid="array" keyname="array" handler=""  content="objectclose"/>
+    <cmdpiece parentcmd="" commandid="asm" keyname="asm" handler="asmhandler" content="arrayclose"/>
+  </command>
+
+  <command categoryid="availability" commandid="asm_instance">
+    <cmdpiece parentcmd="" commandid="asm_instance" keyname="asm_instance" handler="" xtraproc="no" content="array"/>
+      <cmdpiece parentcmd="asm_instance" commandid="array" keyname="array" handler=""  content="object"/>
+        <cmdpiece parentcmd="array" commandid="data_type" keyname="data_type" handler="asminstancehandler" content="value"/>
+        <cmdpiece parentcmd="array" commandid="hostname" keyname="hostname" handler="asminstancehandler" content="value"/>
+        <cmdpiece parentcmd="array" commandid="timestamp" keyname="timestamp" handler="asminstancehandler" content="value"/>
+        <cmdpiece parentcmd="array" commandid="oracle_sid" keyname="oracle_sid" handler="asminstancehandler" content="value"/>
+        <cmdpiece parentcmd="array" commandid="cardinality_id" keyname="cardinality_id" handler="asminstancehandler" content="value"/>
+        <cmdpiece parentcmd="array" commandid="state" keyname="state" handler="asminstancehandler" content="value"/>
+        <cmdpiece parentcmd="array" commandid="target" keyname="target" handler="asminstancehandler" content="value"/>
+        <cmdpiece parentcmd="array" commandid="last_server" keyname="last_server" handler="asminstancehandler" content="value"/>
+        <cmdpiece parentcmd="array" commandid="target_server" keyname="target_server" handler="asminstancehandler" content="value"/>
+        <cmdpiece parentcmd="array" commandid="restart_count" keyname="restart_count" handler="asminstancehandler" content="value"/>
+        <cmdpiece parentcmd="array" commandid="failure_count" keyname="failure_count" handler="asminstancehandler" content="value"/>
+        <cmdpiece parentcmd="array" commandid="incarnation" keyname="incarnation" handler="asminstancehandler" content="value"/>
+        <cmdpiece parentcmd="array" commandid="last_restart" keyname="last_restart" handler="asminstancehandler" content="value"/>
+        <cmdpiece parentcmd="array" commandid="last_state_change" keyname="last_state_change" handler="asminstancehandler" content="value"/>
+        <cmdpiece parentcmd="array" commandid="state_details" keyname="state_details" handler="asminstancehandler" content="value"/>
+        <cmdpiece parentcmd="array" commandid="internal_state" keyname="internal_state" handler="asminstancehandler" content="value"/>
+     <cmdpiece parentcmd="asm_instance" commandid="array" keyname="array" handler=""  content="objectclose"/>
+    <cmdpiece parentcmd="" commandid="asm_instance" keyname="asm_instance" handler="asminstancehandler" content="arrayclose"/>
+  </command>
+
+  <command categoryid="availability" commandid="asm_diskgroup">
+    <cmdpiece parentcmd="" commandid="asm_diskgroup" keyname="asm_diskgroup" handler="" xtraproc="no" content="array"/>
+      <cmdpiece parentcmd="asm_diskgroup" commandid="array" keyname="array" handler=""  content="object"/>
+        <cmdpiece parentcmd="array" commandid="data_type" keyname="data_type" handler="asmdiskgrouphandler" content="value"/>
+        <cmdpiece parentcmd="array" commandid="hostname" keyname="hostname" handler="asmdiskgrouphandler" content="value"/>
+        <cmdpiece parentcmd="array" commandid="timestamp" keyname="timestamp" handler="asmdiskgrouphandler" content="value"/>
+        <cmdpiece parentcmd="array" commandid="name" keyname="name" handler="asmdiskgrouphandler" content="value"/>
+        <cmdpiece parentcmd="array" commandid="state" keyname="state" handler="asmdiskgrouphandler" content="value"/>
+        <cmdpiece parentcmd="array" commandid="target" keyname="target" handler="asmdiskgrouphandler" content="value"/>
+        <cmdpiece parentcmd="array" commandid="last_server" keyname="last_server" handler="asmdiskgrouphandler" content="value"/>
+        <cmdpiece parentcmd="array" commandid="target_server" keyname="target_server" handler="asmdiskgrouphandler" content="value"/>
+        <cmdpiece parentcmd="array" commandid="restart_count" keyname="restart_count" handler="asmdiskgrouphandler" content="value"/>
+        <cmdpiece parentcmd="array" commandid="failure_count" keyname="failure_count" handler="asmdiskgrouphandler" content="value"/>
+        <cmdpiece parentcmd="array" commandid="incarnation" keyname="incarnation" handler="asmdiskgrouphandler" content="value"/>
+        <cmdpiece parentcmd="array" commandid="last_restart" keyname="last_restart" handler="asmdiskgrouphandler" content="value"/>
+        <cmdpiece parentcmd="array" commandid="last_state_change" keyname="last_state_change" handler="asmdiskgrouphandler" content="value"/>
+        <cmdpiece parentcmd="array" commandid="state_details" keyname="state_details" handler="asmdiskgrouphandler" content="value"/>
+        <cmdpiece parentcmd="array" commandid="internal_state" keyname="internal_state" handler="asmdiskgrouphandler" content="value"/>
+     <cmdpiece parentcmd="asm_diskgroup" commandid="array" keyname="array" handler=""  content="objectclose"/>
+    <cmdpiece parentcmd="" commandid="asm_diskgroup" keyname="asm_diskgroup" handler="asmdiskgrouphandler" content="arrayclose"/>
+  </command>
+
+  <command categoryid="availability" commandid="db_instance">
+    <cmdpiece parentcmd="" commandid="db_instance" keyname="db_instance" handler="" xtraproc="no" content="array"/>
+      <cmdpiece parentcmd="db_instance" commandid="array" keyname="array" handler=""  content="object"/>
+        <cmdpiece parentcmd="array" commandid="data_type" keyname="data_type" handler="dbinstancehandler" content="value"/>
+        <cmdpiece parentcmd="array" commandid="hostname" keyname="hostname" handler="dbinstancehandler" content="value"/>
+        <cmdpiece parentcmd="array" commandid="timestamp" keyname="timestamp" handler="dbinstancehandler" content="value"/>
+        <cmdpiece parentcmd="array" commandid="db_unique_name" keyname="db_unique_name" handler="dbinstancehandler" content="value"/>
+        <cmdpiece parentcmd="array" commandid="db_name" keyname="db_name" handler="dbinstancehandler" content="value"/>
+        <cmdpiece parentcmd="array" commandid="db_domain" keyname="db_domain" handler="dbinstancehandler" content="value"/>
+        <cmdpiece parentcmd="array" commandid="oracle_sid" keyname="oracle_sid" handler="dbinstancehandler" content="value"/>
+        <cmdpiece parentcmd="array" commandid="cardinality_id" keyname="cardinality_id" handler="dbinstancehandler" content="value"/>
+        <cmdpiece parentcmd="array" commandid="state" keyname="state" handler="dbinstancehandler" content="value"/>
+        <cmdpiece parentcmd="array" commandid="target" keyname="target" handler="dbinstancehandler" content="value"/>
+        <cmdpiece parentcmd="array" commandid="last_server" keyname="last_server" handler="dbinstancehandler" content="value"/>
+        <cmdpiece parentcmd="array" commandid="target_server" keyname="target_server" handler="dbinstancehandler" content="value"/>
+        <cmdpiece parentcmd="array" commandid="restart_count" keyname="restart_count" handler="dbinstancehandler" content="value"/>
+        <cmdpiece parentcmd="array" commandid="failure_count" keyname="failure_count" handler="dbinstancehandler" content="value"/>
+        <cmdpiece parentcmd="array" commandid="incarnation" keyname="incarnation" handler="dbinstancehandler" content="value"/>
+        <cmdpiece parentcmd="array" commandid="last_restart" keyname="last_restart" handler="dbinstancehandler" content="value"/>
+        <cmdpiece parentcmd="array" commandid="last_state_change" keyname="last_state_change" handler="dbinstancehandler" content="value"/>
+        <cmdpiece parentcmd="array" commandid="state_details" keyname="state_details" handler="dbinstancehandler" content="value"/>
+        <cmdpiece parentcmd="array" commandid="internal_state" keyname="internal_state" handler="dbinstancehandler" content="value"/>
+     <cmdpiece parentcmd="db_instance" commandid="array" keyname="array" handler=""  content="objectclose"/>
+    <cmdpiece parentcmd="" commandid="db_instance" keyname="db_instance" handler="dbinstancehandler" content="arrayclose"/>
+  </command>
+
+  <command categoryid="availability" commandid="mgmtdb_instance">
+    <cmdpiece parentcmd="" commandid="mgmtdb_instance" keyname="mgmtdb_instance" handler="" xtraproc="no" content="array"/>
+      <cmdpiece parentcmd="mgmtdb_instance" commandid="array" keyname="array" handler=""  content="object"/>
+        <cmdpiece parentcmd="array" commandid="data_type" keyname="data_type" handler="mgmtdbinstancehandler" content="value"/>
+        <cmdpiece parentcmd="array" commandid="hostname" keyname="hostname" handler="mgmtdbinstancehandler" content="value"/>
+        <cmdpiece parentcmd="array" commandid="timestamp" keyname="timestamp" handler="mgmtdbinstancehandler" content="value"/>
+        <cmdpiece parentcmd="array" commandid="db_unique_name" keyname="db_unique_name" handler="mgmtdbinstancehandler" content="value"/>
+        <cmdpiece parentcmd="array" commandid="db_name" keyname="db_name" handler="mgmtdbinstancehandler" content="value"/>
+        <cmdpiece parentcmd="array" commandid="db_domain" keyname="db_domain" handler="mgmtdbinstancehandler" content="value"/>
+        <cmdpiece parentcmd="array" commandid="oracle_sid" keyname="oracle_sid" handler="mgmtdbinstancehandler" content="value"/>
+        <cmdpiece parentcmd="array" commandid="cardinality_id" keyname="cardinality_id" handler="mgmtdbinstancehandler" content="value"/>
+        <cmdpiece parentcmd="array" commandid="state" keyname="state" handler="mgmtdbinstancehandler" content="value"/>
+        <cmdpiece parentcmd="array" commandid="target" keyname="target" handler="mgmtdbinstancehandler" content="value"/>
+        <cmdpiece parentcmd="array" commandid="last_server" keyname="last_server" handler="mgmtdbinstancehandler" content="value"/>
+        <cmdpiece parentcmd="array" commandid="target_server" keyname="target_server" handler="mgmtdbinstancehandler" content="value"/>
+        <cmdpiece parentcmd="array" commandid="restart_count" keyname="restart_count" handler="mgmtdbinstancehandler" content="value"/>
+        <cmdpiece parentcmd="array" commandid="failure_count" keyname="failure_count" handler="mgmtdbinstancehandler" content="value"/>
+        <cmdpiece parentcmd="array" commandid="incarnation" keyname="incarnation" handler="mgmtdbinstancehandler" content="value"/>
+        <cmdpiece parentcmd="array" commandid="last_restart" keyname="last_restart" handler="mgmtdbinstancehandler" content="value"/>
+        <cmdpiece parentcmd="array" commandid="last_state_change" keyname="last_state_change" handler="mgmtdbinstancehandler" content="value"/>
+        <cmdpiece parentcmd="array" commandid="state_details" keyname="state_details" handler="mgmtdbinstancehandler" content="value"/>
+        <cmdpiece parentcmd="array" commandid="internal_state" keyname="internal_state" handler="mgmtdbinstancehandler" content="value"/>
+     <cmdpiece parentcmd="mgmtdb_instance" commandid="array" keyname="array" handler=""  content="objectclose"/>
+    <cmdpiece parentcmd="" commandid="mgmtdb_instance" keyname="mgmtdb_instance" handler="mgmtdbinstancehandler" content="arrayclose"/>
+  </command>
+
+</commands>

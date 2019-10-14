@@ -1,0 +1,84 @@
+<?xml version="1.0"?>
+
+<!--  $Header: tfa/src/v2/tfa_home/resources/srdc_dbblockcorruption.xml /main/3 2018/08/15 16:55:52 bburton Exp $ -->
+
+<!-- 
+ Copyright (c) 2018, Oracle and/or its affiliates. All rights reserved.
+
+   NAME
+     srdc_dbblockcorruption.xml 
+
+   DESCRIPTION
+     SRDC collection for block corruption.
+
+   MODIFIED   (MM/DD/YY)
+   xiaodowu    08/01/18 - Resolve Bug 28439844 - ADD PARENTHESIS FOR VALIDATE
+   recornej    07/18/18 - Validate number.
+   xiaodowu    03/28/18 - SRDC - Required Diagnostic Data Collection for Alert
+                          Log Message "Corrupt block relative dba" (Doc ID
+                          1949650.1)
+   xiaodowu    03/28/18 - Creation
+
+-->
+
+<collections>
+<collection id="dbblockcorruption">
+    <description>SRDC - Required Diagnostic Data Collection for Alert Log Message "Corrupt block relative dba".</description>
+    <srdc_docs>Doc ID 1949650.1: SRDC - Required Diagnostic Data Collection for Alert Log Message "Corrupt block relative dba".</srdc_docs>
+    <alias>dbblockcorruption</alias>
+    <onevents>
+        <event>
+            <infile>
+                <name_patterns>
+                    <pattern>alert_.*\.log</pattern>
+                </name_patterns>
+            </infile>
+        </event>
+    </onevents>
+    <user_inputs>
+        <user_input cmdline="" default="" showprompt="1" setenv="REPLACE" validate="" prompt="Enter the Database Name">USERINPUT-DATABASE_NAME</user_input>
+     <user_input cmdline="" default="" showprompt="1" setenv="" validate="(y|Y|n|N)" prompt="Do you know the affected file#? [Y|N] ">USERINPUT-FILEFLAG</user_input>
+     <user_input cmdline="" default="" showprompt="1" setenv="REPLACE" validate="number" depinput="FILEFLAG" deppattern="y|Y" prompt="Enter the file#: (for example:16, 25) ">USERINPUT-FILE</user_input>
+	<user_input cmdline="" default="" showprompt="0" setenv="REPLACE" validate="" prompt="">USERINPUT-TFA_HOME</user_input>
+    </user_inputs>    
+    <duration>12h</duration>
+    <clusterwide>no</clusterwide>
+    <filter_files>
+        <types>
+        </types>
+        <filter_file_patterns>
+            <filter_file_pattern>alert_.*\.log</filter_file_pattern>
+            <filter_file_pattern>trc</filter_file_pattern>
+            <filter_file_pattern>log</filter_file_pattern>
+            <filter_file_pattern>archive\/osw</filter_file_pattern>
+            <filter_file_pattern>ExaWatcher\/archive</filter_file_pattern>
+        </filter_file_patterns>
+        <filter_file_exclude_patterns>
+            <filter_file_exclude_pattern>cdmp_.*_bucket\.tr[cm]</filter_file_exclude_pattern>
+        </filter_file_exclude_patterns>
+    </filter_files>
+    <components>
+        <component>OS</component>
+        <component>CRS</component>
+        <component>DATABASE</component>
+        <component>NOCHMOS</component>
+    </components>
+    <commands>
+      <script type="OS" name="srdc_modify_rcv" timeout="120" validfor="" platform="allux" version="" depinput="FILEFLAG" deppattern="y|Y">
+        FILE_NAME=%FILE%
+        /bin/sed "s/FILENUMBERS/$FILE_NAME/" %TFA_HOME%/resources/sql/srdc_rman_validate_datafile.rcv.template >srdc_rman_validate_datafile.tmp.rcv
+     </script>
+      <script type="OS" name="srdc_rman_validate_datafile" timeout="120" validfor="" platform="allux" version="">
+        $ORACLE_HOME/bin/rman target / cmdfile=srdc_rman_validate_datafile.tmp.rcv
+        /bin/rm -f srdc_rman_validate_datafile.tmp.rcv
+     </script>
+      <script type="OS" name="srdc_rman_validate_database" timeout="120" validfor="" platform="allux" version="" depinput="FILEFLAG" deppattern="n|N">
+        $ORACLE_HOME/bin/rman target / cmdfile=%TFA_HOME%/resources/sql/srdc_rman_validate_database.rcv
+     </script>
+     <script type="SQLSCRIPT" name="srdc_get_corrupted_segment.sql" timeout="300" validfor="" platform="" version=""></script>
+    </commands>
+    <runtime_flags>
+    </runtime_flags>
+</collection>
+</collections>
+

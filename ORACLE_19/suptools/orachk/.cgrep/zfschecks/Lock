@@ -1,0 +1,95 @@
+printf("==========START_OF_REPORT_chkLock.aksh==========\n");
+//
+//
+// This script will check if the lockd server has reached its limit 
+//
+
+// ----------------------------------------------------------------------------
+// VARS
+
+	var founderrors = true; // Track error findings
+	var auditcheck = 0;
+	var report = 1;
+        var runonetime = 1;
+    var sharectl_lockd; 
+    var sus4540_lockd; 
+    var nlockmgr_lockd;
+
+// ----------------------------------------------------------------------------
+// MAIN STARTS HERE	
+if(runonetime==1)
+{
+getHostname();
+
+// Confirm the lock from sharectl
+try { 
+	sharectl_lockd_report=run('confirm shell sharectl get nfs');
+	sharectl_lockd = /lockd_servers.*=.*\n/.exec(sharectl_lockd_report).toString();
+	sharectl_lockd = sharectl_lockd.substring(0, sharectl_lockd.length-1);
+	sharectl_lockd = sharectl_lockd.split("=")[1];
+
+    if ( report == 1) {
+		printf("> confirm shell sharectl get nfs \n\n" + sharectl_lockd_report + "\n\n\n" );
+	}
+} catch(err) { 
+	// do nothing
+}
+
+
+// Confirm the lock from sus4540-010#
+try { 
+   	sus4540_lockd_report=run('confirm shell svcprop nlockmgr'); 
+	sus4540_lockd_report = /lockd_servers.*\n/.exec(sus4540_lockd_report).toString();
+	sus4540_lockd = sus4540_lockd_report.substring(0, sus4540_lockd_report.length-1);  // remove newline
+	sus4540_lockd = sus4540_lockd.split(" ");
+	sus4540_lockd = sus4540_lockd[sus4540_lockd.length-1];
+
+    if ( report == 1) {
+        printf("> confirm shell svcprop nlockmgr | grep lockd_servers\n\n" + sus4540_lockd_report + "\n\n\n" );
+    }
+} catch(err) { 
+	// do nothing
+}
+
+// Confirm the lock from nlockmgr.xml file
+try { 
+    	nlockmgr_lockd_report=run('confirm shell grep lockd_servers /lib/svc/manifest/network/nfs/nlockmgr.xml');
+	nlockmgr_lockd = /value.*=.*'.*'/.exec(nlockmgr_lockd_report).toString();
+	nlockmgr_lockd = nlockmgr_lockd.split("=")[1];
+	nlockmgr_lockd = nlockmgr_lockd.substring(1, nlockmgr_lockd.length-1); // remove quotes
+
+    if ( report == 1) {
+        printf("> confirm shell grep lockd_servers /lib/svc/manifest/network/nfs/nlockmgr.xml \n\n" + nlockmgr_lockd_report + "\n\n\n" );
+    }
+} catch(err) { 
+	// do nothing
+}
+if ( Number(sharectl_lockd)>=512 && Number(sus4540_lockd)>=512 && Number(nlockmgr_lockd)>=512 ) {
+	founderrors = false;
+    }
+runonetime=0;
+}
+
+// Report Command
+
+if ( report == 1 ) {
+    if ( founderrors == false ) {
+        printf("OK: %s Lock Check Completed: Lock Daemon Configuration is configured correctly.\n",host_name);
+    }
+    else {
+	    printf("WARNING: %s Lock Check Completed: Lock Daemon Configuration is not configured correctly.\n",host_name);
+    }
+
+}
+
+//END
+printf("==========END_OF_REPORT_chkLock.aksh==========\n");
+printf("==========START_OF_AUDIT_CHECK_chkLock.aksh==========\n");
+if ( founderrors == false ) {
+        printf("lock_check_status = 0\n");
+}
+else {
+        printf("lock_check_status = 1\n");
+}
+
+printf("==========END_OF_AUDIT_CHECK_chkLock.aksh==========\n");

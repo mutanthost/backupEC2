@@ -1,0 +1,111 @@
+<?xml version="1.0"?>
+
+<!--  $Header: tfa/src/v2/tfa_home/resources/srdc_emcliadd.xml /main/1 2018/05/28 15:06:26 bburton Exp $ -->
+
+<!-- 
+ Copyright (c) 2016, 2018, Oracle and/or its affiliates. All rights reserved.
+
+   NAME
+     srdc_emcliadd.xml - <one-line expansion of the name>
+
+   DESCRIPTION
+     <short description of component this file declares/defines>
+
+   NOTES
+     <other useful comments, qualifications, etc.>
+
+   MODIFIED   (MM/DD/YY)
+   recornej   11/29/17 - Migrate opt in default attribute to required attribute
+   manuegar   10/04/17 - Creation
+
+-->
+<collections>
+<collection id="emcliadd">
+        <description>EM SRDC - Errors during the adding of a database/listener/ASM target via EMCLI.</description>
+        <user_inputs>
+            <user_input cmdline="" required="OPT" validfor="EMAGENT" showprompt="1" setenv="NO" validate="" prompt="Enter the value for the EM Target name">USERINPUT-TARGET_DBNAME</user_input>
+            <user_input cmdline="" required="OPT" validfor="EMAGENT" showprompt="1" setenv="REPLACE" validate="directory" prompt="Enter the ORACLE_HOME for the target">USERINPUT-EMDISCDB_OHOME</user_input>
+        </user_inputs>
+        <onevents>
+                <event>
+                </event>
+        </onevents>
+        <duration>12h</duration>
+        <clusterwide>no</clusterwide>
+        <filter_files>
+                <types>
+                </types>
+                <filter_file_patterns>
+                    <filter_file_pattern>alert_.*\.log</filter_file_pattern>
+                    <filter_file_pattern>trc</filter_file_pattern>
+                    <filter_file_pattern>log</filter_file_pattern>
+                    <filter_file_pattern>archive\/osw</filter_file_pattern>
+                    <filter_file_pattern>ExaWatcher\/archive</filter_file_pattern>
+                </filter_file_patterns>
+        </filter_files>
+        <components>
+            <component>OS</component>
+        </components>
+        <commands>
+            <script type="OS" name="os_emcliadd" timeout="500" validfor="OMS" platform="allux" version="">
+            export ORACLE_HOME=%EMOMSOHOME%
+            export PATH=$ORACLE_HOME/bin:$PATH
+            emcli status
+            emcli status | grep "Log file" &gt; out.log
+            export emclifile=`cat ./out.log | sed 's/.*Log file.*\: \(.*\)/\1/'`
+            rm ./out.log
+            cp $emclifile . 2&gt;/dev/null
+            </script>
+            <script type="OS" name="os_emcliaddWin" timeout="500" validfor="OMS" platform="MSWin32" version="">
+            set ORACLE_HOME=%EMOMSOHOME%
+            set PATH=%ORACLE_HOME%\bin;%PATH%
+            emcli status &gt; emcli.log
+            for /f "tokens=4 delims= " %%a in ('"type emcli.log|findstr /c:"Log file""') do (
+               set emclifile=%%a
+            )
+            copy %emclifile% .
+            </script>
+
+            <script type="OS" name="os_listenerInfo" timeout="500" validfor="EMAGENT" platform="allux" version="">
+            export ORACLE_HOME=%EMDISCDB_OHOME%
+            export PATH=$ORACLE_HOME/bin:$PATH
+            $ORACLE_HOME/bin/lsnrctl status
+            cp $ORACLE_HOME/network/admin/listener.ora . 2&gt;/dev/null
+            cp $ORACLE_HOME/network/admin/tnsnames.ora . 2&gt;/dev/null
+            </script>
+            <script type="OS" name="os_listenerInfoWin" timeout="500" validfor="EMAGENT" platform="MSWin32" version="">
+            set ORACLE_HOME=%EMDISCDB_OHOME%
+            set PATH=%ORACLE_HOME%\bin;%PATH%
+            %ORACLE_HOME%\bin\lsnrctl status
+            copy %ORACLE_HOME%\network\admin\listener.ora .
+            copy %ORACLE_HOME%\network\admin\tnsnames.ora .
+            </script>
+
+            <script type="OS" name="os_targetsFile" timeout="500" validfor="EMAGENTI" platform="allux" version="">
+            export ORACLE_HOME=%EMAGENTIHOME%
+            export PATH=$ORACLE_HOME/bin:$PATH
+            ls -l $ORACLE_HOME/sysman/emd/
+            cp $ORACLE_HOME/sysman/emd/targets.xml . 2&gt;/dev/null
+            </script>
+
+            <script type="OS" name="os_targetsFileWin" timeout="500" validfor="EMAGENTI" platform="MSWin32" version="">
+            set ORACLE_HOME=%EMAGENTIHOME%
+            set PATH=%ORACLE_HOME%\bin;%PATH%
+            ls -l %ORACLE_HOME%\sysman\emd\
+            copy %ORACLE_HOME%\sysman\emd\targets.xml .
+            </script>
+
+            <script type="EMSQL" name="sql_params" timeout="300" validfor="TARGETDB" platform="" version="">
+                conn / as sysdba;
+                set mark html on
+                spool params.html
+                show parameter name
+                spool off;
+                set mark html off;
+                exit;
+            </script>
+        </commands>
+        <runtime_flags>
+        </runtime_flags>
+</collection>
+</collections>

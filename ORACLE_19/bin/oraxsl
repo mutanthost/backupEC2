@@ -1,0 +1,3 @@
+#! /bin/sh
+
+java oracle.xml.parser.v2.oraxsl $*

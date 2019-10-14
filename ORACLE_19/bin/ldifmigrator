@@ -1,0 +1,92 @@
+#!/bin/sh
+
+# Copyright (c) 2001, 2018, Oracle and/or its affiliates. All rights reserved.
+#
+#    NAME
+#      ldifmigrator - Shell script to perform LDIF migration.
+#
+#    DESCRIPTION
+#      Converts a psuedo LDIF file to an LDIF file that is suitable for loading
+#      using standard LDAP add utilities by replacing the substitution variables
+#      with the specified values.
+#
+#    MODIFIED   (MM/DD/YY)
+#    tashah      10/09/06 - Adding jps jars in classspath
+#    tnallath    10/05/04 - bug 3933094 - set LD_LIBRARY_PATH correctly 
+#    akolli      03/04/03 - change jclnt jar name
+#    svenugop    07/31/02 - Chg to use jdk1.3.1
+#    akolli      11/01/01 - fix bug 2022475
+#    svenugop    09/18/01 - Created
+#
+
+# ORACLE_HOME must be set and the directory must exist.
+# if it is already defined as an environment variable that will be used.
+
+if [ "${ORACLE_HOME}" = "" ]; then
+   ORACLE_HOME=/u01/app/oracle/product/19.0.0/dbhome_1
+   export ORACLE_HOME
+fi
+
+if [ ! -d "${ORACLE_HOME}" ]; then
+   echo "$ORACLE_HOME directory does not exist. Please verify"
+   exit
+fi
+# A few platforms use an environment variable other than LD_LIBRARY_PATH
+SET_DEFAULT=YES
+PLATFORM=`uname`
+M_ARCH=`uname -m`
+if [ "$PLATFORM" = Linux -a "$M_ARCH" = s390x ]; then
+  SET_DEFAULT=NO
+  LD_LIBRARY_PATH=$ORACLE_HOME/lib32:$ORACLE_HOME/network/lib32:$LD_LIBRARY_PATH
+  export LD_LIBRARY_PATH
+fi
+case $PLATFORM in "HP-UX")
+   SET_DEFAULT=NO
+   SHLIB_PATH=$ORACLE_HOME/lib32:$ORACLE_HOME/network/lib32:$SHLIB_PATH
+   export SHLIB_PATH
+esac
+case $PLATFORM in "AIX")
+   SET_DEFAULT=NO
+   LIBPATH=$ORACLE_HOME/lib32:$ORACLE_HOME/network/lib32:$LIBPATH
+   export LIBPATH
+esac
+if [ "$PLATFORM" = Linux -a "$M_ARCH" = s390x ]; then
+  SET_DEFAULT=NO
+  LD_LIBRARY_PATH=$ORACLE_HOME/lib32:$ORACLE_HOME/network/lib32:$LD_LIBRARY_PATH
+  export LD_LIBRARY_PATH
+fi
+case $SET_DEFAULT in "YES")
+if  [ -d ${ORACLE_HOME}/lib32 ]; then
+  LD_LIBRARY_PATH=$ORACLE_HOME/lib32:$ORACLE_HOME/network/lib32:$LD_LIBRARY_PATH
+  export LD_LIBRARY_PATH
+  LD_LIBRARY_PATH_64=$ORACLE_HOME/lib:$ORACLE_HOME/network/lib:$LD_LIBRARY_PATH_64
+  export LD_LIBRARY_PATH_64
+else
+  LD_LIBRARY_PATH=$ORACLE_HOME/lib:$ORACLE_HOME/network/lib:$LD_LIBRARY_PATH
+  export LD_LIBRARY_PATH
+fi
+esac
+
+JAVA_HOME=$ORACLE_HOME/jdk
+export JAVA_HOME
+JAVAEXE=java
+
+# make sure JDK is installed
+if [ ! -d ${JAVA_HOME} ]; then
+   echo "Java Runtime not found."
+   echo "$ORACLE_HOME/jdk does not exist. Please verify.";
+   exit 1
+fi
+
+LDAPJCLNT19=$ORACLE_HOME/jlib/ldapjclnt19.jar
+# make sure ldapjclnt19.jar is present
+if [ ! -f "$LDAPJCLNT19" ]; then
+   echo "Missing jar file."
+   echo "$LDAPJCLNT19 not found"
+   exit 1
+fi
+
+CLASSPATH=${LDAPJCLNT19}:${ORACLE_HOME}/jlib/netcfg.jar:$ORACLE_HOME/j2ee/home/jps-api.jar:$ORACLE_HOME/j2ee/home/jps-internal.jar
+export CLASSPATH
+
+exec ${JAVA_HOME}/bin/$JAVAEXE -classpath ${CLASSPATH} -DORACLE_HOME=$ORACLE_HOME oracle.ldap.util.LDIFMigration "$@"

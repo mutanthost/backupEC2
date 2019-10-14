@@ -1,0 +1,207 @@
+<?xml version="1.0"?>
+<date_pattern>
+	<pattern>
+                <key>1</key>
+                <regex>\d{4}-\d{2}-\d{2}T\d{2}:\d{2}:\d{2}\.\d{6}[\+|-]\d{2}:\d{2}</regex>
+                <format_mask>yyyy-MM-dd'T'HH:mm:ss</format_mask>
+                <example>2015-01-16T11:03:59.735790+01:00</example>
+        </pattern>
+        <pattern>
+                <key>1.1</key>
+                <regex>\d{4}-\d{2}-\d{2}\s\d{2}:\d{2}:\d{2},\d{3}</regex>
+                <format_mask>yyyy-MM-dd HH:mm:ss,SSS</format_mask>
+                <example>2008-05-08 15:07:33,199</example>
+        </pattern>
+	<pattern>
+		<key>1.2</key>
+		<regex>\d{4}-\d{2}-\d{2}\s\d{2}:\d{2}:\d{2}\.\d{3}</regex>
+		<format_mask>yyyy-MM-dd HH:mm:ss.SSS</format_mask>
+		<example>2008-05-08 15:07:33.199</example>
+	</pattern>	
+	<pattern>
+                <key>1.3</key>
+                <regex>\d{4}-\d{2}-\d{2}\s\d{2}:\d{2}:\d{2}:\d{3}</regex>
+                <format_mask>yyyy-MM-dd HH:mm:ss:SSS</format_mask>
+                <example>2008-05-08 15:07:33:199</example>
+        </pattern>
+	<pattern>
+                <key>1.4</key>
+                <regex>\d{4}-\d{2}-\d{2}\s\d{2}:\d{2}:\d{2}</regex>
+                <format_mask>yyyy-MM-dd HH:mm:ss</format_mask>
+                <example>2008-05-08 15:07:33</example>
+        </pattern>
+	<pattern>
+		<key>2</key>
+		<regex>[a-zA-Z]{3}\s{1,2}\d{1,2}\s\d{1,2}:\d{2}:\d{2}\s\d{4}</regex>
+		<format_mask>MMM dd HH:mm:ss yyyy</format_mask>
+		<example>Apr 14 20:43:55 2009</example>
+	</pattern>
+	<pattern>
+		<key>3</key>
+		<regex>\d{4}-\d{2}-\d{2}-\d{2}:\d{2}:\d{2}</regex>
+		<format_mask>yyyy-MM-dd-HH:mm:ss</format_mask>
+		<example>2010-03-15-15:30:30</example>
+	</pattern>
+	<pattern>
+		<key>4</key>
+		<regex>\d{2}-\d{2}-\d{4}\s\d{2}:\d{2}:\d{2}\:\d{3}</regex>
+		<format_mask>dd-MM-yyyy HH:mm:ss:SSS</format_mask>
+		<example>15-03-2010 18:30:30:123</example>
+	</pattern>
+	<pattern>
+                <key>4.1</key>
+                <regex>\d{2}-\d{2}-\d{4}\s\d{2}:\d{2}:\d{2}\.\d{3}</regex>
+                <format_mask>dd-MM-yyyy HH:mm:ss.SSS</format_mask>
+                <example>15-03-2010 18:30:30.123</example>
+        </pattern>	
+	<pattern>
+		<key>5</key>
+		<regex>\d{2}-\d{2}-\d{4}\s\d{2}:\d{2}:\d{2}:\d{3}</regex>
+		<format_mask>MM-dd-yyyy HH:mm:ss:SSS</format_mask>
+		<example>03-15-2010 18:30:30:123</example>
+	</pattern>
+	<pattern>
+                <key>5.1</key>
+                <regex>\d{2}-\d{2}-\d{4}\s\d{2}:\d{2}:\d{2}\.\d{3}</regex>
+                <format_mask>MM-dd-yyyy HH:mm:ss.SSS</format_mask>
+                <example>03-15-2010 18:30:30.123</example>
+        </pattern>
+	<pattern>
+                <key>6</key>
+                <regex>\d{2}-\d{2}-\d{4}\s\d{2}:\d{2}:\d{2}:\d{3}</regex>
+                <format_mask>dd-MM-yyyy HH:mm:ss:SSS</format_mask>
+                <example>15-03-2010 18:30:30:123</example>
+        </pattern>
+	<pattern>
+                <key>6.1</key>
+                <regex>\d{2}-\d{2}-\d{4}\s\d{2}:\d{2}:\d{2}\.\d{3}</regex>
+                <format_mask>dd-MM-yyyy HH:mm:ss.SSS</format_mask>
+                <example>15-03-2010 18:30:30.123</example>
+        </pattern>
+	<pattern>
+		<key>6.2</key>
+		<regex>\d{2}-\d{2}-\d{4}\s\d{2}:\d{2}:\d{2}</regex>
+		<format_mask>MM-dd-yyyy HH:mm:ss</format_mask>
+		<example>03-15-2010 18:30:30</example>
+	</pattern>
+	<pattern>
+		<key>6.3</key>
+		<regex>\d{2}-\d{2}-\d{4}\s\d{2}:\d{2}:\d{2}</regex>
+		<format_mask>dd-MM-yyyy HH:mm:ss</format_mask>
+		<example>15-03-2010 18:30:30</example>
+	</pattern>
+	<pattern>
+                <key>6.4</key>
+                <regex>\d{2}-\d{2}-\d{2}\s\d{2}:\d{2}:\d{2}</regex>
+                <format_mask>dd-MM-yy HH:mm:ss</format_mask>
+                <example>15-03-10 18:30:30</example>
+        </pattern>
+	<pattern>
+		<key>7</key>
+		<regex>\d{1,2}/\d{1,2}/\d{4}\s\d{2}:\d{2}:\d{2}</regex>
+		<format_mask>MM/dd/yyyy HH:mm:ss</format_mask>
+		<example>05/11/2010 01:34:23</example>		
+	</pattern>
+	<pattern>
+                <key>7.1</key>
+                <regex>\d{1,2}/\d{1,2}/\d{2}\s\d{2}:\d{2}:\d{2}</regex>
+                <format_mask>MM/dd/yy HH:mm:ss</format_mask>
+                <example>05/11/10 01:34:23</example>
+        </pattern>
+	<pattern>
+		<key>7.2</key>
+		<regex>\d{1,2}/\d{1,2}/\d{4}</regex>
+		<format_mask>MM/dd/yyyy</format_mask>
+		<example>01/20/2001</example>
+	</pattern>
+	<pattern>
+		<key>8</key>
+		<regex>[a-zA-Z]{3}\s{1,2}\d{2}\s\d{2}:\d{2}:\d{2}\s[a-zA-Z]{3,4}\s\d{4}</regex>
+		<format_mask>MMM dd HH:mm:ss zzz yyyy</format_mask>
+		<example>Apr 30 18:30:30 PST 2010</example>
+	</pattern>
+	<pattern>
+		<key>8.1</key>
+		<regex>[a-zA-Z]{3}\s{1,2}\d{1,2}\s\d{1,2}:\d{2}:\d{2}\s\d{4}</regex>
+		<format_mask>MMM dd HH:mm:ss yyyy</format_mask>
+		<example>Feb  9 17:52:17 2011</example>
+	</pattern>
+	<pattern>
+		<key>9</key>
+		<regex>[a-zA-Z]{3}\s{1,2}\d{1,2}\s\d{2}:\d{2}:\d{2}</regex>
+		<format_mask>MMM dd HH:mm:ss</format_mask>
+		<example>Apr 30 18:30:30</example>
+	</pattern>
+	<pattern>
+		<key>10</key>
+		<regex>\d{4}-\d{2}-\d{2}T\d{2}:\d{2}:\d{2}\.\d{3}</regex>
+		<format_mask>yyyy-MM-dd'T'HH:mm:ss.SSS</format_mask>
+		<example>2009-12-14T18:43:18.161</example>
+	</pattern>
+	<pattern>
+                <key>10.1</key>
+                <regex>\d{4}-\d{2}-\d{2}T\d{2}:\d{2}:\d{2}:\d{3}</regex>
+                <format_mask>yyyy-MM-dd'T'HH:mm:ss:SSS</format_mask>
+                <example>2009-12-14T18:43:18:161</example>
+        </pattern>
+	<pattern>
+		<key>11</key>
+		<regex>\d{1,2}-[a-zA-Z]{3}-\d{4}\s\d{2}:\d{2}:\d{2}</regex>
+		<format_mask>dd-MMM-yyyy HH:mm:ss</format_mask>
+		<example>30-DEC-2009 10:20:35</example>
+	</pattern>	
+	<pattern>
+                <key>11.1</key>
+                <regex>\d{1,2}-[a-zA-Z]{3}-\d{2}\s\d{2}:\d{2}</regex>
+                <format_mask>dd-MMM-yy HH:mm</format_mask>
+                <example>30-Jul-09 10:20</example>
+        </pattern>
+         <pattern>
+                <key>12</key>
+                <regex>[a-z A-Z]{6,9},\s[a-z A-Z]{3,9}\s{1,2}\d{1,2},\s\d{4}\s\d{1,2}:\d{2}:\d{2}\s[a-z A-Z]{2}\s[a-z A-Z]{3}</regex>
+                <format_mask>E, MMM d, yyyy hh:mm:ss aa zzz</format_mask>
+                <example>Friday, September 30, 2011 3:00:16 AM CDT</example>
+        </pattern>
+	 <pattern>
+                <key>13</key>
+                <regex>[a-z A-Z]{3}\s[a-z A-Z]{3}\s{1,2}\d{1,2}\s\d{2}:\d{2}:\d{2}\s[a-z A-Z]{3}\s\d{4}</regex>
+                <format_mask>EEE MMM d hh:mm:ss zzz yyyy</format_mask>
+                <example>Sat Sep 1 04:00:47 EDT 2012</example>
+        </pattern>
+	<pattern>
+                <key>14</key>
+                <regex>\d{4}-\d{2}-\d{2}\s\d{2}\.\d{2}\.\d{2}</regex>
+                <format_mask>yyyy-MM-dd HH.mm.ss</format_mask>
+                <example>2016-08-24 10.56.04</example>
+        </pattern>
+	<pattern>
+                <key>14.1</key>
+                <regex>\d{1,2}-\d{1,2}-\d{2}\s\d{2}\.\d{2}\.\d{2}</regex>
+                <format_mask>MM-dd-yy hh.mm.ss</format_mask>
+                <example>08-14-12 13.43.57</example>
+        </pattern>
+	<pattern>
+		<key>15</key>
+		<regex>\d{8}-\d{1,2}:\d{2}:\d{2}-\d{4}</regex>
+		<format_mask>yyyyMMdd-HH:mm:ssZ</format_mask>
+		<example>20131010-11:09:42-0600</example>
+	</pattern>
+	<pattern>
+                <key>16</key>
+                <regex>\d{1,2}/\d{1,2}/\d{2}\s\d{2}:\d{2}:\d{2}\.\d{3}</regex>
+                <format_mask>yy/MM/dd HH:mm:ss.SSS</format_mask>
+                <example>14/01/12 01:34:23.719</example>
+        </pattern>
+	<pattern>
+		<key>17</key>
+		<regex>[a-z A-Z]{3}\s\d{1,2}\s\d{2}:\d{2}:\d{2}</regex>
+		<format_mask>MMM dd HH:mm:ss</format_mask>
+		<example>May 20 16:14:45</example>
+	</pattern>	
+	<pattern>
+		<key>18</key>
+		<regex>\d{4}[a-z A-Z]{3}\d{2}\s\d{2}:\d{2}:\d{2}:\d{4}</regex>
+		<format_mask>yyyyMMMdd HH:mm:ss:SSSS</format_mask>
+		<example>2015Dec23 22:03:37:3362</example>
+	</pattern>	
+</date_pattern>
